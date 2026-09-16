@@ -23,6 +23,7 @@ sub init()
     m.top.observeField("content", "onRequestedContent")
     m.top.observeField("control", "onRequestedControl")
     m.video.observeField("position", "onVideoPositionChange")
+    m.video.observeField("downloadedSegment", "onDownloadedSegment")
     m.top.observeField("visible", "onVisible")
     m.top.observeField("playbackInfo", "onPlaybackInfo")
     m.top.observeField("chatIsVisible", "onChatVisibilityChange")
@@ -36,6 +37,7 @@ sub init()
     m.controlIndex = 0
     m.overlayFocus = "buttons"
     m.variants = []
+    m.capabilities = invalid
     m.qualityIndex = 0
     m.playingIndex = -1
     m.preference = "Auto"
@@ -49,6 +51,7 @@ sub init()
     m.bufferTicks = 0
     m.stalledTicks = 0
     m.lastPosition = -1
+    resetPlaybackAttempt()
     m.buttonNodes = []
     onChatVisibilityChange()
     onMetadataChange()
@@ -117,20 +120,28 @@ end sub
 
 sub onPlaybackInfo()
     m.variants = []
+    m.capabilities = invalid
     info = m.top.playbackInfo
     if type(info) = "roAssociativeArray"
         if type(info.variants) = "roArray" then m.variants = info.variants
+        if type(info.capabilities) = "roAssociativeArray" then m.capabilities = info.capabilities
     end if
     m.preference = "Auto"
     if GetInterface(m.global.preferredQuality, "ifString") <> invalid then m.preference = m.global.preferredQuality
     m.qualityIndex = 0
     if m.preference <> "Auto"
         for index = 0 to m.variants.Count() - 1
-            if m.variants[index].name = m.preference then m.qualityIndex = index + 1
+            if m.variants[index].name = m.preference and playbackVariantSupported(m.variants[index], m.capabilities) then m.qualityIndex = index + 1
         end for
     end if
     if m.qualityIndex = 0 then m.preference = "Auto"
-    m.playingIndex = playbackPreferenceIndex(m.variants, m.preference)
+    m.playingIndex = playbackPreferenceIndex(m.variants, m.preference, m.capabilities)
+    if type(info) = "roAssociativeArray" and info.initialIndex <> invalid
+        index = info.initialIndex
+        if index >= 0 and index < m.variants.Count()
+            if playbackVariantSupported(m.variants[index], m.capabilities) then m.playingIndex = index
+        end if
+    end if
     m.tried = {}
     if m.playingIndex >= 0 then m.tried[m.playingIndex.ToStr()] = true
     m.qualityPanel.visible = false
@@ -138,6 +149,7 @@ sub onPlaybackInfo()
     m.switching = false
     m.resumePaused = false
     m.top.playbackError = ""
+    m.top.playbackDiagnostics = {}
     renderQuality()
     refreshControls()
 end sub
@@ -145,12 +157,21 @@ end sub
 sub onRequestedContent()
     m.pendingContent = m.top.content
     m.startRequested = false
+    if not m.top.visible
+        m.pendingContent = invalid
+        return
+    end if
     if m.pendingContent = invalid then return
+    if m.variants.Count() > 0 and m.playingIndex < 0
+        showPlaybackError("No stream quality fits the device playback capabilities.")
+        return
+    end if
     m.playbackActive = true
     m.switching = true
     m.bufferTicks = 0
     state = m.video.state
-    if state <> "none" and state <> "stopped" and state <> "finished" then m.video.control = "stop"
+    if not playerDecoderIdle(state) and state <> "stopping" then m.video.control = "stop"
+    if state = "error" then m.video.control = "stop"
 end sub
 
 sub onRequestedControl()
@@ -158,16 +179,18 @@ sub onRequestedControl()
     if command = "stop"
         stopPlayback()
     else if command = "play"
+        if not m.top.visible then return
+        if m.pendingContent = invalid and not m.playbackActive then return
         m.startRequested = true
         if m.pendingContent <> invalid
             state = m.video.state
-            if state = "none" or state = "stopped" or state = "finished"
+            if playerDecoderIdle(state)
                 startPendingContent()
             else
                 m.playbackActive = true
                 showPlayerBusy()
                 m.watchdog.control = "start"
-                m.video.control = "stop"
+                if state <> "stopping" then m.video.control = "stop"
             end if
         else
             m.video.control = "play"
@@ -179,18 +202,17 @@ end sub
 
 sub startPendingContent()
     if m.pendingContent = invalid or not m.startRequested or not m.top.visible then return
+    if not playerDecoderIdle(m.video.state) then return
     nextContent = m.pendingContent
     m.pendingContent = invalid
+    resetPlaybackAttempt()
+    m.playbackActive = true
     m.video.content = nextContent
     m.video.control = "play"
 end sub
 
 sub onContentChange()
-    if m.video.content = invalid or not m.top.visible then return
-    m.playbackActive = true
-    m.bufferTicks = 0
-    m.stalledTicks = 0
-    m.lastPosition = -1
+    if m.video.content = invalid or not m.top.visible or not m.playbackActive then return
     m.pendingSeek = invalid
     m.seekTimer.control = "stop"
     m.top.playbackError = ""
@@ -202,15 +224,21 @@ end sub
 
 sub onVideoStateChange()
     state = m.video.state
-    if not m.playbackActive then return
-    if m.pendingContent <> invalid and state <> "stopped" and state <> "finished" then return
-    if state = "stopped" or state = "finished"
-        if m.pendingContent <> invalid
-            startPendingContent()
-        else if state = "finished"
-            m.top.back = true
-        end if
+    if not m.playbackActive or not m.top.visible then return
+    if m.pendingContent <> invalid
+        if playerDecoderIdle(state) then startPendingContent()
+        return
+    end if
+    if state = "finished" or state = "error"
+        ' A previous decoder's terminal state can remain briefly after play.
+        ' The watchdog handles an attempt that never enters buffering/playing.
+        if not m.attemptStarted then return
+        handlePlaybackTerminal(state)
     else if state = "playing"
+        m.attemptStarted = true
+        m.attemptPlayed = true
+        m.terminalTicks = 0
+        rememberPlaybackPosition()
         m.bufferTicks = 0
         m.statusBox.visible = false
         m.busy.active = false
@@ -225,54 +253,172 @@ sub onVideoStateChange()
         m.statusBox.visible = false
         m.busy.active = false
     else if state = "buffering"
+        m.attemptStarted = true
+        m.terminalTicks = 0
         showPlayerBusy()
         m.pauseIndicator.visible = false
-    else if state = "error"
-        recoverPlayback()
     end if
 end sub
 
 sub checkPlaybackProgress()
     if not m.top.visible or not m.playbackActive then return
     state = m.video.state
+    if m.pendingContent <> invalid and playerDecoderIdle(state)
+        startPendingContent()
+        return
+    end if
     if m.pendingContent <> invalid or state = "buffering" or state = "none" or state = "stopping" or state = "stopped"
         m.bufferTicks += 1
         if m.bufferTicks >= 15
             if m.pendingContent <> invalid
                 showPlaybackError("The video decoder did not stop. Press Back and reopen the stream.")
             else
-                recoverPlayback()
+                recoverPlayback("buffering-timeout")
             end if
         end if
     else if state = "playing"
+        m.attemptStarted = true
+        m.attemptPlayed = true
+        rememberPlaybackPosition()
         m.bufferTicks = 0
         if Abs(playerSeconds(m.video.position) - m.lastPosition) < 0.1
             m.stalledTicks += 1
-            if m.stalledTicks >= 20 then recoverPlayback()
+            if m.stalledTicks >= 20 then recoverPlayback("progress-timeout")
         else
             m.stalledTicks = 0
             m.lastPosition = playerSeconds(m.video.position)
         end if
     else if state = "paused"
         m.stalledTicks = 0
+    else if state = "finished" or state = "error"
+        m.terminalTicks += 1
+        if m.attemptStarted or m.terminalTicks >= 2 then handlePlaybackTerminal(state)
     end if
 end sub
 
-sub recoverPlayback()
+sub resetPlaybackAttempt()
+    m.attemptStarted = false
+    m.attemptPlayed = false
+    m.terminalTicks = 0
+    m.bufferTicks = 0
+    m.stalledTicks = 0
+    m.lastPosition = -1
+    m.completedPosition = 0
+    m.completedDuration = 0
+    m.downloadSamples = []
+    m.lastDownloadSequence = invalid
+    m.lastDownloadStart = invalid
+end sub
+
+function playerDecoderIdle(state as String) as Boolean
+    return state = "none" or state = "stopped" or state = "finished" or state = "error"
+end function
+
+sub rememberPlaybackPosition()
+    position = playerSeconds(m.video.position)
+    duration = playerSeconds(m.video.duration)
+    if m.video.state = "playing" or m.video.state = "paused"
+        m.completedPosition = position
+    else if position > m.completedPosition
+        m.completedPosition = position
+    end if
+    if duration > 0 then m.completedDuration = duration
+end sub
+
+sub handlePlaybackTerminal(state as String)
+    if state = "finished" and m.top.contentKind <> "live" and m.attemptPlayed
+        rememberPlaybackPosition()
+        if m.completedDuration <= 0 or m.completedPosition >= m.completedDuration - 2
+            stopPlayback()
+            m.top.back = true
+            return
+        end if
+    end if
+    reason = "native-error"
+    if state = "finished" then reason = "unexpected-finish"
+    recoverPlayback(reason)
+end sub
+
+sub recoverPlayback(reason = "playback-failed")
     if not m.playbackActive then return
+    recordPlaybackDiagnostic(reason)
     nextIndex = -1
-    if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried)
+    if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried, m.capabilities)
     if nextIndex >= 0
         showPlayerBusy()
         switchVariant(nextIndex)
     else
-        showPlaybackError("This quality could not play. Choose another quality or press Back.")
+        message = "Playback failed. Choose a quality or press Back."
+        if reason = "unexpected-finish"
+            message = "Playback stopped early. Choose a quality or press Back."
+            if m.top.contentKind = "live" then message = "Live stream stopped. Choose a quality or press Back."
+        else if m.top.playbackDiagnostics.category = "http"
+            message = "Stream download failed. Choose a quality or press Back."
+        end if
+        showPlaybackError(message)
+    end if
+end sub
+
+sub recordPlaybackDiagnostic(reason as String, measuredBps = 0)
+    ' Never copy error strings or entire native AAs: they can contain signed URLs.
+    diagnostic = {reason: reason, qualityIndex: m.playingIndex, measuredBps: measuredBps}
+    if reason = "native-error"
+        diagnostic.errorCode = playerSeconds(m.video.errorCode)
+        info = m.video.errorInfo
+        if type(info) = "roAssociativeArray"
+            for each category in ["http", "drm", "mediaerror", "mediaplayer"]
+                if info.category = category then diagnostic.category = category
+            end for
+            diagnostic.detailCode = playerSeconds(info.errcode)
+        end if
+    end if
+    m.top.playbackDiagnostics = diagnostic
+    print "Playback "; FormatJson(diagnostic)
+end sub
+
+sub onDownloadedSegment()
+    if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid then return
+    if m.video.state <> "playing" and m.video.state <> "buffering" then return
+    if m.playingIndex < 0 or m.playingIndex >= m.variants.Count() then return
+    sample = m.video.downloadedSegment
+    if type(sample) <> "roAssociativeArray" then return
+    if sample.Status <> 0 or (sample.SegType <> 0 and sample.SegType <> 2) then return
+    if sample.SegSequence = m.lastDownloadSequence and sample.SegStart = m.lastDownloadStart then return
+    height = playerSeconds(sample.Height)
+    if height > 0 and height <> m.variants[m.playingIndex].height then return
+    bytes = playerSeconds(sample.SegSize)
+    downloadMs = playerSeconds(sample.DownloadDuration)
+    durationMs = playerSeconds(sample.SegDuration)
+    if GetInterface(sample.SegDuration, "ifString") <> invalid then durationMs = Val(sample.SegDuration)
+    if bytes <= 0 or downloadMs <= 0 or durationMs <= 0 then return
+    m.lastDownloadSequence = sample.SegSequence
+    m.lastDownloadStart = sample.SegStart
+    m.downloadSamples.Push({bytes: bytes, downloadMs: downloadMs, durationMs: durationMs})
+    if m.downloadSamples.Count() > 3 then m.downloadSamples.Shift()
+    if m.downloadSamples.Count() < 3 or m.preference <> "Auto" then return
+    totalBytes = 0.0
+    totalDownload = 0.0
+    totalDuration = 0.0
+    for each recent in m.downloadSamples
+        totalBytes += recent.bytes
+        totalDownload += recent.downloadMs
+        totalDuration += recent.durationMs
+    end for
+    ' Three complete video segments taking longer to download than to play
+    ' provide throughput evidence. Buffering alone is not a codec diagnosis.
+    if totalDownload <= totalDuration then return
+    measuredBps = totalBytes * 8000.0 / totalDownload
+    nextIndex = playbackBandwidthIndex(m.variants, m.playingIndex, measuredBps, m.tried, m.capabilities)
+    if nextIndex >= 0
+        recordPlaybackDiagnostic("download-throughput", measuredBps)
+        switchVariant(nextIndex)
     end if
 end sub
 
 sub showPlaybackError(message as String)
     m.busy.active = false
     m.pendingContent = invalid
+    m.startRequested = false
     m.playbackActive = false
     m.switching = false
     m.watchdog.control = "stop"
@@ -287,6 +433,10 @@ end sub
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
     selected = m.variants[index]
+    if not playbackVariantSupported(selected, m.capabilities)
+        showPlaybackError("This quality exceeds the device playback capabilities.")
+        return
+    end if
     showPlayerBusy()
     nextContent = CreateObject("roSGNode", "ContentNode")
     nextContent.url = selected.url
@@ -314,14 +464,9 @@ sub switchVariant(index as Integer)
     m.watchdog.control = "start"
     ' A second load cannot start until Roku releases the underlying media player.
     state = m.video.state
-    if state = "stopped" or state = "none" or state = "finished"
-        m.pendingContent = invalid
-        m.video.content = nextContent
-        m.video.control = "play"
-    else
-        m.pendingContent = nextContent
-        m.video.control = "stop"
-    end if
+    m.pendingContent = nextContent
+    if state = "error" or (not playerDecoderIdle(state) and state <> "stopping") then m.video.control = "stop"
+    if playerDecoderIdle(m.video.state) then startPendingContent()
     renderQuality()
 end sub
 
@@ -361,7 +506,10 @@ sub showOverlay()
 end sub
 
 sub hideOverlay()
-    if m.qualityPanel.visible then return
+    if m.qualityPanel.visible or m.top.playbackError <> ""
+        m.overlayTimer.control = "stop"
+        return
+    end if
     m.overlay.visible = false
     m.overlayTimer.control = "stop"
 end sub
@@ -423,6 +571,11 @@ sub renderQuality()
     label = "Auto"
     if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count() then label = m.variants[m.qualityIndex - 1].name
     m.qualityName.text = label
+    hint = "OK to apply · Back to close"
+    if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count()
+        if not playbackVariantSupported(m.variants[m.qualityIndex - 1], m.capabilities) then hint = "Unavailable on this device · Back"
+    end if
+    m.top.findNode("qualityHint").text = hint
 end sub
 
 sub showQuality()
@@ -441,12 +594,22 @@ sub showQuality()
 end sub
 
 sub applyQuality()
-    index = playbackAutoIndex(m.variants)
-    m.preference = "Auto"
+    index = playbackAutoIndex(m.variants, m.capabilities)
+    preference = "Auto"
     if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count()
         index = m.qualityIndex - 1
-        m.preference = m.variants[index].name
+        if not playbackVariantSupported(m.variants[index], m.capabilities)
+            renderQuality()
+            return
+        end if
+        preference = m.variants[index].name
     end if
+    if index < 0
+        m.qualityPanel.visible = false
+        showPlaybackError("No stream quality fits the device playback capabilities.")
+        return
+    end if
+    m.preference = preference
     m.global.preferredQuality = m.preference
     m.top.qualityPreference = m.preference
     m.tried = {}
@@ -470,6 +633,7 @@ end sub
 
 sub commitSeek()
     if m.pendingSeek = invalid then return
+    m.completedPosition = m.pendingSeek
     m.video.seek = m.pendingSeek
     m.pendingSeek = invalid
     m.stalledTicks = 0
@@ -487,6 +651,7 @@ end sub
 
 sub onVideoPositionChange()
     if m.video = invalid then return
+    if m.playbackActive and (m.video.state = "playing" or m.video.state = "paused") then rememberPlaybackPosition()
     m.progress.visible = canSeek()
     m.seekFocus.visible = m.overlayFocus = "seek" and canSeek()
     position = playerSeconds(m.video.position)

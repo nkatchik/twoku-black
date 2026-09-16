@@ -29,6 +29,7 @@
         <field id="streamDurationSeconds" type="integer" value="0" />
         <field id="playbackInfo" type="assocarray" alwaysNotify="true" />
         <field id="playbackError" type="string" value="" />
+        <field id="playbackDiagnostics" type="assocarray" />
         <field id="qualityPreference" type="string" value="Auto" alwaysNotify="true" />
         <function name="focusContent" />
         <function name="stopPlayback" />
@@ -90,7 +91,7 @@
             <Label id="statusText" translation="[22,22]" width="436" height="60" wrap="true" maxLines="2" horizAlign="center" vertAlign="center">
                 <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="22" />
             </Label>
-            <Label id="statusHint" translation="[22,92]" width="436" height="22" text="Back to return" horizAlign="center" color="0xAEB5C3FF">
+            <Label id="statusHint" translation="[22,92]" width="436" height="22" text="Options: quality · Back: return" horizAlign="center" color="0xAEB5C3FF">
                 <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="15" />
             </Label>
         </Group>

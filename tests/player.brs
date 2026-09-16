@@ -26,6 +26,7 @@ sub resetPlayer()
     m.top.chatEnabled = true
     m.top.chatIsVisible = false
     m.top.playbackError = ""
+    m.top.playbackDiagnostics = {}
     m.top.visible = true
     m.top.thumbnailInfo = invalid
     m.top.videoBookmarks = {}
@@ -58,11 +59,15 @@ sub resetPlayer()
     m.overlayFocus = "buttons"
     m.buttonNodes = []
     m.variants = [
-        {name: "1080p60 (source)", url: "https://example/source", height: 1080, frameRate: 60},
-        {name: "720p", url: "https://example/720", height: 720, frameRate: 30},
-        {name: "480p", url: "https://example/480", height: 480, frameRate: 30},
-        {name: "360p", url: "https://example/360", height: 360, frameRate: 30}
+        {name: "1080p60 (source)", url: "https://example/source", width: 1920, height: 1080, frameRate: 60, bandwidth: 6000000},
+        {name: "720p", url: "https://example/720", width: 1280, height: 720, frameRate: 30, bandwidth: 3000000},
+        {name: "480p", url: "https://example/480", width: 852, height: 480, frameRate: 30, bandwidth: 1500000},
+        {name: "360p", url: "https://example/360", width: 640, height: 360, frameRate: 30, bandwidth: 800000}
     ]
+    m.capabilities = {maxWidth: 1920, maxHeight: 1080, maxFrameRate: 60, supported: {}}
+    for each variant in m.variants
+        m.capabilities.supported[variant.url] = true
+    end for
     m.preference = "Auto"
     m.qualityIndex = 0
     m.playingIndex = 1
@@ -75,6 +80,8 @@ sub resetPlayer()
     m.resumePaused = false
     m.bufferTicks = 0
     m.stalledTicks = 0
+    m.lastPosition = 0
+    resetPlaybackAttempt()
     m.lastPosition = 0
     refreshControls()
 end sub
@@ -111,6 +118,153 @@ sub main()
     check(m.preference = "Auto" and m.global.preferredQuality = "missing quality", "unavailable preference uses Auto without forgetting user choice")
 
     resetPlayer()
+    m.global.preferredQuality = "1080p60 (source)"
+    m.capabilities.maxFrameRate = 30
+    m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities, initialIndex: 1}
+    onPlaybackInfo()
+    check(m.preference = "Auto" and m.playingIndex = 1, "unsupported saved quality uses capability-checked Auto")
+    check(m.global.preferredQuality = "1080p60 (source)", "effective Auto preserves the user's saved choice for capable devices")
+    showQuality()
+    m.qualityIndex = 1
+    applyQuality()
+    check(m.playingIndex = 1 and m.qualityPanel.visible and m.playbackActive, "unsupported manual quality is disabled without interrupting playback")
+    check(Instr(1, m.top.findNode("qualityHint").text, "Unavailable") > 0, "quality picker explains an unsupported choice")
+
+    resetPlayer()
+    m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities, initialIndex: 2}
+    onPlaybackInfo()
+    check(m.playingIndex = 2 and m.tried.DoesExist("2"), "player tracks the exact variant URL selected by the resolver")
+
+    resetPlayer()
+    m.capabilities.supported = {}
+    showQuality()
+    applyQuality()
+    check(m.top.playbackError <> "" and not m.playbackActive, "Auto reports when no rendition fits device capabilities")
+    m.top.control = "play"
+    onRequestedControl()
+    check(m.video.control <> "play", "a later play command cannot revive a rejected content request")
+
+    resetPlayer()
+    m.video.state = "finished"
+    onVideoStateChange()
+    check(m.top.back <> true and m.playingIndex = 1, "stale startup finished cannot immediately exit or consume fallback")
+    checkPlaybackProgress()
+    check(m.playingIndex = 1, "first terminal tick gives new playback time to leave the previous state")
+    m.video.state = "buffering"
+    onVideoStateChange()
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(m.attemptPlayed and m.top.back <> true, "new attempt can start after a stale finished event")
+    m.video.state = "finished"
+    onVideoStateChange()
+    check(m.playingIndex = 2 and m.video.content.url = "https://example/480", "live finished retries inside the player")
+    check(m.top.back <> true and m.playbackActive, "live completion never navigates automatically")
+    for attempt = 1 to 6
+        checkPlaybackProgress()
+    end for
+    check(m.top.back <> true and not m.playbackActive and m.statusBox.visible, "repeated instant live finishes end in a finite visible error")
+    check(onKeyEvent("options", true) and m.qualityPanel.visible, "quality controls remain usable after instant playback failures")
+
+    resetPlayer()
+    m.preference = "720p"
+    m.video.state = "error"
+    m.video.errorCode = -5
+    m.video.errorInfo = {category: "mediaerror", errcode: 17, dbgmsg: "https://secret/?token=secret"}
+    onVideoStateChange()
+    checkPlaybackProgress()
+    checkPlaybackProgress()
+    check(m.top.back <> true and m.top.playbackError <> "", "instant native error stays in the player")
+    check(m.top.playbackDiagnostics.errorCode = -5 and m.top.playbackDiagnostics.category = "mediaerror", "native diagnostics retain useful numeric/category evidence")
+    check(Instr(1, FormatJson(m.top.playbackDiagnostics), "secret") = 0, "native diagnostic output never includes error text or signed URLs")
+    showQuality()
+    m.qualityIndex = 3
+    applyQuality()
+    check(m.pendingContent = invalid and m.video.content.url = "https://example/480" and m.video.control = "play", "terminal error can retry even when native stop emits no stopped event")
+    onVideoStateChange()
+    check(m.playbackActive and m.top.playbackError = "", "old error state has a startup grace after retry")
+
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.duration = 600
+    m.video.position = 120
+    m.video.state = "playing"
+    onVideoStateChange()
+    m.video.state = "finished"
+    onVideoStateChange()
+    check(m.top.back <> true and m.playbackActive, "premature recorded completion recovers rather than returning to the grid")
+
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.duration = 600
+    m.video.position = 599
+    m.video.state = "playing"
+    onVideoStateChange()
+    m.video.position = invalid
+    m.video.duration = invalid
+    m.video.state = "finished"
+    onVideoStateChange()
+    check(m.top.back = true and not m.playbackActive, "natural VOD completion still exits when native terminal fields reset")
+
+    resetPlayer()
+    m.top.contentKind = "clip"
+    m.video.duration = 12
+    m.video.position = 12
+    m.video.state = "playing"
+    onVideoStateChange()
+    m.video.state = "finished"
+    onVideoStateChange()
+    check(m.top.back = true, "natural clip completion still exits")
+
+    resetPlayer()
+    m.video.state = "playing"
+    m.video.downloadedSegment = {Status: 0, SegSequence: 1, SegStart: 0, SegType: 0, SegSize: 750000, DownloadDuration: 3000, SegDuration: "2000", Height: 720}
+    onDownloadedSegment()
+    onDownloadedSegment()
+    check(m.downloadSamples.Count() = 1 and m.playingIndex = 1, "one slow segment and duplicate notifications do not reduce quality")
+    m.video.downloadedSegment.SegSequence = 2
+    m.video.downloadedSegment.Status = -1
+    onDownloadedSegment()
+    m.video.downloadedSegment.Status = 0
+    m.video.downloadedSegment.SegType = 1
+    onDownloadedSegment()
+    check(m.downloadSamples.Count() = 1, "failed and audio-only downloads are not video throughput samples")
+    m.video.downloadedSegment.SegType = 2
+    onDownloadedSegment()
+    m.video.downloadedSegment.SegSequence = 3
+    onDownloadedSegment()
+    check(m.playingIndex = 2 and m.pendingContent.url = "https://example/480", "sustained measured throughput selects the highest fitting bitrate")
+    check(m.top.playbackDiagnostics.reason = "download-throughput" and m.top.playbackDiagnostics.measuredBps = 2000000, "bandwidth decisions report measured bits per second")
+    check(m.capabilities.supported["https://example/source"] and m.global.preferredQuality = "Auto", "network recovery does not mutate hardware support or user preference")
+
+    resetPlayer()
+    m.video.state = "playing"
+    for sequence = 1 to 3
+        downloadMs = 1000
+        if sequence = 1 then downloadMs = 3000
+        m.video.downloadedSegment = {Status: 0, SegSequence: sequence, SegStart: sequence * 2, SegType: 0, SegSize: 750000, DownloadDuration: downloadMs, SegDuration: 2000, Height: 720}
+        onDownloadedSegment()
+    end for
+    check(m.playingIndex = 1, "a temporary slow segment does not downgrade when following downloads catch up")
+    m.preference = "720p"
+    for sequence = 4 to 6
+        m.video.downloadedSegment = {Status: 0, SegSequence: sequence, SegStart: sequence * 2, SegType: 0, SegSize: 750000, DownloadDuration: 3000, SegDuration: 2000, Height: 720}
+        onDownloadedSegment()
+    end for
+    check(m.playingIndex = 1, "manual quality is preserved during slow downloads")
+    stopPlayback()
+    onContentChange()
+    m.video.state = "finished"
+    onVideoStateChange()
+    onDownloadedSegment()
+    check(not m.playbackActive and m.top.back <> true and not m.busy.active, "late native callbacks cannot revive or navigate an exited player")
+    m.top.visible = false
+    m.top.content = {url: "https://example/late"}
+    onRequestedContent()
+    m.top.control = "play"
+    onRequestedControl()
+    check(m.pendingContent = invalid and m.video.control = "stop", "hidden content and control notifications cannot restart playback")
+
+    resetPlayer()
     m.top.chatEnabled = false
     refreshControls()
     check(m.controlActions.Count() = 2 and m.controlActions[1] = "quality", "disabled chat has no player control")
@@ -140,6 +294,8 @@ sub main()
     onVideoStateChange()
     m.video.state = "error"
     onVideoStateChange()
+    checkPlaybackProgress()
+    checkPlaybackProgress()
     check(not m.playbackActive and m.top.playbackError <> "", "exhausted fallback displays finite error")
 
     resetPlayer()
@@ -198,5 +354,5 @@ sub main()
     check(m.busy.active and not m.statusBox.visible, "Rebuffering shows a spinner without a text box")
     showPlaybackError("Decoder failed")
     check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Decoder failed", "Errors replace the spinner with actionable text")
-    print "PASS player remote ownership, stop handshake, watchdog, chat layout, quality and VOD seek"
+    print "PASS player completion guards, terminal retries, measured bandwidth, device quality, remote input and VOD seek"
 end sub
