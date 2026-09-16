@@ -45,7 +45,7 @@
         </Group>
         <RowList id="pastBroadcastsList" itemComponentName="ChannelVideoItem" translation="[43,172]"
             numRows="2" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
-            focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="fixedFocus" />
+            focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
         <Label id="emptyLabel" translation="[43,345]" width="1194" height="110" horizAlign="center" color="0x5C5C66FF" visible="false">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
         </Label>
