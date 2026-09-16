@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="PlaybackCompatibility" extends="Task">
+    <interface>
+        <field id="sourceUrl" type="string" />
+        <field id="variant" type="assocarray" />
+        <field id="requestId" type="integer" value="0" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="result" type="assocarray" alwaysNotify="true" />
+        <field id="stats" type="assocarray" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/PlaybackCompatibility.brs" />
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+    <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
+    <script type="text/brightscript" uri="pkg:/components/Fmp4Compat.brs" />
+    <script type="text/brightscript" uri="pkg:/components/CompatHls.brs" />
+</component>
