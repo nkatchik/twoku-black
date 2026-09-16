@@ -5,14 +5,34 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/LoginPage.brs" />
     <children>
-        <Label translation="[100,72]" text="Sign in to Twitch" font="font:LargeBoldSystemFont" />
-        <Label id="qrHelp" translation="[780,120]" width="400" horizAlign="center" text="Scan to sign in on your phone" visible="false" font="font:MediumSystemFont" />
-        <Poster id="qr" translation="[800,175]" width="360" height="360" loadDisplayMode="limitSize" visible="false" />
-        <Label translation="[100,150]" text="Or open this address:" font="font:MediumSystemFont" />
-        <Label id="address" translation="[100,195]" width="650" text="www.twitch.tv/activate" font="font:MediumBoldSystemFont" color="0x00FFD1FF" />
-        <Label translation="[100,270]" text="Enter this code:" font="font:MediumSystemFont" />
-        <SimpleLabel id="code" translation="[100,320]" text="" color="0xEFEFF1FF" fontSize="48" fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-        <Label id="status" translation="[100,420]" width="650" height="120" wrap="true" text="Getting a sign-in code..." font="font:MediumSystemFont" />
-        <Label id="hint" translation="[100,570]" width="1050" text="Press Back to cancel." font="font:SmallSystemFont" />
+        <Rectangle width="1280" height="720" color="0x08080AFF" />
+        <Label translation="[180,48]" width="920" horizAlign="center" text="Sign in to Twitch" color="0xFFFFFFFF">
+            <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="34" />
+        </Label>
+        <Label id="qrHelp" translation="[720,130]" width="400" horizAlign="center" text="Scan with your phone" visible="false" color="0xC8C8CFFF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+        </Label>
+        <Poster id="qr" translation="[740,180]" width="360" height="360" loadDisplayMode="limitSize" visible="false" />
+        <Label translation="[140,195]" width="480" horizAlign="center" text="Open this address" color="0xC8C8CFFF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+        </Label>
+        <Label id="address" translation="[120,234]" width="520" horizAlign="center" text="www.twitch.tv/activate" color="0xF4F4F7FF">
+            <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="24" />
+        </Label>
+        <Label translation="[140,300]" width="480" horizAlign="center" text="and enter the code" color="0xC8C8CFFF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+        </Label>
+        <Label id="code" translation="[100,348]" width="560" height="85" horizAlign="center" color="0xF4F4F7FF">
+            <Font role="font" uri="pkg:/fonts/JetBrainsMono-Bold.ttf" size="54" />
+        </Label>
+        <Label translation="[630,315]" width="70" text="or" horizAlign="center" color="0xA0A0A8FF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
+        </Label>
+        <Label id="status" translation="[160,572]" width="960" height="70" horizAlign="center" wrap="true" text="Getting a sign-in code…" color="0xC8C8CFFF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+        </Label>
+        <Label id="hint" translation="[160,662]" width="960" horizAlign="center" text="Press Back to cancel." color="0xA0A0A8FF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="17" />
+        </Label>
     </children>
 </component>

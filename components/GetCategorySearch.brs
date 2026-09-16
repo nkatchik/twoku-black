@@ -12,7 +12,7 @@ end function
 
 function getSearchResults() as Object
     ' search_results_url = "https://api.twitch.tv/kraken/search/games?query=" + m.top.searchText + "&type=suggest&client_id=jzkbprff40iqj646a697cyrvl0zt2m6"
-    search_results_url = "https://api.twitch.tv/helix/search/categories?query=" + m.top.searchText + "&first=5"
+    search_results_url = "https://api.twitch.tv/helix/search/categories?first=5&query=" + m.top.searchText.EncodeUriComponent()
 
     ' url = CreateObject("roUrlTransfer")
     ' url.EnableEncodings(true)

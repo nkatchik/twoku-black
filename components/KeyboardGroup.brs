@@ -1,179 +1,215 @@
-'api.twitch.tv/api/channels/${user}/access_token?client_id=jzkbprff40iqj646a697cyrvl0zt2m6
-'usher.ttvnw.net/api/channel/hls/${user}.m3u8?allow_source=true&allow_spectre=true&type=any&token=${token}&sig=${sig}
-
-function init()
+sub init()
+    m.playbackRequestId = 0
+    m.playbackStatus = m.top.findNode("playbackStatus")
     m.keyboard = m.top.findNode("keyboard")
-    'm.okButton = m.top.findNode("okButton")
-    m.keyboardGroup = m.top.findNode("keyboardGroup")
     m.browseButtons = m.top.findNode("browseButtons")
     m.searchResultList = m.top.findNode("resultList")
     m.resultCategoryList = m.top.findNode("resultCategoryList")
-
-    m.categoryButton = m.top.findNode("categoryButton")
-    m.categoryLine = m.top.findNode("categoryLine")
     m.liveButton = m.top.findNode("liveButton")
     m.liveLine = m.top.findNode("liveLine")
-
+    m.categoryButton = m.top.findNode("categoryButton")
+    m.categoryLine = m.top.findNode("categoryLine")
+    m.emptyLabel = m.top.findNode("emptyLabel")
     m.searchResultList.observeField("itemSelected", "onSearchItemSelect")
     m.resultCategoryList.observeField("itemSelected", "onSearchItemSelect")
-
-    'm.okButton.observeField("buttonSelected", "onOkButtonSelect")
-
-    m.getSearch = createObject("roSGNode", "GetSearch")
+    m.getSearch = CreateObject("roSGNode", "GetSearch")
     m.getSearch.observeField("searchResults", "onSearchResultChange")
-
-    m.getCategorySearch = createObject("roSGNode", "GetCategorySearch")
+    m.getSearch.observeField("state", "onSearchStopped")
+    m.getCategorySearch = CreateObject("roSGNode", "GetCategorySearch")
     m.getCategorySearch.observeField("searchResults", "onSearchResultChange")
-
-    m.getStuff = createObject("roSGNode", "GetStuff")
+    m.getCategorySearch.observeField("state", "onSearchStopped")
+    m.getStuff = CreateObject("roSGNode", "GetStuff")
     m.getStuff.observeField("streamUrl", "onStreamUrlChange")
-
+    m.getStuff.observeField("state", "onPlaybackStopped")
     m.top.observeField("visible", "onGetFocus")
-
+    m.streamQuery = ""
+    m.categoryQuery = ""
     m.wasLastScene = false
-
-    m.searchResultList.visible = true
-    m.resultCategoryList.visible = false
-
-    m.keyboard.setFocus(true)
-end function
+end sub
 
 sub focusContent()
     if m.top.visible then m.keyboard.setFocus(true)
 end sub
 
-function onGetFocus()
+sub onGetFocus()
+    if not m.top.visible then cancelPlaybackRequest()
     focusContent()
+end sub
+
+function searchHasRows(list) as Boolean
+    if list.content = invalid then return false
+    return list.content.getChildCount() > 0
 end function
 
-function onSearchItemSelect()
-    if m.liveLine.visible = true
-        'm.getStuff.streamerRequested = m.searchResultList.content.getChild(m.searchResultList.itemSelected).title
-        'm.getStuff.control = "RUN"
-        m.top.streamerSelectedName = m.searchResultList.content.getChild(m.searchResultList.itemSelected).description
-        m.wasLastScene = true
-    else if m.categoryLine.visible = true
-        m.top.categorySelected = m.resultCategoryList.content.getChild(m.resultCategoryList.itemSelected).categories
+sub onSearchTextChange()
+    if m.keyboard = invalid then return
+    query = m.keyboard.text.Trim()
+    m.emptyLabel.visible = true
+    if query = ""
+        m.searchResultList.content = invalid
+        m.resultCategoryList.content = invalid
+        m.emptyLabel.text = "Enter a channel or game name"
+        return
     end if
-end function
-
-function onSearchTextChange()
-    if m.liveLine.visible = true
-        if Right(m.keyboard.text, 1) = " "
-            m.keyboard.text = Left(m.keyboard.text, Len(m.keyboard.text) - 1) + "_"
-        end if
-        m.getSearch.searchText = m.keyboard.text
+    m.emptyLabel.text = "Searching…"
+    if m.liveLine.visible
+        if m.getSearch.state = "run" then return
+        m.streamQuery = query
+        m.getSearch.searchText = query
         m.getSearch.control = "RUN"
-    else if m.categoryLine.visible = true
-        m.getCategorySearch.searchText = m.keyboard.text
+    else
+        if m.getCategorySearch.state = "run" then return
+        m.categoryQuery = query
+        m.getCategorySearch.searchText = query
         m.getCategorySearch.control = "RUN"
     end if
-end function
+end sub
 
-function onOkButtonSelect()
-    m.getStuff.streamerRequested = m.keyboard.text
-    m.getStuff.control = "RUN"
-    m.wasLastScene = true
-end function
+sub onSearchStopped()
+    query = m.keyboard.text.Trim()
+    if query = "" then return
+    if m.liveLine.visible and m.getSearch.state = "stop" and m.streamQuery <> query
+        onSearchTextChange()
+    else if m.categoryLine.visible and m.getCategorySearch.state = "stop" and m.categoryQuery <> query
+        onSearchTextChange()
+    end if
+end sub
 
-function onSearchResultChange()
-    content = createObject("roSGNode", "ContentNode")
-    if m.liveLine.visible = true
-        if m.getSearch.searchResults <> invalid
-            for each channel in m.getSearch.searchResults
+sub onSearchResultChange()
+    query = m.keyboard.text.Trim()
+    if query = "" then return
+    content = CreateObject("roSGNode", "ContentNode")
+    if m.liveLine.visible
+        if m.streamQuery <> query then return
+        results = m.getSearch.searchResults
+        if results <> invalid
+            for each channel in results
                 child = content.createChild("ContentNode")
-                'child.id = channel.id
-                'fifty = Left(channel.logo, 98) + "50x50.png"
                 child.url = channel.logo
                 child.title = channel.name
                 child.description = channel.login
+                child.categories = channel.game
+                child.ShortDescriptionLine1 = channel.title
+                child.addFields({isLive: channel.is_live})
             end for
         end if
         m.searchResultList.content = content
-    else if m.categoryLine.visible = true
-        if m.getCategorySearch.searchResults <> invalid
-            for each channel in m.getCategorySearch.searchResults
+    else
+        if m.categoryQuery <> query then return
+        results = m.getCategorySearch.searchResults
+        if results <> invalid
+            for each game in results
                 child = content.createChild("ContentNode")
-                'child.id = channel.id
-                'fifty = Left(channel.logo, 98) + "50x50.png"
-                child.url = channel.logo
-                child.categories = channel.id.ToStr()
-                child.title = channel.name
+                child.url = game.logo
+                child.categories = game.id.ToStr()
+                child.title = game.name
             end for
         end if
         m.resultCategoryList.content = content
     end if
-end function
+    m.emptyLabel.visible = content.getChildCount() = 0
+    m.emptyLabel.text = "No results found"
+end sub
 
-function onStreamUrlChange()
+sub onSearchItemSelect()
+    if m.categoryLine.visible
+        if not searchHasRows(m.resultCategoryList) then return
+        item = m.resultCategoryList.content.getChild(m.resultCategoryList.itemSelected)
+        m.top.categorySelectedName = item.title
+        m.top.categorySelectedImage = item.url
+        m.top.categorySelected = itemCategoryText(item.categories)
+        return
+    end if
+    if not searchHasRows(m.searchResultList) then return
+    item = m.searchResultList.content.getChild(m.searchResultList.itemSelected)
+    if item.isLive
+        if m.getStuff.state = "run" then return
+        m.top.liveTitle = item.ShortDescriptionLine1
+        m.top.liveName = item.title
+        m.top.liveGame = itemCategoryText(item.categories)
+        m.top.liveViewers = ""
+        m.getStuff.streamerRequested = item.description
+        m.playbackRequestId += 1
+    m.getStuff.requestId = m.playbackRequestId
+    m.getStuff.cancelRequested = false
+    m.getStuff.errorMessage = ""
+    m.playbackStatus.text = "Opening video…"
+    m.getStuff.control = "RUN"
+    else
+        m.top.streamerSelectedName = item.description
+    end if
+    m.wasLastScene = true
+end sub
+
+sub onStreamUrlChange()
+    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    m.playbackStatus.text = ""
+    if not m.top.visible or m.getStuff.streamUrl = "" then return
     m.top.streamerRequested = m.getStuff.streamerRequested
+    m.top.playbackInfo = m.getStuff.playbackInfo
     m.top.streamUrl = m.getStuff.streamUrl
-end function
+end sub
 
 function onKeyEvent(key, press) as Boolean
-    handled = false
-
-    'okHasFocus = m.okButton.hasFocus()
-    searchResultsHasFocus = m.searchResultList.hasFocus()
-    searchCategoryResultsHasFocus = m.resultCategoryList.hasFocus()
-    browseButtonsHasFocus = m.browseButtons.hasFocus()
-
-    if m.top.visible = true and press
-        if key = "right" and searchResultsHasFocus = false and searchCategoryResultsHasFocus = false and browseButtonsHasFocus = false 
-            if m.categoryLine.visible = true
-                m.resultCategoryList.setFocus(true)
-            else if m.liveLine.visible = true
-                m.searchResultList.setFocus(true)
+    if not m.top.visible or not press then return false
+    if m.browseButtons.hasFocus()
+        if key = "left" or key = "right" or key = "OK"
+            m.liveLine.visible = not m.liveLine.visible
+            m.categoryLine.visible = not m.liveLine.visible
+            m.searchResultList.visible = m.liveLine.visible
+            m.resultCategoryList.visible = m.categoryLine.visible
+            if m.liveLine.visible
+                m.liveButton.color = "0xF4F4F7FF"
+                m.categoryButton.color = "0xA9A9B2FF"
+            else
+                m.liveButton.color = "0xA9A9B2FF"
+                m.categoryButton.color = "0xF4F4F7FF"
             end if
-            handled = true
-        else if key ="left" and (searchResultsHasFocus = true or searchCategoryResultsHasFocus = true)
+            onSearchTextChange()
+            return true
+        else if key = "down"
             m.keyboard.setFocus(true)
-            handled = true
-        else if key = "up" and browseButtonsHasFocus = false
-            if m.categoryLine.visible = true
-                m.liveButton.color = "0xA970FFFF"
-            else if m.liveLine.visible = true
-                m.categoryButton.color = "0xA970FFFF"
-            end if
-            m.browseButtons.setFocus(true)
-            handled = true
-        else if browseButtonsHasFocus = true and key = "down"
-            if m.categoryLine.visible = true
-                m.liveButton.color = "0xEFEFF1FF"
-                handled = true
-            else if m.liveLine.visible = true
-                m.categoryButton.color = "0xEFEFF1FF"
-                m.keyboard.setFocus(true)
-                handled = true
-            end if
-        else if browseButtonsHasFocus = true and key = "OK"
-            if m.categoryLine.visible = true
-                m.liveButton.color = "0xA970FFFF"
-                m.liveLine.visible = true
-                m.categoryLine.visible = false
-                m.categoryButton.color = "0xEFEFF1FF"
-                m.resultCategoryList.visible = false
-                m.searchResultList.visible = true
-                m.keyboard.setFocus(true)
-                handled = true
-            else if m.liveLine.visible = true
-                m.categoryButton.color = "0xA970FFFF"
-                m.categoryLine.visible = true
-                m.liveLine.visible = false
-                m.liveButton.color = "0xEFEFF1FF"
-                m.searchResultList.visible = false
-                m.resultCategoryList.visible = true
-                m.keyboard.setFocus(true)
-                handled = true
-            end if
+            return true
         end if
-    else if press = false
-        if m.wasLastScene = true and m.top.visible = false and key = "back" and m.keyboard.hasFocus() = false
-            m.keyboard.setFocus(true)
-            m.wasLastScene = false
-            handled = true
+    else if key = "right" and m.keyboard.isInFocusChain()
+        if m.liveLine.visible and searchHasRows(m.searchResultList)
+            m.searchResultList.setFocus(true)
+        else if m.categoryLine.visible and searchHasRows(m.resultCategoryList)
+            m.resultCategoryList.setFocus(true)
         end if
+        return true
+    else if key = "left" and (m.searchResultList.hasFocus() or m.resultCategoryList.hasFocus())
+        m.keyboard.setFocus(true)
+        return true
+    else if key = "up"
+        m.browseButtons.setFocus(true)
+        return true
+    else if key = "options" and m.searchResultList.hasFocus() and searchHasRows(m.searchResultList)
+        m.top.streamerSelectedName = m.searchResultList.content.getChild(m.searchResultList.itemFocused).description
+        return true
     end if
-
-    return handled
+    return false
 end function
+
+function itemCategoryText(value) as String
+    if type(value) = "roString" or type(value) = "String" then return value
+    if type(value) = "roArray"
+        if value.count() > 0 then return value[0]
+    end if
+    return ""
+end function
+
+sub cancelPlaybackRequest()
+    m.playbackRequestId += 1
+    m.getStuff.cancelRequested = true
+    m.getStuff.requestId = m.playbackRequestId
+    m.playbackStatus.text = ""
+end sub
+
+sub onPlaybackStopped()
+    if not m.top.visible or m.getStuff.state <> "stop" then return
+    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if m.getStuff.errorMessage <> ""
+        m.playbackStatus.text = m.getStuff.errorMessage
+    end if
+end sub

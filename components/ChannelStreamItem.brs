@@ -3,16 +3,29 @@ sub init()
     m.itemTitle = m.top.findNode("itemTitle")
     m.itemGame = m.top.findNode("itemGame")
     m.itemViewers = m.top.findNode("itemViewers")
-    m.viewsRect = m.top.findNode("viewsRect")
+end sub
+
+sub onItemHasFocus()
+    if m.top.itemHasFocus
+        m.itemTitle.repeatCount = -1
+    else
+        m.itemTitle.repeatCount = 0
+    end if
 end sub
 
 sub showContent()
-    itemContent = m.top.itemContent
-    m.itemThumbnail.uri = itemContent.HDPosterUrl
-    m.itemTitle.text = itemContent.ShortDescriptionLine2
-    m.itemGame.text = itemContent.Categories
-    '? "itemViewers: " itemContent.Title
-    m.itemViewers.text = itemContent.Title
-    m.viewsRect.width = m.itemViewers.localBoundingRect().width + 16
-    m.viewsRect.height = m.itemViewers.localBoundingRect().height
+    content = m.top.itemContent
+    if content = invalid then return
+    m.itemThumbnail.uri = content.HDPosterUrl
+    m.itemTitle.text = content.ShortDescriptionLine2
+    m.itemGame.text = itemCategoryText(content.Categories)
+    m.itemViewers.text = content.Title.Replace(" viewers", "").Trim()
 end sub
+
+function itemCategoryText(value) as String
+    if type(value) = "roString" or type(value) = "String" then return value
+    if type(value) = "roArray"
+        if value.count() > 0 then return value[0]
+    end if
+    return ""
+end function

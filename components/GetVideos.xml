@@ -3,6 +3,7 @@
 <component name="GetVideos" extends="Task">
 
     <interface>
+        <field id="errorMessage" type="string" alwaysNotify="true" />
         <field id="offset" type="string" value="0" />
         <field id="userId" type="string" />
         <field id="searchResults" type="array" />

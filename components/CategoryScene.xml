@@ -3,10 +3,18 @@
 <component name="CategoryScene" extends="Group">
 
     <interface>
+        <function name="cancelPlaybackRequest" />
         <function name="focusContent" />
+        <field id="currentCategoryName" type="string" onChange="updateCategoryHeader" />
+        <field id="currentCategoryImage" type="string" onChange="updateCategoryHeader" />
+        <field id="playbackInfo" type="assocarray" />
+        <field id="liveTitle" type="string" />
+        <field id="liveName" type="string" />
+        <field id="liveGame" type="string" />
+        <field id="liveViewers" type="string" />
         <field id="currentCategory" type="string" alwaysNotify="true" onChange="onCategoryChange" />
         <field id="browseList" type="node" alias="browseList" />
-        <field id="streamUrl" type="uri" />
+        <field id="streamUrl" type="uri" alwaysNotify="true" />
         <field id="streamerRequested" type="string" />
         <field id="clipUrl" type="uri" alwaysNotify="true" />
         <field id="fromClip" type="bool" value="false" />
@@ -18,66 +26,38 @@
     <script type="text/brightscript" uri="pkg:/components/CategoryScene.brs" />
 
     <children>
-
-        <Group id="browseButtons" focusable="true">
-            <SimpleLabel
-                id="liveButton"
-                translation="[400,60]"
-                text="Live Channels"
-                color="0xA970FFFF"
-                fontSize="32"
-                fontUri="pkg:/fonts/Roobert-SemiBold.ttf" >
-                <Rectangle
-                    id="liveLine"
-                    visible="true"
-                    color="0xA970FFFF"
-                    width="210"
-                    height="5"
-                    translation="[0,40]" />
+        <Rectangle width="1280" height="720" color="0x08080AFF" />
+        <SimpleLabel id="searchHeader" translation="[43,40]" text="Browse" color="0xF4F4F7FF" fontSize="24" fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+        <Group id="browseButtons" focusable="true" translation="[250,44]">
+            <SimpleLabel id="liveButton" text="Live channels" color="0xF4F4F7FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf">
+                <Rectangle id="liveLine" width="130" height="3" color="0xF4F4F7FF" translation="[0,30]" />
             </SimpleLabel>
-            <SimpleLabel
-                id="clipButton"
-                translation="[700,60]"
-                text="Clips"
-                color="0xEFEFF1FF"
-                fontSize="32"
-                fontUri="pkg:/fonts/Roobert-SemiBold.ttf" >
-                <Rectangle
-                    id="clipLine"
-                    visible="false"
-                    color="0xA970FFFF"
-                    width="80"
-                    height="5"
-                    translation="[0,40]" />
-            </SimpleLabel> 
+            <SimpleLabel id="clipButton" translation="[166,0]" text="Clips" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf">
+                <Rectangle id="clipLine" width="48" height="3" color="0xF4F4F7FF" translation="[0,30]" visible="false" />
+            </SimpleLabel>
         </Group>
-        <SimpleLabel
-            id="searchHeader"
-            translation="[100,50]"
-            text="Browse"
-            fontSize="48"
-            fontUri="pkg:/fonts/Roobert-Bold.ttf" />  
-        <RowList 
-            id="browseList"
-            itemComponentName="BrowseChannelItem"
-            translation = "[100,165]"
-			numRows = "2"
-			rowItemSize = "[[320,180]]"
-			rowItemSpacing = "[[30,0]]"
-			itemSize = "[1030,275]"
-            focusBitmapUri="pkg:/images/focusIndicator.9.png"
-			rowFocusAnimationStyle = "floatingFocus" />
-        <RowList 
-            id="browseClipsList"
-            itemComponentName="BrowseChannelItem"
-            translation = "[100,165]"
-			numRows = "2"
-			rowItemSize = "[[320,180]]"
-			rowItemSpacing = "[[30,0]]"
-			itemSize = "[1030,275]"
-            focusBitmapUri="pkg:/images/focusIndicator.9.png"
-			rowFocusAnimationStyle = "floatingFocus" />
-
+        <Group translation="[43,120]">
+            <Rectangle width="108" height="144" color="0x18181BFF" />
+            <Poster id="categoryCover" width="108" height="144" loadDisplayMode="scaleToFill" />
+            <Label id="categoryName" translation="[132,0]" width="1045" height="42" color="0xFFFFFFFF">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="32" />
+            </Label>
+            <Label translation="[132,52]" width="1000" text="Discover live streams and clips" color="0xC8C8CFFF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
+            </Label>
+        </Group>
+        <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
+            rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="fixedFocus" />
+        <RowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
+            rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="fixedFocus" visible="false" />
+        <Label id="emptyLabel" translation="[43,380]" width="1194" height="100" horizAlign="center" color="0x5C5C66FF" text="Loading streams…">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
+        </Label>
+        <Label id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+        </Label>
     </children>
 
 </component>

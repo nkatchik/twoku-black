@@ -103,45 +103,33 @@ function convertDurationFormat(org_duration as String) as String
 end function
 
 function getSearchResults() as Object
-    search_results_url = "https://api.twitch.tv/helix/videos?user_id=" + m.top.userId
-
-
-    if m.top.pagination <> ""
-        search_results_url = search_results_url + m.top.pagination
+    m.top.errorMessage = ""
+    searchUrl = "https://api.twitch.tv/helix/videos?first=24&user_id=" + m.top.userId.EncodeUriComponent()
+    if m.top.pagination <> "" then searchUrl += m.top.pagination
+    search = getApiJson(searchUrl)
+    m.top.pagination = ""
+    if search = invalid or search.data = invalid
+        m.top.errorMessage = "Couldn't load videos. Press OK to retry."
+        return []
     end if
-
-    search = getApiJson(search_results_url.EncodeUri())
-    if search = invalid then return []
-
     result = []
-    if search <> invalid and search.data <> invalid
-        for each video in search.data
-            item = {}
-            item.id = video.id
-            item.user_name = video.user_name
-            item.duration = convertDurationFormat(video.duration)
-            item.title = video.title
-            item.published_at = getRelativeTimePublished(video.published_at)
-            item.viewer_count = numberToText(video.view_count)
-            if video.thumbnail_url <> ""
-                last = Right(video.thumbnail_url, 2)
-                if last = "eg"
-                    item.thumbnail_url = Left(video.thumbnail_url, Len(video.thumbnail_url) - 23) + "320x180.jpeg"
-                else if last = "pg"
-                    item.thumbnail_url = Left(video.thumbnail_url, Len(video.thumbnail_url) - 22) + "320x180.jpg"
-                else
-                    item.thumbnail_url = Left(video.thumbnail_url, Len(video.thumbnail_url) - 22) + "320x180.png"
-                end if
-            else
-                item.thumbnail_url = ""
-            end if
-            result.push(item)
-        end for
-    end if
-
+    for each video in search.data
+        thumbnail = video.thumbnail_url
+        if thumbnail = invalid then thumbnail = ""
+        thumbnail = thumbnail.Replace("%{width}", "320").Replace("%{height}", "180")
+        thumbnail = thumbnail.Replace("{width}", "320").Replace("{height}", "180")
+        result.push({
+            id: video.id,
+            user_name: video.user_name,
+            duration: convertDurationFormat(video.duration),
+            title: video.title,
+            published_at: getRelativeTimePublished(video.published_at),
+            viewer_count: numberToText(video.view_count),
+            thumbnail_url: thumbnail
+        })
+    end for
     if search.pagination <> invalid and search.pagination.cursor <> invalid
-        m.top.pagination = "&after=" + search.pagination.cursor
+        m.top.pagination = "&after=" + search.pagination.cursor.EncodeUriComponent()
     end if
-
     return result
 end function

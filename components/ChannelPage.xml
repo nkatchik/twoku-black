@@ -3,6 +3,9 @@
 <component name="ChannelPage" extends="Group">
 
     <interface>
+        <function name="cancelPlaybackRequest" />
+        <function name="focusContent" />
+        <field id="playbackInfo" type="assocarray" />
         <field id="streamUrl" type="string" />
         <field id="videoUrl" type="string" alwaysNotify="true" />
         <field id="thumbnailInfo" type="assocarray" />
@@ -22,126 +25,31 @@
     <script type="text/brightscript" uri="pkg:/components/ChannelPage.brs" />
 
     <children>
-        <Group id="header">
-            <Group id="profile" translation="[0,0]" >
-                <Rectangle
-                    visible="true"
-                    color="0x0C0C0DFF"
-                    width="1358"
-                    height="80"
-                    translation="[0,0]" />
-                <MaskGroup id="profileImageMask" maskuri = "pkg:/images/profile-mask.png" masksize = "[50,50]" translation="[15,15]" >
-                    <Poster id="avatar" width="50" height="50" />
-                </MaskGroup>
-                <SimpleLabel 
-                    id="username"
-                    fontSize="24"
-                    fontUri="pkg:/fonts/Inter-SemiBold.ttf"
-                    translation="[80,15]" />
-                <SimpleLabel 
-                    id="followers"
-                    fontSize="16"
-                    fontUri="pkg:/fonts/Inter-Regular.ttf"
-                    translation="[80,45]" />
-                <ScrollingLabel
-                    id = "description"
-                    height = "30"
-                    maxWidth = "600"
-                    horizAlign = "left"
-                    repeatCount = "-1"
-                    color = "0xC4C4C4FF"
-                    translation = "[600, 45]" >
-                    <Font role = "font" uri = "pkg:/fonts/Inter-Regular.ttf" size = "11" />
-		        </ScrollingLabel>
-            </Group>
-
-            <!--
-            <Group id="browseButtons">
-                <SimpleLabel
-                    id="liveButton"
-                    translation="[400,60]"
-                    text="Live Stream"
-                    color="0xA970FFFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/Roobert-SemiBold.ttf" >
-                    <Rectangle
-                        id="liveLine"
-                        visible="true"
-                        color="0xA970FFFF"
-                        width="210"
-                        height="5"
-                        translation="[0,40]" />
-                </SimpleLabel>
-
-                <SimpleLabel
-                    id="videoButton"
-                    translation="[700,60]"
-                    text="Videos"
-                    color="0xEFEFF1FF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/Roobert-SemiBold.ttf" >
-                    <Rectangle
-                        id="videoLine"
-                        visible="false"
-                        color="0xA970FFFF"
-                        width="80"
-                        height="5"
-                        translation="[0,40]" />
-                </SimpleLabel> 
-            </Group> -->
+        <Rectangle width="1280" height="720" color="0x08080AFF" />
+        <Group id="header" translation="[43,36]">
+            <MaskGroup id="profileImageMask" maskUri="pkg:/images/twellie-avatar-mask.png" maskSize="[96,96]">
+                <Rectangle width="96" height="96" color="0x18181BFF" />
+                <Poster id="avatar" width="96" height="96" loadDisplayMode="scaleToFill" />
+            </MaskGroup>
+            <Label id="username" translation="[124,0]" width="1070" height="44" color="0xFFFFFFFF">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="34" />
+            </Label>
+            <Label id="followers" translation="[124,47]" width="1070" height="24" color="0xADADB8FF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
+            </Label>
+            <Label id="description" translation="[124,76]" width="1070" height="52" wrap="true" color="0xC8C8CFFF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
+            </Label>
         </Group>
-
-
-        <!--<RowList 
-            id="streamItem"
-            itemComponentName="ChannelStreamItem"
-            translation = "[100,135]"
-			numRows = "1"
-			rowItemSize = "[[896,504]]"
-			rowItemSpacing = "[[30,0]]"
-			itemSize = "[896,550]"
-            visible="true" /> -->
-        <SimpleLabel 
-            id="liveStreamLabel"
-            text="Live Stream"
-            color="0xB9B9B9FF"
-            fontSize="24"
-            fontUri="pkg:/fonts/Inter-SemiBold.ttf"
-            translation="[37,87]" />
-        <SimpleLabel 
-            id="liveDuration"
-            fontSize="12"
-            fontUri="pkg:/fonts/Inter-Regular.ttf"
-            translation="[37,119]" />
-        <RowList 
-            id="streamItem"
-            itemComponentName="ChannelStreamItem"
-            translation = "[30,141]"
-			numRows = "1"
-			rowItemSize = "[[320,180]]"
-			rowItemSpacing = "[[30,0]]"
-			itemSize = "[320,250]"
-            focusBitmapUri="pkg:/images/focusIndicator.9.png"
-            visible="true" />
-        <SimpleLabel 
-            id="recentVideosLabel"
-            text="Recent Videos"
-            color="0xB9B9B9FF"
-            fontSize="24"
-            fontUri="pkg:/fonts/Inter-SemiBold.ttf"
-            translation="[37,373]" />
-        <RowList 
-            id="pastBroadcastsList"
-            itemComponentName="ChannelVideoItem"
-            translation = "[30,412]"
-			numRows = "1"
-			rowItemSize = "[[320,180]]"
-			rowItemSpacing = "[[30,0]]"
-			itemSize = "[1200, 275]"
-            focusBitmapUri="pkg:/images/focusIndicator.9.png"
-			rowFocusAnimationStyle = "floatingFocus"
-            visible="true" />
-
+        <RowList id="pastBroadcastsList" itemComponentName="ChannelVideoItem" translation="[43,172]"
+            numRows="2" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="fixedFocus" />
+        <Label id="emptyLabel" translation="[43,345]" width="1194" height="110" horizAlign="center" color="0x5C5C66FF" text="Loading videos…">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
+        </Label>
+        <Label id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
+            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+        </Label>
     </children>
 
 </component>

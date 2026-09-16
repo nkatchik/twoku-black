@@ -1,11 +1,24 @@
 sub init()
     m.itemThumbnail = m.top.findNode("itemThumbnail")
     m.itemStreamer = m.top.findNode("itemStreamer")
+    m.focusRing = m.top.findNode("focusRing")
+    if CreateObject("roDeviceInfo").GetUIResolution().width = 1920
+        m.top.findNode("avatarMask").maskSize = [144, 144]
+    end if
+end sub
+
+sub onItemHasFocus()
+    m.focusRing.visible = m.top.itemHasFocus
+    if m.top.itemHasFocus
+        m.itemStreamer.color = "0xFFFFFFFF"
+    else
+        m.itemStreamer.color = "0xDEDEE3FF"
+    end if
 end sub
 
 sub showContent()
-    itemContent = m.top.itemContent
-    'm.itemId = itemContent.id
-    m.itemThumbnail.uri = itemContent.HDPosterUrl
-    m.itemStreamer.text = itemContent.Title
+    content = m.top.itemContent
+    if content = invalid then return
+    m.itemThumbnail.uri = content.HDPosterUrl
+    m.itemStreamer.text = content.Title
 end sub

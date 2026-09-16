@@ -3,6 +3,7 @@
 <component name="OfflineChannelList" extends="Group">
 
     <interface>
+        <function name="focusContent" />
         <field id="focused" type="bool" value="false" onChange="onGetFocus" />
         <field id="channelSelected" type="string" alwaysNotify="true" />
         <field id="offlineChannels" type="array" onChange="onOfflineChannelsChange" />
@@ -11,7 +12,8 @@
     <script type="text/brightscript" uri="pkg:/components/OfflineChannelList.brs" />
 
     <children>
-
+        <MarkupGrid id="grid" itemComponentName="BrowseOfflineChannelItem" numColumns="6" numRows="3"
+            itemSize="[190,140]" itemSpacing="[9,25]" drawFocusFeedback="false" />
     </children>
 
 </component>

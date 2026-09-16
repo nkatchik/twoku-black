@@ -1,316 +1,329 @@
 sub init()
+    m.playbackRequestId = 0
+    m.playbackStatus = m.top.findNode("playbackStatus")
     m.browseList = m.top.findNode("browseList")
     m.browseClipsList = m.top.findNode("browseClipsList")
-
-    m.clipButton = m.top.findNode("clipButton")
-    m.clipLine = m.top.findNode("clipLine")
+    m.browseButtons = m.top.findNode("browseButtons")
     m.liveButton = m.top.findNode("liveButton")
     m.liveLine = m.top.findNode("liveLine")
-
-    m.browseButtons = m.top.findNode("browseButtons")
-
+    m.clipButton = m.top.findNode("clipButton")
+    m.clipLine = m.top.findNode("clipLine")
+    m.emptyLabel = m.top.findNode("emptyLabel")
+    m.getStreams = CreateObject("roSGNode", "GetStreams")
+    m.getStreams.observeField("searchResults", "onSearchResultChange")
+    m.getStreams.observeField("state", "onStreamsStopped")
+    m.getClips = CreateObject("roSGNode", "GetClips")
+    m.getClips.observeField("searchResults", "insertClips")
+    m.getClips.observeField("state", "onClipsStopped")
+    m.getStuff = CreateObject("roSGNode", "GetStuff")
+    m.getStuff.observeField("streamUrl", "onStreamUrlChange")
+    m.getStuff.observeField("state", "onPlaybackStopped")
     m.browseList.observeField("itemSelected", "onBrowseItemSelect")
     m.browseClipsList.observeField("itemSelected", "onBrowseClipsItemSelect")
-
-    m.getStreams = createObject("roSGNode", "GetStreams")
-    m.getStreams.observeField("searchResults", "onSearchResultChange")
-
-    m.getClips = createObject("roSGNode", "GetClips")
-    m.getClips.observeField("searchResults", "insertClips")
-
-    m.getStuff = createObject("roSGNode", "GetStuff")
-    m.getStuff.observeField("streamUrl", "onStreamUrlChange")
-
+    m.browseList.observeField("rowItemFocused", "onGridFocus")
+    m.browseClipsList.observeField("rowItemFocused", "onGridFocus")
     m.top.observeField("visible", "onGetFocus")
-
+    m.streamsCategory = ""
+    m.clipsCategory = ""
+    m.streamRows = []
+    m.clipRows = []
+    m.seenStreams = {}
+    m.seenClips = {}
     m.offset = 0
-    m.newCategory = false
     m.append = false
-
+    m.newCategory = false
     m.wasLastScene = false
 end sub
 
-sub onBrowseClipsItemSelect()
-    '? "clip select"
-    if m.browseClipsList.visible = true
-        clip_url = m.browseClipsList.content.getChild(m.browseClipsList.rowItemSelected[0]).getChild(m.browseClipsList.rowItemSelected[1]).HDPosterUrl
-        m.top.clipUrl = Left(clip_url, Len(clip_url) - 20) + ".mp4"
-        '? "selected clip > "; m.top.clipUrl
+sub updateCategoryHeader()
+    name = m.top.findNode("categoryName")
+    cover = m.top.findNode("categoryCover")
+    if name = invalid or cover = invalid then return
+    name.text = m.top.currentCategoryName
+    if name.text = "" then name.text = "Live channels"
+    cover.uri = m.top.currentCategoryImage
+end sub
+
+function categoryHasRows(list) as Boolean
+    if list.content = invalid then return false
+    return list.content.getChildCount() > 0
+end function
+
+sub focusContent()
+    if not m.top.visible then return
+    if m.clipLine.visible and categoryHasRows(m.browseClipsList)
+        m.browseClipsList.setFocus(true)
+    else if m.liveLine.visible and categoryHasRows(m.browseList)
+        m.browseList.setFocus(true)
+    else
+        m.browseButtons.setFocus(true)
+    end if
+end sub
+
+sub onGetFocus()
+    if not m.top.visible then cancelPlaybackRequest()
+    if m.top.visible
+        m.browseList.visible = m.liveLine.visible
+        m.browseClipsList.visible = m.clipLine.visible
+        focusContent()
+    end if
+end sub
+
+sub onCategoryChange()
+    cancelPlaybackRequest()
+    m.streamRows = []
+    m.clipRows = []
+    m.seenStreams = {}
+    m.seenClips = {}
+    m.browseList.content = invalid
+    m.browseClipsList.content = invalid
+    m.offset = 0
+    m.append = false
+    m.newCategory = true
+    m.liveLine.visible = true
+    m.clipLine.visible = false
+    m.liveButton.color = "0xF4F4F7FF"
+    m.clipButton.color = "0xA9A9B2FF"
+    m.browseList.visible = true
+    m.browseClipsList.visible = false
+    m.emptyLabel.text = "Loading streams…"
+    m.emptyLabel.visible = true
+    updateCategoryHeader()
+    startCategoryStreams()
+end sub
+
+sub startCategoryStreams()
+    if m.getStreams.state = "run" then return
+    m.streamsCategory = m.top.currentCategory
+    m.getStreams.gameRequested = m.streamsCategory
+    m.getStreams.pagination = ""
+    m.getStreams.offset = "0"
+    m.getStreams.control = "RUN"
+end sub
+
+sub onStreamsStopped()
+    if m.getStreams.state = "stop" and m.streamsCategory <> m.top.currentCategory
+        startCategoryStreams()
+    end if
+end sub
+
+sub onClipsStopped()
+    if m.getClips.state = "stop" and m.clipLine.visible and m.clipsCategory <> m.top.currentCategory
+        onClipsLoad()
     end if
 end sub
 
 sub onClipsLoad()
     m.browseList.visible = false
     m.browseClipsList.visible = true
-    m.getClips.gameRequested = m.top.currentCategory
+    if categoryHasRows(m.browseClipsList) then return
+    m.emptyLabel.visible = true
+    m.emptyLabel.text = "Loading clips…"
+    if m.getClips.state = "run" then return
+    m.clipsCategory = m.top.currentCategory
+    m.getClips.gameRequested = m.clipsCategory
     m.getClips.pagination = ""
     m.getClips.control = "RUN"
 end sub
 
-sub insertClips()
-    lastFocusedRow = 0
-    if m.browseClipsList.rowItemFocused[0] <> invalid
-        lastFocusedRow = m.browseClipsList.rowItemFocused[0]
-    end if
-    if m.append = true and m.browseClipsList.content <> invalid
-        content = m.browseClipsList.content
-    else
-        content = createObject("roSGNode", "ContentNode")
-    end if
-    if m.getClips.searchResults <> invalid
-        row = createObject("RoSGNode", "ContentNode")
-        rowItem = invalid
-        alreadyAppended = false
-        cnt = 0
-        for each stream in m.getClips.searchResults
-            alreadyAppended = false
-            if cnt <> 0 and cnt MOD 3 = 0
-                content.appendChild(row)
-                row = createObject("RoSGNode", "ContentNode")
-                alreadyAppended = true
-            end if
-            rowItem = createObject("RoSGNode", "ContentNode")
-            rowItem.Title = stream.title
-            '? "title > ";stream.title
-            rowItem.Description = stream.broadcaster_name
-            rowItem.Categories = stream.creator_name
-            rowItem.HDPosterUrl = stream.thumbnail_url
-            rowItem.ShortDescriptionLine1 = stream.creator_name
-            '? "number > ";stream.viewer_count
-            rowItem.ShortDescriptionLine2 = numberToText(stream.viewer_count)
-            row.appendChild(rowItem)
-            cnt += 1
-        end for
-        if rowItem <> invalid and cnt <> 0 and alreadyAppended = false
-            row.appendChild(rowItem)
-        end if
-    end if
-    if m.browseClipsList.visible = true
-        m.browseClipsList.content = content
-    end if
-    if m.newCategory = false
-        m.browseClipsList.jumpToItem = lastFocusedRow
-    else if m.newCategory = true
-        m.browseClipsList.jumpToItem = 0
-        m.newCategory = false
-    end if
-    m.append = false
-end sub
+function numberToText(number) as String
+    if number = invalid then return ""
+    if number >= 1000000 then return (Int(number / 100000) / 10).ToStr() + "M"
+    if number >= 1000 then return (Int(number / 100) / 10).ToStr() + "K"
+    return number.ToStr().Trim()
+end function
 
-sub focusContent()
-    if not m.top.visible then return
-    if m.browseClipsList.visible
-        m.browseClipsList.setFocus(true)
-    else
-        m.browseList.setFocus(true)
-    end if
-end sub
-
-sub onGetFocus()
-    '? "wtf"
-    if m.top.visible = true
-        '? "categoryscene visible"
-        if m.top.fromClip = true
-            '? "fromClip"
-            m.browseClipsList.visible = true
-            m.browseClipsList.setFocus(true)
-            m.top.fromClip = false
-        else
-            '? "not fromClip"
-            m.browseList.visible = true
-            m.browseList.setFocus(true)
+function categoryGrid(items) as Object
+    content = CreateObject("roSGNode", "ContentNode")
+    row = invalid
+    for index = 0 to items.count() - 1
+        if index MOD 4 = 0
+            row = CreateObject("roSGNode", "ContentNode")
+            content.appendChild(row)
         end if
-    else if m.top.visible = false
-        'm.offset = 0
-        m.append = false
-        m.browseList.visible = false
-        m.browseClipsList.visible = false
-        if m.top.fromClip
-            m.clipLine.visible = true
-            m.clipButton.color = "0xA970FFFF"
-            m.liveLine.visible = false
-            m.liveButton.color = "0xEFEFF1FF"
-        else
-            m.clipLine.visible = false
-            m.clipButton.color = "0xEFEFF1FF"
-            m.liveLine.visible = true
-            m.liveButton.color = "0xA970FFFF"
-        end if
-        'm.getStreams.gameRequested = ""
-        'm.getStreams.pagination = ""
-    end if
-end sub
-
-sub numberToText(number) as Object
-    s = StrI(number)
-    result = ""
-    if number >=100000 and number < 1000000
-        result = Left(s, 4) + "K"
-    else if number >=10000 and number < 100000
-        result = Left(s, 3) + "." + Mid(s, 4, 1) + "K"
-    else if number >=1000 and number < 10000
-        result = Left(s, 2) + "." + Mid(s, 3, 1) + "K"
-    else if number < 1000
-        result = s
-    end if
-    return result + " viewers"
-end sub
+        row.appendChild(items[index])
+    end for
+    return content
+end function
 
 sub onSearchResultChange()
-    lastFocusedRow = 0
-    if m.browseList.rowItemFocused[0] <> invalid
-        lastFocusedRow = m.browseList.rowItemFocused[0]
-    end if
-    if m.append = true and m.browseList.content <> invalid
-        content = m.browseList.content
-    else
-        content = createObject("roSGNode", "ContentNode")
-    end if
+    if m.streamsCategory <> m.top.currentCategory then return
     if m.getStreams.searchResults <> invalid
-        row = createObject("RoSGNode", "ContentNode")
-        rowItem = invalid
-        alreadyAppended = false
-        cnt = 0
         for each stream in m.getStreams.searchResults
-            alreadyAppended = false
-            if cnt <> 0 and cnt MOD 3 = 0
-                content.appendChild(row)
-                row = createObject("RoSGNode", "ContentNode")
-                alreadyAppended = true
+            if not m.seenStreams.DoesExist(stream.name)
+                m.seenStreams[stream.name] = true
+                item = CreateObject("roSGNode", "ContentNode")
+                item.Title = stream.title
+                item.Description = stream.display_name
+                item.Categories = stream.game
+                item.HDPosterUrl = stream.thumbnail
+                item.ShortDescriptionLine1 = stream.name
+                item.ShortDescriptionLine2 = numberToText(stream.viewers)
+                m.streamRows.push(item)
             end if
-            rowItem = createObject("RoSGNode", "ContentNode")
-            rowItem.Title = stream.title
-            rowItem.Description = stream.display_name
-            rowItem.Categories = stream.game
-            rowItem.HDPosterUrl = stream.thumbnail
-            rowItem.ShortDescriptionLine1 = stream.name
-            rowItem.ShortDescriptionLine2 = numberToText(stream.viewers)
-            row.appendChild(rowItem)
-            cnt += 1
         end for
-        if rowItem <> invalid and cnt <> 0 and alreadyAppended = false
-            row.appendChild(rowItem)
-        end if
     end if
-    if m.browseList.visible = true
-        m.browseList.content = content
-    end if
-    if m.newCategory = false
-        m.browseList.jumpToItem = lastFocusedRow
-    else if m.newCategory = true
-        m.browseList.jumpToItem = 0
-        m.newCategory = false
-    end if
+    focused = m.browseList.rowItemFocused
+    m.browseList.content = categoryGrid(m.streamRows)
+    if not m.newCategory then m.browseList.jumpToRowItem = focused
+    m.newCategory = false
     m.append = false
+    if m.liveLine.visible
+        m.emptyLabel.visible = not categoryHasRows(m.browseList)
+        m.emptyLabel.text = "No live channels in this category"
+        if m.getStreams.errorMessage <> "" then m.emptyLabel.text = m.getStreams.errorMessage
+    end if
 end sub
 
-sub onCategoryChange()
-    m.newCategory = true
-    m.offset = 0
-    m.getClips.pagination = ""
-    m.getStreams.offset = "0"
-    m.getStreams.gameRequested = m.top.currentCategory
-    m.getStreams.pagination = ""
-    m.getStreams.control = "RUN"
+sub insertClips()
+    if m.clipsCategory <> m.top.currentCategory then return
+    if m.getClips.searchResults <> invalid
+        for each clip in m.getClips.searchResults
+            if not m.seenClips.DoesExist(clip.thumbnail_url)
+                m.seenClips[clip.thumbnail_url] = true
+                item = CreateObject("roSGNode", "ContentNode")
+                item.Title = clip.title
+                item.Description = clip.broadcaster_name
+                item.HDPosterUrl = clip.thumbnail_url
+                item.ShortDescriptionLine1 = clip.creator_name
+                item.ShortDescriptionLine2 = numberToText(clip.viewer_count)
+                m.clipRows.push(item)
+            end if
+        end for
+    end if
+    focused = m.browseClipsList.rowItemFocused
+    m.browseClipsList.content = categoryGrid(m.clipRows)
+    m.browseClipsList.jumpToRowItem = focused
+    m.append = false
+    if m.clipLine.visible
+        m.emptyLabel.visible = not categoryHasRows(m.browseClipsList)
+        m.emptyLabel.text = "No clips in this category"
+    end if
 end sub
 
 sub onStreamUrlChange()
+    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    m.playbackStatus.text = ""
+    if not m.top.visible or m.getStuff.streamUrl = "" then return
     m.top.streamerRequested = m.getStuff.streamerRequested
+    m.top.playbackInfo = m.getStuff.playbackInfo
     m.top.streamUrl = m.getStuff.streamUrl
 end sub
 
 sub onBrowseItemSelect()
-    if m.browseList.visible = true
-        'm.getStuff.streamerRequested = m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).ShortDescriptionLine1
-        'm.getStuff.control = "RUN"
-        m.top.streamerSelectedName =  m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).ShortDescriptionLine1
-        m.top.streamerSelectedThumbnail =  m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).HDPosterUrl
-        m.wasLastScene = true
+    if not m.browseList.visible or not categoryHasRows(m.browseList) then return
+    if m.getStuff.state = "run" then return
+    index = m.browseList.rowItemSelected
+    item = m.browseList.content.getChild(index[0]).getChild(index[1])
+    m.top.liveTitle = item.Title
+    m.top.liveName = item.Description
+    m.top.liveGame = itemCategoryText(item.Categories)
+    m.top.liveViewers = item.ShortDescriptionLine2
+    m.getStuff.streamerRequested = item.ShortDescriptionLine1
+    m.playbackRequestId += 1
+    m.getStuff.requestId = m.playbackRequestId
+    m.getStuff.cancelRequested = false
+    m.getStuff.errorMessage = ""
+    m.playbackStatus.text = "Opening video…"
+    m.getStuff.control = "RUN"
+    m.wasLastScene = true
+end sub
+
+sub onBrowseClipsItemSelect()
+    if not m.browseClipsList.visible or not categoryHasRows(m.browseClipsList) then return
+    index = m.browseClipsList.rowItemSelected
+    item = m.browseClipsList.content.getChild(index[0]).getChild(index[1])
+    thumbnail = item.HDPosterUrl
+    m.top.liveTitle = item.Title
+    m.top.liveName = item.Description
+    m.top.streamerRequested = item.ShortDescriptionLine1
+    m.top.clipUrl = Left(thumbnail, Len(thumbnail) - 20) + ".mp4"
+    m.top.fromClip = true
+end sub
+
+sub onGridFocus()
+    if m.browseList.hasFocus() and categoryHasRows(m.browseList)
+        if m.browseList.rowItemFocused[0] >= m.browseList.content.getChildCount() - 2 then getMoreChannels()
+    else if m.browseClipsList.hasFocus() and categoryHasRows(m.browseClipsList)
+        if m.browseClipsList.rowItemFocused[0] >= m.browseClipsList.content.getChildCount() - 2 then getMoreClips()
     end if
 end sub
 
-sub onSceneLoad()
-    m.browseList.visible = true
-    m.getStreams.gameRequested = ""
-    m.getStreams.offset = "0"
+sub getMoreChannels()
+    if m.getStreams.state = "run" or m.append then return
+    if m.getStreams.pagination = "" then return
+    m.offset += 24
+    m.append = true
+    m.getStreams.offset = m.offset.ToStr()
     m.getStreams.control = "RUN"
 end sub
 
 sub getMoreClips()
+    if m.getClips.state = "run" or m.append then return
+    if m.getClips.pagination = "" then return
     m.append = true
-    m.getClips.gameRequested = m.top.currentCategory
-    'm.getClips.offset = m.offset.ToStr()
-    '? "m.offset >> ";m.getStreams.offset
     m.getClips.control = "RUN"
 end sub
 
-sub getMoreChannels()
-    m.offset += 24
-    m.append = true
-    m.getStreams.gameRequested = m.top.currentCategory
-    m.getStreams.offset = m.offset.ToStr()
-    '? "m.offset >> ";m.getStreams.offset
-    m.getStreams.control = "RUN"
+sub onSceneLoad()
+    onCategoryChange()
 end sub
 
-sub onKeyEvent(key, press) as Boolean
-    handled = false
-
-    if m.top.visible = true and press
-        if m.browseList.hasFocus() = true and key = "up"
-            m.clipButton.color = "0xA970FFFF"
-            m.browseButtons.setFocus(true)
-            handled = true
-        else if m.browseClipsList.hasFocus() = true and key = "up"
-            m.liveButton.color = "0xA970FFFF"
-            m.browseButtons.setFocus(true)
-            handled = true
-        else if m.browseButtons.hasFocus() = true and key = "down"
-            if m.clipLine.visible = true
-                m.liveButton.color = "0xEFEFF1FF"
-                m.browseClipsList.setFocus(true)
-                handled = true
-            else if m.liveLine.visible = true
-                m.clipButton.color = "0xEFEFF1FF"
-                m.browseList.setFocus(true)
-                handled = true
-            end if
-        else if m.browseButtons.hasFocus() = true and key = "OK"
-            if m.clipLine.visible = true
-                m.liveButton.color = "0xA970FFFF"
-                m.liveLine.visible = true
-                m.clipLine.visible = false
-                m.clipButton.color = "0xEFEFF1FF"
+function onKeyEvent(key, press) as Boolean
+    if not press or not m.top.visible then return false
+    if m.browseButtons.hasFocus()
+        if key = "left" or key = "right" or key = "OK"
+            m.liveLine.visible = not m.liveLine.visible
+            m.clipLine.visible = not m.liveLine.visible
+            if m.clipLine.visible
+                m.clipButton.color = "0xF4F4F7FF"
+                m.liveButton.color = "0xA9A9B2FF"
+                onClipsLoad()
+            else
+                m.liveButton.color = "0xF4F4F7FF"
+                m.clipButton.color = "0xA9A9B2FF"
                 m.browseClipsList.visible = false
                 m.browseList.visible = true
-                m.browseList.setFocus(true)
-                handled = true
-            else if m.liveLine.visible = true
-                m.clipButton.color = "0xA970FFFF"
-                m.clipLine.visible = true
-                m.liveLine.visible = false
-                m.liveButton.color = "0xEFEFF1FF"
-                m.browseClipsList.setFocus(true)
-                onClipsLoad()
-                handled = true
+                m.emptyLabel.visible = not categoryHasRows(m.browseList)
+                m.emptyLabel.text = "No live channels in this category"
             end if
-        else if m.browseList.hasFocus() = true and key = "down"
-            getMoreChannels()
-        else if m.browseClipsList.hasFocus() = true and key = "down"
-            getMoreClips()
+            return true
+        else if key = "down"
+            focusContent()
+            return true
         end if
-    else if press = false
-        if key = "back" and m.wasLastScene = true
-            if m.clipLine.visible = true
-                handled = true
-            else if m.liveLine.visible = true
-                m.browseList.setFocus(true)
-                handled = true
-            end if
-            m.offset = 0
-            m.wasLastScene = false
-        end if
+    else if key = "up"
+        m.browseButtons.setFocus(true)
+        return true
+    else if key = "options" and m.browseList.hasFocus() and categoryHasRows(m.browseList)
+        index = m.browseList.rowItemFocused
+        item = m.browseList.content.getChild(index[0]).getChild(index[1])
+        m.top.streamerSelectedName = item.ShortDescriptionLine1
+        m.top.streamerSelectedThumbnail = item.HDPosterUrl
+        return true
     end if
+    return false
+end function
 
-    return handled
+function itemCategoryText(value) as String
+    if type(value) = "roString" or type(value) = "String" then return value
+    if type(value) = "roArray"
+        if value.count() > 0 then return value[0]
+    end if
+    return ""
+end function
+
+sub cancelPlaybackRequest()
+    m.playbackRequestId += 1
+    m.getStuff.cancelRequested = true
+    m.getStuff.requestId = m.playbackRequestId
+    m.playbackStatus.text = ""
+end sub
+
+sub onPlaybackStopped()
+    if not m.top.visible or m.getStuff.state <> "stop" then return
+    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if m.getStuff.errorMessage <> ""
+        m.playbackStatus.text = m.getStuff.errorMessage
+    end if
 end sub
