@@ -7,8 +7,8 @@
     <script type="text/brightscript" uri="pkg:/components/ChannelStreamItem.brs" />
     <children>
         <Rectangle width="292" height="164" color="0x18181BFF" /><Poster id="itemThumbnail" width="292" height="164" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToFill" />
-<ScrollingLabel id="itemTitle" translation="[0,174]" maxWidth="292" height="27" repeatCount="0" color="0xFFFFFFFF"><Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="19" /></ScrollingLabel>
-<Label id="itemGame" translation="[0,205]" width="190" height="22" color="0xDEDEE3FF" ><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" /></Label>
-<Label id="itemViewers" translation="[192,205]" width="100" height="22" color="0xC6C6CEFF" horizAlign="right"><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" /></Label>
+<ScrollingLabel id="itemTitle" translation="[0,172]" maxWidth="292" height="23" repeatCount="0" color="0xFFFFFFFF"><Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="19" /></ScrollingLabel>
+<Label id="itemGame" translation="[0,199]" width="190" height="20" color="0xDEDEE3FF" ><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" /></Label>
+<Label id="itemViewers" translation="[192,199]" width="100" height="20" color="0xC6C6CEFF" horizAlign="right"><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" /></Label>
     </children>
 </component>
