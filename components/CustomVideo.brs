@@ -12,6 +12,8 @@ sub init()
     m.seekFocus = m.top.findNode("seekFocus")
     m.statusBox = m.top.findNode("statusBox")
     m.statusText = m.top.findNode("statusText")
+    m.busy = m.top.findNode("busy")
+    m.busy.enabled = m.top.visible
     m.pauseIndicator = m.top.findNode("pauseIndicator")
     m.overlayTimer = m.top.findNode("overlayTimer")
     m.watchdog = m.top.findNode("watchdog")
@@ -58,6 +60,7 @@ sub focusContent()
 end sub
 
 sub onVisible()
+    m.busy.enabled = m.top.visible
     if m.top.visible
         focusContent()
         showOverlay()
@@ -106,6 +109,7 @@ sub onChatVisibilityChange()
     m.seekFocus.width = surfaceWidth - 68
     m.top.findNode("durationLabel").translation = [surfaceWidth - 174, 0]
     m.statusBox.translation = [(surfaceWidth - 480) / 2, 268]
+    m.busy.translation = [(surfaceWidth - 64) / 2, 328]
     m.pauseIndicator.translation = [(surfaceWidth - 132) / 2, 268]
     refreshControls()
     onVideoPositionChange()
@@ -161,8 +165,7 @@ sub onRequestedControl()
                 startPendingContent()
             else
                 m.playbackActive = true
-                m.statusText.text = "Loading stream…"
-                m.statusBox.visible = true
+                showPlayerBusy()
                 m.watchdog.control = "start"
                 m.video.control = "stop"
             end if
@@ -191,8 +194,7 @@ sub onContentChange()
     m.pendingSeek = invalid
     m.seekTimer.control = "stop"
     m.top.playbackError = ""
-    m.statusText.text = "Loading stream…"
-    m.statusBox.visible = true
+    showPlayerBusy()
     m.watchdog.control = "start"
     focusContent()
     showOverlay()
@@ -211,6 +213,7 @@ sub onVideoStateChange()
     else if state = "playing"
         m.bufferTicks = 0
         m.statusBox.visible = false
+        m.busy.active = false
         if m.resumePaused
             m.resumePaused = false
             m.video.control = "pause"
@@ -220,9 +223,9 @@ sub onVideoStateChange()
     else if state = "paused"
         m.pauseIndicator.visible = true
         m.statusBox.visible = false
+        m.busy.active = false
     else if state = "buffering"
-        m.statusText.text = "Loading stream…"
-        m.statusBox.visible = true
+        showPlayerBusy()
         m.pauseIndicator.visible = false
     else if state = "error"
         recoverPlayback()
@@ -260,8 +263,7 @@ sub recoverPlayback()
     nextIndex = -1
     if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried)
     if nextIndex >= 0
-        m.statusText.text = "Trying " + m.variants[nextIndex].name + "…"
-        m.statusBox.visible = true
+        showPlayerBusy()
         switchVariant(nextIndex)
     else
         showPlaybackError("This quality could not play. Choose another quality or press Back.")
@@ -269,6 +271,7 @@ sub recoverPlayback()
 end sub
 
 sub showPlaybackError(message as String)
+    m.busy.active = false
     m.pendingContent = invalid
     m.playbackActive = false
     m.switching = false
@@ -284,6 +287,7 @@ end sub
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
     selected = m.variants[index]
+    showPlayerBusy()
     nextContent = CreateObject("roSGNode", "ContentNode")
     nextContent.url = selected.url
     nextContent.streamFormat = "hls"
@@ -333,6 +337,7 @@ sub stopPlayback()
     m.seekTimer.control = "stop"
     m.qualityPanel.visible = false
     m.statusBox.visible = false
+    m.busy.active = false
     m.pauseIndicator.visible = false
     m.overlay.visible = false
     ' Keep the bookmark in memory. Back never waits for a registry flush.
@@ -514,7 +519,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         if m.qualityPanel.visible
             m.qualityPanel.visible = false
             showOverlay()
-        else if m.statusBox.visible or m.top.playbackError <> ""
+        else if m.busy.active or m.statusBox.visible or m.top.playbackError <> ""
             stopPlayback()
             m.top.back = true
         else if m.overlay.visible
@@ -610,3 +615,9 @@ function playerSeconds(value)
     end if
     return 0
 end function
+
+sub showPlayerBusy()
+    m.statusText.text = ""
+    m.statusBox.visible = false
+    m.busy.active = true
+end sub

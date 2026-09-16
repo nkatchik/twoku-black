@@ -1,4 +1,7 @@
 sub init()
+    m.busy = m.top.findNode("busy")
+    m.searching = false
+    m.playbackLoading = false
     m.playbackRequestId = 0
     m.playbackStatus = m.top.findNode("playbackStatus")
     m.keyboard = m.top.findNode("keyboard")
@@ -25,6 +28,8 @@ sub init()
     m.streamQuery = ""
     m.categoryQuery = ""
     m.wasLastScene = false
+    layoutTabs()
+    updateSearchBusy()
 end sub
 
 sub focusContent()
@@ -34,6 +39,7 @@ end sub
 sub onGetFocus()
     if not m.top.visible then cancelPlaybackRequest()
     focusContent()
+    updateSearchBusy()
 end sub
 
 function searchHasRows(list) as Boolean
@@ -49,9 +55,14 @@ sub onSearchTextChange()
         m.searchResultList.content = invalid
         m.resultCategoryList.content = invalid
         m.emptyLabel.text = "Enter a channel or game name"
+        m.searching = false
+        updateSearchBusy()
         return
     end if
-    m.emptyLabel.text = "Searching…"
+    m.emptyLabel.text = ""
+    m.emptyLabel.visible = false
+    m.searching = true
+    updateSearchBusy()
     if m.liveLine.visible
         if m.getSearch.state = "run" then return
         m.streamQuery = query
@@ -68,6 +79,9 @@ end sub
 sub onSearchStopped()
     query = m.keyboard.text.Trim()
     if query = "" then return
+    if m.liveLine.visible and m.getSearch.state = "stop" and m.streamQuery = query then m.searching = false
+    if m.categoryLine.visible and m.getCategorySearch.state = "stop" and m.categoryQuery = query then m.searching = false
+    updateSearchBusy()
     if m.liveLine.visible and m.getSearch.state = "stop" and m.streamQuery <> query
         onSearchTextChange()
     else if m.categoryLine.visible and m.getCategorySearch.state = "stop" and m.categoryQuery <> query
@@ -107,6 +121,8 @@ sub onSearchResultChange()
         end if
         m.resultCategoryList.content = content
     end if
+    m.searching = false
+    updateSearchBusy()
     m.emptyLabel.visible = content.getChildCount() = 0
     m.emptyLabel.text = "No results found"
 end sub
@@ -130,11 +146,13 @@ sub onSearchItemSelect()
         m.top.liveViewers = ""
         m.getStuff.streamerRequested = item.description
         m.playbackRequestId += 1
-    m.getStuff.requestId = m.playbackRequestId
-    m.getStuff.cancelRequested = false
-    m.getStuff.errorMessage = ""
-    m.playbackStatus.text = "Opening video…"
-    m.getStuff.control = "RUN"
+        m.getStuff.requestId = m.playbackRequestId
+        m.getStuff.cancelRequested = false
+        m.getStuff.errorMessage = ""
+        m.playbackStatus.text = ""
+        m.playbackLoading = true
+        updateSearchBusy()
+        m.getStuff.control = "RUN"
     else
         m.top.streamerSelectedName = item.description
     end if
@@ -144,6 +162,8 @@ end sub
 sub onStreamUrlChange()
     if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
+    m.playbackLoading = false
+    updateSearchBusy()
     if not m.top.visible or m.getStuff.streamUrl = "" then return
     m.top.streamerRequested = m.getStuff.streamerRequested
     m.top.playbackInfo = m.getStuff.playbackInfo
@@ -204,12 +224,33 @@ sub cancelPlaybackRequest()
     m.getStuff.cancelRequested = true
     m.getStuff.requestId = m.playbackRequestId
     m.playbackStatus.text = ""
+    m.playbackLoading = false
+    updateSearchBusy()
 end sub
 
 sub onPlaybackStopped()
     if not m.top.visible or m.getStuff.state <> "stop" then return
     if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    m.playbackLoading = false
+    updateSearchBusy()
     if m.getStuff.errorMessage <> ""
         m.playbackStatus.text = m.getStuff.errorMessage
     end if
+end sub
+
+sub updateSearchBusy()
+    if m.busy = invalid then return
+    m.busy.enabled = m.top.visible
+    m.busy.active = m.searching or m.playbackLoading
+    if m.busy.active then m.emptyLabel.visible = false
+end sub
+
+sub layoutTabs()
+    if m.liveButton = invalid or m.categoryButton = invalid then return
+    width = m.liveButton.localBoundingRect().width
+    m.liveLine.width = width
+    nextX = width + 24
+    m.categoryButton.translation = [nextX, 61]
+    m.categoryLine.translation = [nextX, 75]
+    m.categoryLine.width = m.categoryButton.localBoundingRect().width
 end sub

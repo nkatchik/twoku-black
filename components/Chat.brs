@@ -4,9 +4,12 @@ sub init()
     m.avatar = m.top.findNode("channelAvatar")
     m.viewers = m.top.findNode("viewers")
     m.status = m.top.findNode("status")
+    m.busy = m.top.findNode("busy")
+    m.busy.enabled = m.top.visible
     m.chat = CreateObject("roSGNode", "ChatTest")
     m.chat.observeField("nextComment", "onNewComment")
     m.chat.observeField("statusMessage", "onChatStatus")
+    m.chat.observeField("connecting", "onChatStatus")
     m.chat.observeField("state", "onChatStopped")
     m.top.observeField("visible", "onInvisible")
     m.restartAfterStop = false
@@ -30,7 +33,9 @@ sub updateChatHeader()
 end sub
 
 sub onInvisible()
+    m.busy.enabled = m.top.visible
     syncChatConnection()
+    onChatStatus()
 end sub
 
 sub onEnterChannel()
@@ -39,8 +44,8 @@ sub onEnterChannel()
         m.chatPanel.removeChildrenIndex(m.chatPanel.getChildCount(), 0)
         m.rows = []
         m.currentChannel = m.top.channel
-        m.status.text = "Connecting to chat..."
-        m.status.visible = true
+        m.status.text = ""
+        m.status.visible = false
     end if
     updateChatHeader()
     syncChatConnection()
@@ -68,6 +73,7 @@ sub onChatStopped()
     if m.restartAfterStop
         syncChatConnection()
     else if m.top.visible
+        m.busy.active = false
         m.status.text = "Chat unavailable"
         m.status.visible = m.rows.Count() = 0
     end if
@@ -75,8 +81,10 @@ end sub
 
 sub onChatStatus()
     if not m.top.visible or m.chat.channel <> m.top.channel then return
+    m.busy.active = m.chat.connecting
     m.status.text = m.chat.statusMessage
-    m.status.visible = m.rows.Count() = 0
+    if m.status.text = "" then m.status.text = "No messages yet"
+    m.status.visible = m.rows.Count() = 0 and not m.chat.connecting
 end sub
 
 sub onNewComment()

@@ -27,7 +27,8 @@
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="21" />
         </Label>
         <Group id="chatPanel" translation="[932,116]" />
-        <Label id="status" text="Connecting to chat..." width="316" height="64" wrap="true" translation="[942,126]" color="0xa9a9b2FF">
+        <LoadingIndicator id="busy" translation="[1076,144]" size="48" />
+        <Label id="status" text="" visible="false" width="316" height="64" wrap="true" translation="[942,126]" color="0xa9a9b2FF">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="17" />
         </Label>
     </children>

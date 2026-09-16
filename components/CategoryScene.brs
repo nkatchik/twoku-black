@@ -1,4 +1,8 @@
 sub init()
+    m.busy = m.top.findNode("busy")
+    m.streamsLoading = false
+    m.clipsLoading = false
+    m.playbackLoading = false
     m.playbackRequestId = 0
     m.playbackStatus = m.top.findNode("playbackStatus")
     m.browseList = m.top.findNode("browseList")
@@ -36,6 +40,8 @@ sub init()
     m.append = false
     m.newCategory = false
     m.wasLastScene = false
+    layoutTabs()
+    updateCategoryBusy()
 end sub
 
 sub updateCategoryHeader()
@@ -70,6 +76,7 @@ sub onGetFocus()
         m.browseClipsList.visible = m.clipLine.visible
         focusContent()
     end if
+    updateCategoryBusy()
 end sub
 
 sub onCategoryChange()
@@ -89,8 +96,11 @@ sub onCategoryChange()
     m.clipButton.color = "0xA9A9B2FF"
     m.browseList.visible = true
     m.browseClipsList.visible = false
-    m.emptyLabel.text = "Loading streams…"
-    m.emptyLabel.visible = true
+    m.emptyLabel.text = ""
+    m.emptyLabel.visible = false
+    m.streamsLoading = true
+    m.clipsLoading = false
+    updateCategoryBusy()
     updateCategoryHeader()
     startCategoryStreams()
 end sub
@@ -101,16 +111,22 @@ sub startCategoryStreams()
     m.getStreams.gameRequested = m.streamsCategory
     m.getStreams.pagination = ""
     m.getStreams.offset = "0"
+    m.streamsLoading = true
+    updateCategoryBusy()
     m.getStreams.control = "RUN"
 end sub
 
 sub onStreamsStopped()
+    if m.getStreams.state = "stop" and m.streamsCategory = m.top.currentCategory then m.streamsLoading = false
+    updateCategoryBusy()
     if m.getStreams.state = "stop" and m.streamsCategory <> m.top.currentCategory
         startCategoryStreams()
     end if
 end sub
 
 sub onClipsStopped()
+    if m.getClips.state = "stop" and m.clipsCategory = m.top.currentCategory then m.clipsLoading = false
+    updateCategoryBusy()
     if m.getClips.state = "stop" and m.clipLine.visible and m.clipsCategory <> m.top.currentCategory
         onClipsLoad()
     end if
@@ -119,9 +135,11 @@ end sub
 sub onClipsLoad()
     m.browseList.visible = false
     m.browseClipsList.visible = true
+    m.emptyLabel.visible = false
     if categoryHasRows(m.browseClipsList) then return
-    m.emptyLabel.visible = true
-    m.emptyLabel.text = "Loading clips…"
+    m.emptyLabel.text = ""
+    m.clipsLoading = true
+    updateCategoryBusy()
     if m.getClips.state = "run" then return
     m.clipsCategory = m.top.currentCategory
     m.getClips.gameRequested = m.clipsCategory
@@ -151,6 +169,8 @@ end function
 
 sub onSearchResultChange()
     if m.streamsCategory <> m.top.currentCategory then return
+    m.streamsLoading = false
+    updateCategoryBusy()
     if m.getStreams.searchResults <> invalid
         for each stream in m.getStreams.searchResults
             if not m.seenStreams.DoesExist(stream.name)
@@ -180,6 +200,8 @@ end sub
 
 sub insertClips()
     if m.clipsCategory <> m.top.currentCategory then return
+    m.clipsLoading = false
+    updateCategoryBusy()
     if m.getClips.searchResults <> invalid
         for each clip in m.getClips.searchResults
             if not m.seenClips.DoesExist(clip.thumbnail_url)
@@ -208,6 +230,8 @@ end sub
 sub onStreamUrlChange()
     if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
+    m.playbackLoading = false
+    updateCategoryBusy()
     if not m.top.visible or m.getStuff.streamUrl = "" then return
     m.top.streamerRequested = m.getStuff.streamerRequested
     m.top.playbackInfo = m.getStuff.playbackInfo
@@ -228,7 +252,9 @@ sub onBrowseItemSelect()
     m.getStuff.requestId = m.playbackRequestId
     m.getStuff.cancelRequested = false
     m.getStuff.errorMessage = ""
-    m.playbackStatus.text = "Opening video…"
+    m.playbackStatus.text = ""
+    m.playbackLoading = true
+    updateCategoryBusy()
     m.getStuff.control = "RUN"
     m.wasLastScene = true
 end sub
@@ -247,7 +273,9 @@ sub onBrowseClipsItemSelect()
     m.getClipPlayback.clipId = item.ShortDescriptionLine1
     m.getClipPlayback.cancelRequested = false
     m.getClipPlayback.errorMessage = ""
-    m.playbackStatus.text = "Opening clip…"
+    m.playbackStatus.text = ""
+    m.playbackLoading = true
+    updateCategoryBusy()
     m.getClipPlayback.control = "RUN"
 end sub
 
@@ -260,6 +288,8 @@ sub onClipPlaybackUrl()
     m.top.liveName = info.name
     m.top.playbackInfo = info
     m.playbackStatus.text = ""
+    m.playbackLoading = false
+    updateCategoryBusy()
     m.top.fromClip = true
     m.top.clipUrl = m.getClipPlayback.streamUrl
 end sub
@@ -267,6 +297,8 @@ end sub
 sub onClipPlaybackStopped()
     if not m.top.visible or m.getClipPlayback.state <> "stop" then return
     if m.getClipPlayback.cancelRequested or m.getClipPlayback.requestId <> m.playbackRequestId then return
+    m.playbackLoading = false
+    updateCategoryBusy()
     if m.getClipPlayback.errorMessage <> "" then m.playbackStatus.text = m.getClipPlayback.errorMessage
 end sub
 
@@ -284,6 +316,8 @@ sub getMoreChannels()
     m.offset += 24
     m.append = true
     m.getStreams.offset = m.offset.ToStr()
+    m.streamsLoading = true
+    updateCategoryBusy()
     m.getStreams.control = "RUN"
 end sub
 
@@ -291,6 +325,8 @@ sub getMoreClips()
     if m.getClips.state = "run" or m.append then return
     if m.getClips.pagination = "" then return
     m.append = true
+    m.clipsLoading = true
+    updateCategoryBusy()
     m.getClips.control = "RUN"
 end sub
 
@@ -316,6 +352,7 @@ function onKeyEvent(key, press) as Boolean
                 m.emptyLabel.visible = not categoryHasRows(m.browseList)
                 m.emptyLabel.text = "No live channels in this category"
             end if
+            updateCategoryBusy()
             return true
         else if key = "down"
             focusContent()
@@ -351,12 +388,36 @@ sub cancelPlaybackRequest()
         m.getClipPlayback.requestId = m.playbackRequestId
     end if
     m.playbackStatus.text = ""
+    m.playbackLoading = false
+    updateCategoryBusy()
 end sub
 
 sub onPlaybackStopped()
     if not m.top.visible or m.getStuff.state <> "stop" then return
     if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    m.playbackLoading = false
+    updateCategoryBusy()
     if m.getStuff.errorMessage <> ""
         m.playbackStatus.text = m.getStuff.errorMessage
     end if
+end sub
+
+sub updateCategoryBusy()
+    if m.busy = invalid then return
+    loading = m.playbackLoading
+    if m.liveLine.visible and m.streamsLoading then loading = true
+    if m.clipLine.visible and m.clipsLoading then loading = true
+    m.busy.enabled = m.top.visible
+    m.busy.active = loading
+    if loading then m.emptyLabel.visible = false
+end sub
+
+sub layoutTabs()
+    if m.liveButton = invalid or m.clipButton = invalid then return
+    width = m.liveButton.localBoundingRect().width
+    m.liveLine.width = width
+    nextX = width + 24
+    m.clipButton.translation = [nextX, 61]
+    m.clipLine.translation = [nextX, 75]
+    m.clipLine.width = m.clipButton.localBoundingRect().width
 end sub

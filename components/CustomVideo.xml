@@ -84,6 +84,7 @@
                 <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="13" />
             </Label>
         </Group>
+        <LoadingIndicator id="busy" translation="[608,328]" size="64" />
         <Group id="statusBox" translation="[400,268]" visible="false">
             <Rectangle width="480" height="134" color="0x18181BF2" />
             <Label id="statusText" translation="[22,22]" width="436" height="60" wrap="true" maxLines="2" horizAlign="center" vertAlign="center">

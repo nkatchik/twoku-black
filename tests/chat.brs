@@ -19,12 +19,13 @@ end function
 
 sub resetChat()
     m.top = {visible: false, channel: "alpha", channelUsername: "Alpha", channelAvatar: "avatar.png", viewerText: "12 viewers", control: false}
-    m.chat = {state: "stop", channel: "", control: "", cancelRequested: false, readyForNextComment: true}
+    m.chat = {state: "stop", channel: "", control: "", cancelRequested: false, readyForNextComment: true, connecting: false, statusMessage: ""}
     m.chatPanel = testCreateObject("roSGNode", "Group")
     m.name = node()
     m.avatar = node()
     m.viewers = node()
     m.status = node()
+    m.busy = node()
     m.rows = []
     m.restartAfterStop = false
     m.currentChannel = ""
@@ -80,5 +81,17 @@ sub main()
     m.top.setKeyboardFocus = true
     onSetKeyboardFocus()
     check(not m.top.setKeyboardFocus and m.top.doneFocus, "Legacy keyboard request returns focus without exposing keyboard")
+    resetChat()
+    m.top.visible = true
+    m.chat.channel = "alpha"
+    m.chat.connecting = true
+    onChatStatus()
+    check(m.busy.active and not m.status.visible, "Chat connection shows only a spinner")
+    m.chat.connecting = false
+    onChatStatus()
+    check(not m.busy.active and m.status.text = "No messages yet", "Joined quiet channel is an empty state, not an endless spinner")
+    m.top.visible = false
+    onInvisible()
+    check(not m.busy.enabled, "Hidden rail disables animation")
     print "PASS hidden startup, cancellation, reopen, channel races, bounded read-only rail"
 end sub

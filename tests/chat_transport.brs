@@ -74,6 +74,7 @@ function testWait(delay, port)
     check(delay = 50, "Every network loop yields for 50 ms without socket event floods")
     g.now += delay
     if not g.top.readyForNextComment
+        check(not g.top.connecting, "JOIN handshake clears the spinner before chat delivery")
         g.deliveries.Push({at: g.now, message: g.top.nextComment})
         g.top.readyForNextComment = true
     end if
@@ -83,7 +84,7 @@ end function
 
 sub resetTransport()
     g = getGlobalAA()
-    m.top = {channel: "alpha", cancelRequested: false, readyForNextComment: true}
+    m.top = {channel: "alpha", cancelRequested: false, readyForNextComment: true, connecting: false}
     g.top = m.top
     g.now = 0
     g.cancelAt = 1000
@@ -144,6 +145,7 @@ sub main()
     g.connected = false
     g.cancelAt = 200
     readChat()
+    check(not m.top.connecting, "Cancellation clears the transport connecting state")
     check(g.now = 200 and g.sockets[0].closed, "Cancelling a pending connection never waits for its 10-second timeout")
     resetTransport()
     g.connected = false

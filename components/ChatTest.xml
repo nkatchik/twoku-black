@@ -5,6 +5,7 @@
         <field id="cancelRequested" type="boolean" value="false" />
         <field id="readyForNextComment" type="boolean" value="true" />
         <field id="nextComment" type="assocarray" alwaysNotify="true" />
+        <field id="connecting" type="boolean" value="false" />
         <field id="statusMessage" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/ChatTest.brs" />

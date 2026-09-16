@@ -48,6 +48,8 @@ sub resetPlayer()
     m.seekFocus = playerNode()
     m.statusBox = playerNode()
     m.statusText = playerNode()
+    m.busy = playerNode()
+    m.busy.active = false
     m.pauseIndicator = playerNode()
     m.overlayTimer = playerNode()
     m.watchdog = playerNode()
@@ -86,10 +88,10 @@ sub main()
     stopPlayback()
 
     resetPlayer()
-    m.statusBox.visible = true
+    m.busy.active = true
     check(onKeyEvent("back", true), "Back consumed while buffering")
     check(m.top.back = true and m.video.control = "stop", "buffering Back exits explicitly and stops decoder")
-    check(m.pendingContent = invalid and m.watchdog.control = "stop", "exit cancels pending playback and watchdog")
+    check(m.pendingContent = invalid and m.watchdog.control = "stop" and not m.busy.active, "exit cancels pending playback, spinner, and watchdog")
 
     resetPlayer()
     m.top.content = {url: "https://example/new", streamFormat: "hls", live: true}
@@ -185,5 +187,16 @@ sub main()
     check(m.top.channelRequested = true, "Channel control emits navigation event")
     showQuality()
     check(onKeyEvent("back", true) and not m.qualityPanel.visible, "Back closes quality picker first")
+    resetPlayer()
+    onContentChange()
+    check(m.busy.active and not m.statusBox.visible and m.statusText.text = "", "Initial buffering shows only a spinner")
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(not m.busy.active, "First playback stops the spinner")
+    m.video.state = "buffering"
+    onVideoStateChange()
+    check(m.busy.active and not m.statusBox.visible, "Rebuffering shows a spinner without a text box")
+    showPlaybackError("Decoder failed")
+    check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Decoder failed", "Errors replace the spinner with actionable text")
     print "PASS player remote ownership, stop handshake, watchdog, chat layout, quality and VOD seek"
 end sub

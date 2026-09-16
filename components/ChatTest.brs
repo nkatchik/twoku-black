@@ -11,7 +11,8 @@ sub readChat()
     tickPort = CreateObject("roMessagePort")
     socketPort = CreateObject("roMessagePort")
     while not m.top.cancelRequested
-        m.top.statusMessage = "Connecting to chat..."
+        m.top.statusMessage = ""
+        m.top.connecting = true
         socket = CreateObject("roStreamSocket")
         socket.SetMessagePort(socketPort)
         address = CreateObject("roSocketAddress")
@@ -25,6 +26,7 @@ sub readChat()
         end while
         if m.top.cancelRequested
             socket.Close()
+            m.top.connecting = false
             return
         end if
         if socket.IsConnected()
@@ -34,8 +36,9 @@ sub readChat()
             runChatConnection(socket, tickPort, channel, pendingSend)
         end if
         socket.Close()
+        m.top.connecting = false
         if m.top.cancelRequested then return
-        m.top.statusMessage = "Chat unavailable. Reconnecting..."
+        m.top.statusMessage = "Chat unavailable"
         if not waitForChat(tickPort, 5000) then return
     end while
 end sub
@@ -56,11 +59,12 @@ sub runChatConnection(socket, tickPort, channel as String, pendingSend as String
     state = {buffer: "", droppingLine: false, queue: [], reconnect: false}
     deliveryClock = CreateObject("roTimespan")
     deliveryClock.Mark()
-    m.top.statusMessage = "Waiting for messages..."
+    m.top.statusMessage = ""
     while not m.top.cancelRequested and socket.eOK() and not state.reconnect
         if pendingSend <> "" and socket.IsWritable()
             sent = socket.SendStr(pendingSend)
             if sent > 0 then pendingSend = Mid(pendingSend, sent + 1)
+            if pendingSend = "" then m.top.connecting = false
         end if
         available = socket.GetCountRcvBuf()
         if available > 0
