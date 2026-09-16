@@ -6,9 +6,9 @@ sub init()
     m.offlineFocus = m.top.findNode("offlineFocus")
     m.grid.observeField("rowItemFocused", "onItemFocused")
     m.grid.observeField("rowItemSelected", "onItemSelected")
-    m.grid.observeField("currFocusColumn", "updateFollowingFocus")
     m.top.observeField("visible", "updateFollowingFocus")
     m.focusLogin = ""
+    m.focusPosition = [0,0]
 end sub
 
 function followingCount(items) as Integer
@@ -25,7 +25,7 @@ end function
 
 function followingRows(liveStreams, offlineChannels) as Object
     content = CreateObject("roSGNode", "ContentNode")
-    content.addFields({focusState: [-1,0,false]})
+    content.addFields({focusState: [-1,0,false,0,0,false]})
     heights = []
     sizes = []
     spacings = []
@@ -108,6 +108,7 @@ sub onContentChanged()
     m.grid.rowItemSize = model.sizes
     m.grid.rowItemSpacing = model.spacings
     m.grid.showRowLabel = model.labels
+    m.focusPosition = position
     m.grid.content = model.content
     m.top.hasItems = model.content.getChildCount() > 0
     m.top.focusedItem = invalid
@@ -139,19 +140,36 @@ sub onItemFocused()
     if item = invalid then return
     m.top.focusedItem = item
     m.focusLogin = item.ShortDescriptionLine1
+    m.focusPosition = m.grid.rowItemFocused
     updateFollowingFocus()
 end sub
 
 sub updateFollowingFocus()
     if m.focusCursor = invalid then return
-    m.focusCursor.visible = false
-    if not m.top.visible or not m.grid.hasFocus() or m.grid.content = invalid then return
+    if not m.top.visible or not m.grid.hasFocus() or m.grid.content = invalid
+        m.focusCursor.visible = false
+        return
+    end if
     state = m.grid.content.focusState
     ' Vertical movement snaps into place once the new row has settled.
-    if state[0] < 0 or state[1] < 1 or not state[2] then return
+    if state[0] < 0 or state[1] < 1 or not state[2]
+        m.focusCursor.visible = false
+        return
+    end if
+    if state[5] then m.focusPosition = [state[0],state[3]]
+    if state[0] <> m.focusPosition[0]
+        m.focusCursor.visible = false
+        return
+    end if
     row = m.grid.content.getChild(state[0])
     if row = invalid or row.getChildCount() = 0 then return
-    column = m.grid.currFocusColumn
+    column = m.focusPosition[1]
+    if not state[5]
+        ' Only the incoming item's progress moves the cursor. The outgoing item
+        ' shares the last settled index and must not move it back each frame.
+        if state[3] = column then return
+        column += (state[3] - column) * state[4]
+    end if
     if column < 0 then column = 0
     if column > row.getChildCount() - 1 then column = row.getChildCount() - 1
     index = Int(column)
@@ -160,7 +178,8 @@ sub updateFollowingFocus()
     stride = 199
     if live then stride = 302
     rect = m.grid.subBoundingRect("item" + state[0].ToStr() + "_" + index.ToStr())
-    ' Use Roku's own interpolated column so horizontal motion matches other grids.
+    ' Item focus progress uses the native timing without a stale currFocusColumn
+    ' from the six-column row surviving a visit to a four-column row.
     m.focusCursor.translation = [rect.x + (column - index) * stride,rect.y]
     m.liveFocus.visible = live
     m.offlineFocus.visible = not live

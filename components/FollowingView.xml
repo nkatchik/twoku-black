@@ -19,7 +19,12 @@
                 <Font role="rowLabelFont" uri="pkg:/fonts/Inter-SemiBold.ttf" size="20" />
             </RowList>
             <Group id="focusCursor" visible="false">
-                <Poster id="liveFocus" uri="pkg:/images/twellie-focus.9.png" width="292" height="164" />
+                <Group id="liveFocus" translation="[0,6]">
+                    <Rectangle width="292" height="3" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,161]" width="292" height="3" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,3]" width="3" height="158" color="0xF4F4F7FF" />
+                    <Rectangle translation="[289,3]" width="3" height="158" color="0xF4F4F7FF" />
+                </Group>
                 <Poster id="offlineFocus" translation="[41,6]" uri="pkg:/images/twellie-avatar-focus.png" width="108" height="108" />
             </Group>
         </Group>

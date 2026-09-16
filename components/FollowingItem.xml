@@ -3,9 +3,11 @@
     <interface>
         <field id="itemContent" type="node" onChange="showContent" />
         <field id="itemHasFocus" type="boolean" onChange="onItemFocus" />
+        <field id="focusPercent" type="float" onChange="onItemFocus" />
         <field id="rowFocusPercent" type="float" onChange="onItemFocus" />
         <field id="rowListHasFocus" type="boolean" onChange="onItemFocus" />
         <field id="rowIndex" type="integer" />
+        <field id="index" type="integer" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/FollowingItem.brs" />
     <children>

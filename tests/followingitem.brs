@@ -1,8 +1,8 @@
 sub main()
-    root = {focusState: [-1,0,false]}
+    root = {focusState: [-1,0,false,0,0,false]}
     row = {parent:root,getParent:function():return m.parent:end function}
     item = {parent:row,getParent:function():return m.parent:end function}
-    m.top = {itemContent:item,rowIndex:2,itemHasFocus:false,rowListHasFocus:true,focusPercent:0.5,rowFocusPercent:1.0}
+    m.top = {itemContent:item,rowIndex:2,index:5,itemHasFocus:false,rowListHasFocus:true,focusPercent:0.5,rowFocusPercent:1.0}
     m.live = {visible:true}
     m.offline = {visible:false}
     onItemFocus()
@@ -12,10 +12,12 @@ sub main()
     check(root.focusState[1] = 0.5, "Vertical movement signals the shared cursor to wait for settlement")
     m.top.rowFocusPercent = 1
     m.top.itemHasFocus = true
+    m.top.focusPercent = 1
     m.live.visible = false
     m.offline.visible = true
     onItemFocus()
     check(root.focusState[1] = 1 and m.offline.itemHasFocus, "Settled offline row restores solid shared focus")
+    check(root.focusState[3] = 5 and root.focusState[4] = 1 and root.focusState[5], "Native settled index is published with animation progress")
     m.top.rowListHasFocus = false
     onItemFocus()
     check(not root.focusState[2] and not m.offline.itemHasFocus, "Header focus hides the shared cursor")
