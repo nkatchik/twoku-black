@@ -121,8 +121,11 @@ Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
 HTTPS, with bounded requests. Some current Twitch deliveries combine audio and
 video in fragmented MP4 segments, which [Roku does not support for
 CMAF](https://developer.roku.com/dev/docs/media). Lowering quality cannot correct
-that packaging; those streams need separate audio/video renditions or repackaging
-outside the Roku. No such helper is bundled. Off-device regressions and public
+that packaging; those streams need separate audio/video renditions. An external
+repackaging proxy is one solution; an in-app repair is also technically plausible
+but has not been implemented or validated on Roku. See the
+[delivery investigation](docs/playback-compatibility.md) for tested alternatives
+and the local repackaging experiment. Off-device regressions and public
 Twitch endpoint checks pass; Roxton decoder behavior and the final TV rendering
 still require device testing.
 
