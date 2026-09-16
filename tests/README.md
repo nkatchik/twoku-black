@@ -180,6 +180,32 @@ not the physical IR handset's delivery timing. All 34 suites passed, with the
 final pause-ordering additions rerun in the player suite; compilation retains
 the same twenty pre-existing diagnostics in the unused WebSocket implementation.
 
+The 2026-09-17 follow-up replaces `currFocusColumn` for Following cursor placement.
+Settled item indices are authoritative; the incoming item's `focusPercent` drives
+horizontal interpolation. Outgoing items cannot pull the cursor back, and vertical
+movement still snaps after settlement. The live outline is four three-pixel
+rectangles inside the 292-by-164 thumbnail, offset six pixels from the native
+reported item origin. A regular Poster does not render the grid's nine-patch
+focus artwork with the same geometry.
+
+No followed channels were live during verification, so a temporary native scene
+used the unchanged production Following components with four local live cards
+and six local avatar cards. The device reported focus `offline6`, `live4`,
+`offline6`, then `offline5` after Left; OK selected `offline5`. Screenshots matched
+every settled item, showed a solid circle between items during motion, and showed
+the final rectangular border aligned to all four thumbnail edges. The temporary
+scene performed no network or account writes; the normal app was restored.
+
+Channel profiles now prepend a live card from a fresh Helix stream lookup. Tests
+cover live/offline/failed status, live and VOD request routing, stale results,
+recording IDs after insertion, and preserving the playback spinner when metadata
+arrives. On the device, the eliasn97 profile displayed the live card and recordings;
+the new card reached native `play` with `is_live=true` and `error=false`. An older
+recording from the same grid reached `play` with `is_live=false` and `error=false`.
+The account button uses four pixels of outer padding and fully opaque white idle
+text, verified in its native header screenshot. All 34 suites pass; compilation
+still reports only the same twenty legacy WebSocket diagnostics.
+
 On 2026-09-16, the exact production live query and Twitch master returned HTTP
 200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
 selected 480p30. The production clip query returned four signed MP4 qualities;
