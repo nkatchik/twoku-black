@@ -137,6 +137,8 @@ function compatRegisterResource(registry as Object, url as String, kind as Strin
     if registry.baseUrl = invalid or registry.baseUrl = "" then return ""
     if registry.resources = invalid then registry.resources = {}
     if registry.idmap = invalid then registry.idmap = {}
+    ' URL paths and signed query values are case-sensitive, unlike default AAs.
+    registry.idmap.SetModeCaseSensitive()
     if registry.counter = invalid then registry.counter = 0
     ' Length prefixes prevent an upstream URL from colliding with another key.
     key = kind + ":" + track + ":" + Len(url).ToStr() + ":" + url + ":" + initUrl
