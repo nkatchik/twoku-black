@@ -54,6 +54,9 @@ sub init()
     m.pendingContent = invalid
     m.startRequested = false
     m.pendingSeek = invalid
+    m.seekInFlight = invalid
+    m.seekWaitTicks = 0
+    m.seekPaused = false
     m.resumePaused = false
     m.switching = false
     m.playbackActive = false
@@ -316,6 +319,8 @@ end sub
 sub onContentChange()
     if m.video.content = invalid or not m.top.visible or not m.playbackActive then return
     m.pendingSeek = invalid
+    m.seekInFlight = invalid
+    m.seekPaused = m.resumePaused
     m.seekTimer.control = "stop"
     m.top.playbackError = ""
     showPlayerBusy()
@@ -354,8 +359,9 @@ sub onVideoStateChange()
         m.bufferTicks = 0
         m.statusBox.visible = false
         m.busy.active = false
-        if m.resumePaused
+        if m.resumePaused or (m.seekPaused and m.seekInFlight = invalid)
             m.resumePaused = false
+            m.video.control = "none"
             m.video.control = "pause"
         end if
         m.switching = false
@@ -374,6 +380,14 @@ end sub
 
 sub checkPlaybackProgress()
     if not m.top.visible or not m.playbackActive then return
+    if m.seekInFlight <> invalid
+        m.seekWaitTicks += 1
+        if m.seekWaitTicks >= 8
+            m.seekInFlight = invalid
+            commitSeek()
+            onVideoPositionChange()
+        end if
+    end if
     state = m.video.state
     if m.pendingContent <> invalid and playerDecoderIdle(state)
         m.compatTicks += 1
@@ -449,6 +463,7 @@ sub requestDecoderStop()
 end sub
 
 sub rememberPlaybackPosition()
+    if m.seekInFlight <> invalid or m.pendingSeek <> invalid then return
     position = playerSeconds(m.video.position)
     duration = playerSeconds(m.video.duration)
     if m.video.state = "playing" or m.video.state = "paused"
@@ -579,6 +594,8 @@ sub switchVariant(index as Integer)
     if m.top.contentKind <> "live"
         if m.pendingSeek <> invalid
             nextContent.playStart = m.pendingSeek
+        else if m.seekInFlight <> invalid
+            nextContent.playStart = m.seekInFlight
         else
             nextContent.playStart = playerSeconds(m.video.position)
             if nextContent.playStart <= 0 then nextContent.playStart = playerSeconds(m.completedPosition)
@@ -588,6 +605,7 @@ sub switchVariant(index as Integer)
     m.resumePaused = m.video.state = "paused"
     m.seekTimer.control = "stop"
     m.pendingSeek = invalid
+    m.seekInFlight = invalid
     m.playingIndex = index
     m.tried[index.ToStr()] = true
     m.bufferTicks = 0
@@ -610,6 +628,7 @@ sub stopPlayback()
     m.playbackActive = false
     m.pendingContent = invalid
     m.pendingSeek = invalid
+    m.seekInFlight = invalid
     m.switching = false
     m.resumePaused = false
     m.watchdog.control = "stop"
@@ -710,7 +729,7 @@ end sub
 
 sub showQuality()
     for index = 0 to m.controlActions.Count() - 1
-        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + index * 148,438]
+        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + index * 148,454]
     end for
     m.qualityIndex = 0
     if m.preference <> "Auto"
@@ -746,46 +765,84 @@ end sub
 
 sub seekBy(seconds as Integer)
     if not canSeek() then return
+    if m.video.state = "paused" then m.seekPaused = true
     position = playerSeconds(m.video.position)
+    if m.seekInFlight <> invalid then position = m.seekInFlight
     if m.pendingSeek <> invalid then position = m.pendingSeek
     position += seconds
     if position < 0 then position = 0
     if position > playerSeconds(m.video.duration) then position = playerSeconds(m.video.duration)
     m.pendingSeek = position
+    m.overlayFocus = "seek"
+    showOverlay()
     m.seekTimer.control = "stop"
+    ' Allow the initial IR repeat delay; release shortens this to a quick commit.
+    m.seekTimer.duration = 0.65
     m.seekTimer.control = "start"
     onVideoPositionChange()
 end sub
 
 sub commitSeek()
+    m.seekTimer.control = "stop"
     if m.pendingSeek = invalid then return
     if not canSeek()
         m.pendingSeek = invalid
+        m.seekInFlight = invalid
         m.seekTimer.control = "stop"
         return
     end if
+    ' Only one native seek at a time. Further input keeps accumulating separately.
+    if m.seekInFlight <> invalid then return
     m.completedPosition = m.pendingSeek
-    m.video.seek = m.pendingSeek
+    m.seekInFlight = m.pendingSeek
+    m.seekOrigin = playerSeconds(m.video.position)
+    m.seekWaitTicks = 0
     m.pendingSeek = invalid
+    ' Some TVs stay in buffering with autoplayAfterSeek=false. Let the decoder
+    ' reach the target, then restore pause through the position observer.
+    m.video.autoplayAfterSeek = true
+    print "Playback seek target="; m.seekInFlight; " paused="; m.seekPaused
+    m.video.seek = m.seekInFlight
     m.stalledTicks = 0
 end sub
 
 sub togglePlayback()
     if not canSeek() then return
     commitSeek()
-    if m.video.state = "paused"
+    if m.seekPaused or m.video.state = "paused"
+        m.seekPaused = false
+        m.resumePaused = false
         m.video.control = "resume"
     else if m.video.state = "playing"
+        m.seekPaused = true
+        m.video.control = "none"
         m.video.control = "pause"
     end if
 end sub
 
 sub onVideoPositionChange()
     if m.video = invalid then return
+    position = playerSeconds(m.video.position)
+    if m.seekInFlight <> invalid
+        distance = Abs(position - m.seekInFlight)
+        ' Roku can land on a nearby keyframe. Ignore updates from the old position.
+        landed = distance <= 2
+        if Abs(position - m.seekOrigin) > 2 and distance < Abs(m.seekOrigin - m.seekInFlight) and distance <= 8 then landed = true
+        if m.video.state <> "playing" and m.video.state <> "paused" then landed = false
+        if landed
+            m.seekInFlight = invalid
+            if m.seekPaused and m.video.state = "playing"
+                ' Seek leaves the last control value intact; re-arm pause.
+                m.video.control = "none"
+                m.video.control = "pause"
+            end if
+            if m.pendingSeek <> invalid then m.seekTimer.control = "start"
+        end if
+    end if
     if m.playbackActive and (m.video.state = "playing" or m.video.state = "paused") then rememberPlaybackPosition()
     m.progress.visible = canSeek()
     m.seekFocus.visible = m.overlayFocus = "seek" and canSeek()
-    position = playerSeconds(m.video.position)
+    if m.seekInFlight <> invalid then position = m.seekInFlight
     if m.pendingSeek <> invalid then position = m.pendingSeek
     m.top.findNode("positionLabel").text = convertToReadableTimeFormat(position)
     m.top.findNode("durationLabel").text = convertToReadableTimeFormat(playerSeconds(m.video.duration))
@@ -810,7 +867,14 @@ function convertToReadableTimeFormat(value) as String
 end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
-    if not press then return key <> "home"
+    if not press
+        if m.pendingSeek <> invalid and (key = "left" or key = "right" or key = "rewind" or key = "fastforward")
+            m.seekTimer.control = "stop"
+            m.seekTimer.duration = 0.12
+            m.seekTimer.control = "start"
+        end if
+        return key <> "home"
+    end if
     if key = "back"
         if m.qualityPanel.visible
             m.qualityPanel.visible = false

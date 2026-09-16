@@ -81,6 +81,9 @@ sub resetPlayer()
     m.pendingContent = invalid
     m.startRequested = false
     m.pendingSeek = invalid
+    m.seekInFlight = invalid
+    m.seekWaitTicks = 0
+    m.seekPaused = false
     m.playbackActive = true
     m.switching = false
     m.resumePaused = false
@@ -409,7 +412,40 @@ sub main()
     check(m.pendingSeek = 140, "successive seeks accumulate before one commit")
     commitSeek()
     check(m.video.seek = 140 and m.pendingSeek = invalid, "seek commits once")
+    check(m.seekInFlight = 140, "Committed target remains the source of truth until decoder acknowledgment")
+    m.video.position = 121
+    onVideoPositionChange()
+    check(m.top.findNode("positionLabel").text = "2:20", "Old native progress does not move the seek preview backwards")
+    onKeyEvent("right", true)
+    check(m.pendingSeek = 150 and m.seekTimer.duration = 0.65, "IR repeat after an early commit continues from the requested target")
+    onKeyEvent("right", true)
+    check(m.pendingSeek = 160, "Held input accumulates monotonically")
+    commitSeek()
+    check(m.video.seek = 140 and m.pendingSeek = 160, "Repeated input cannot overlap a native seek")
+    onKeyEvent("right", false)
+    check(m.seekTimer.duration = 0.12, "Release promptly commits the accumulated seek")
+    m.video.state = "paused"
+    m.video.position = 140
+    m.seekPaused = true
+    onVideoPositionChange()
+    check(m.seekInFlight = invalid and m.pendingSeek = 160, "Position acknowledgment preserves the queued hold target")
+    commitSeek()
+    check(m.seekPaused and m.video.autoplayAfterSeek, "Paused seek completes native buffering before restoring pause")
+    check(m.video.seek = 160 and m.pendingSeek = invalid, "Accumulated seek submits after the previous seek completes")
+    m.video.state = "playing"
+    onVideoStateChange()
+    m.video.position = 160
+    onVideoPositionChange()
+    check(m.video.control = "pause" and m.seekPaused, "Pause is restored after the target position arrives, not an early playing event")
+    m.video.control = "resume"
+    onVideoStateChange()
+    check(m.video.control = "pause", "A late native playing event after seek acknowledgment cannot consume the paused intent")
+    m.video.state = "paused"
+    onKeyEvent("left", true)
+    onKeyEvent("left", true)
+    check(m.pendingSeek = 140, "Held backward seek uses the same accumulating path")
     m.video.duration = 0
+    commitSeek()
     seekBy(10)
     check(m.pendingSeek = invalid, "zero-duration/live transport cannot divide or seek")
     check(convertToReadableTimeFormat(3661) = "1:01:01", "time formatting")
