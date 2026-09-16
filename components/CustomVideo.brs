@@ -206,6 +206,7 @@ sub startPendingContent()
     nextContent = m.pendingContent
     m.pendingContent = invalid
     resetPlaybackAttempt()
+    if m.top.contentKind <> "live" then m.completedPosition = playerSeconds(nextContent.playStart)
     m.playbackActive = true
     m.video.content = nextContent
     m.video.control = "play"
@@ -448,6 +449,7 @@ sub switchVariant(index as Integer)
             nextContent.playStart = m.pendingSeek
         else
             nextContent.playStart = playerSeconds(m.video.position)
+            if nextContent.playStart <= 0 then nextContent.playStart = playerSeconds(m.completedPosition)
         end if
     end if
     m.startRequested = true
@@ -515,6 +517,7 @@ sub hideOverlay()
 end sub
 
 function canSeek() as Boolean
+    if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid or m.video.state = "stopping" then return false
     return m.top.contentKind <> "live" and playerSeconds(m.video.duration) > 0
 end function
 
@@ -633,6 +636,11 @@ end sub
 
 sub commitSeek()
     if m.pendingSeek = invalid then return
+    if not canSeek()
+        m.pendingSeek = invalid
+        m.seekTimer.control = "stop"
+        return
+    end if
     m.completedPosition = m.pendingSeek
     m.video.seek = m.pendingSeek
     m.pendingSeek = invalid

@@ -316,10 +316,40 @@ sub main()
     m.video.state = "paused"
     switchVariant(2)
     check(m.pendingContent.playStart = 120 and m.resumePaused, "quality change preserves VOD position and pause state")
+    check(not canSeek(), "pending quality content disables seeking while old duration remains")
+    seekBy(10)
+    commitSeek()
+    check(m.video.seek = invalid and m.pendingSeek = invalid, "fast-forward during a pending quality switch never writes native seek")
     stopPlayback()
     m.video.state = "stopped"
     onVideoStateChange()
     check(m.pendingContent = invalid and m.video.control = "stop", "late native stop cannot restart exited player")
+
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.duration = 600
+    m.video.position = 120
+    seekBy(10)
+    m.video.state = "stopping"
+    check(not canSeek(), "native stopping disables seeking even without pending content")
+    commitSeek()
+    check(m.video.seek = invalid and m.pendingSeek = invalid and m.seekTimer.control = "stop", "delayed seek timer cannot issue seek after async stop begins")
+
+    for each terminalState in ["error", "finished"]
+        resetPlayer()
+        m.top.contentKind = "vod"
+        m.video.duration = 600
+        m.video.position = 120
+        m.video.state = "playing"
+        onVideoStateChange()
+        m.video.position = invalid
+        m.video.state = terminalState
+        onVideoStateChange()
+        check(m.video.content.playStart = 120 and m.completedPosition = 120, "terminal recorded fallback retains the last valid position")
+        checkPlaybackProgress()
+        checkPlaybackProgress()
+        check(m.video.content.playStart = 120, "a second startup failure retains the pending resume position")
+    end for
 
     resetPlayer()
     m.top.contentKind = "vod"
