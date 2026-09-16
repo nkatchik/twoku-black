@@ -202,7 +202,10 @@ sub onHomeLoad()
         m.top.retryAuthentication = true
         return
     end if
-    if m.getStreams.state = "run" then return
+    if m.getStreams.state = "run"
+        showBusy()
+        return
+    end if
     showBusy()
     m.append = false
     m.getStreams.gameRequested = ""
@@ -351,7 +354,10 @@ sub onCategorySelect()
         m.top.retryAuthentication = true
         return
     end if
-    if m.getCategories.state = "run" then return
+    if m.getCategories.state = "run"
+        showBusy()
+        return
+    end if
     showBusy()
     m.appendCategory = false
     m.getCategories.pagination = ""
@@ -652,7 +658,13 @@ sub showActiveSurface()
     m.browseList.visible = m.currentlySelectedButton = 1
     m.browseCategoryList.visible = m.currentlySelectedButton = 0
     m.followingView.visible = m.currentlySelectedButton = 2
-    if m.currentlySelectedButton = 2 then updateFollowingLayout()
+    if m.currentlySelectedButton = 2
+        updateFollowingLayout()
+    else if m.currentlySelectedButton = 1 and m.getStreams.state = "run"
+        showBusy()
+    else if m.currentlySelectedButton = 0 and m.getCategories.state = "run"
+        showBusy()
+    end if
 end sub
 
 sub layoutHeader()

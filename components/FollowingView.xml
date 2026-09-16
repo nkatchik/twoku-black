@@ -11,8 +11,8 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/FollowingView.brs" />
     <children>
-        <Group clippingRect="[-6,0,1206,606]">
-            <RowList id="grid" translation="[0,4]" itemComponentName="FollowingItem" itemSize="[1200,247]"
+        <Group clippingRect="[-6,0,1212,606]">
+            <RowList id="grid" translation="[0,6]" itemComponentName="FollowingItem" itemSize="[1200,247]"
                 rowItemSize="[[292,227]]" rowItemSpacing="[[10,0]]" numRows="5" rowLabelOffset="[[3,10]]"
                 rowLabelColor="0xEFEFF1FF" showRowCounter="[false]" drawFocusFeedback="false"
                 vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus">

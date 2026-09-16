@@ -114,6 +114,16 @@ sub main()
     m.top.apiReady = true
     onApiReady()
     check(m.getStreams.control = "RUN" and m.busy.active and not m.loadStatus.visible, "Content request displays spinner without loading text")
+    m.getStreams.state = "run"
+    m.top.visible = false
+    onGetFocus()
+    m.top.visible = true
+    onGetFocus()
+    check(m.busy.active and m.busy.enabled, "Returning while the selected feed is running restores its spinner")
+    showLoadStatus("Following message")
+    onHomeLoad()
+    check(m.busy.active and not m.loadStatus.visible, "Switching to an existing in-flight Channels request restores its spinner")
+    m.getStreams.state = "stop"
     m.getStreams.searchResults = [{title: "A",display_name: "A",game: "G",thumbnail: "x",name: "a",viewers: 1}]
     onSearchResultChange()
     check(m.browseList.content.getChildCount() = 1 and m.browseList.content.children[0].getChildCount() = 1, "Partial browse row contains every result exactly once")
@@ -144,6 +154,11 @@ sub main()
     m.top.apiReady = true
     onApiReady()
     check(m.getCategories.control = "RUN" and m.busy.active, "Selected Games loads after authentication")
+    m.getCategories.state = "run"
+    showLoadStatus("Following message")
+    onCategorySelect()
+    check(m.busy.active and not m.loadStatus.visible, "Switching to an existing in-flight Games request restores its spinner")
+    m.getCategories.state = "stop"
     m.getCategories.searchResults = [{id: "1",name: "Game",logo: "x",viewers: 0}]
     onCategoryResultChange()
     check(hasRows(m.browseCategoryList) and not m.busy.active, "Category completion stops the spinner")
