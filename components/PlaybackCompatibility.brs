@@ -195,6 +195,15 @@ function compatNeedResource(session, url as String, kind as String)
     return invalid
 end function
 
+function compatStatSize(stat) as Integer
+    ' Roku returns {} before AsyncGetToFile has created its destination. A
+    ' missing size is expected while pending, but is a file error on completion.
+    if type(stat) <> "roAssociativeArray" then return -1
+    if GetInterface(stat.size, "ifInt") = invalid then return -1
+    if stat.size < 0 then return -1
+    return stat.size
+end function
+
 sub compatTickTransfers(session)
     now = session.clock.TotalMilliseconds()
     active = 0
@@ -206,10 +215,8 @@ sub compatTickTransfers(session)
             if now - job.started > 10000
                 session.error = "timeout"
             else if job.filename <> ""
-                stat = session.fs.Stat(job.filename)
-                if stat <> invalid
-                    if stat.size > limit then session.error = "size"
-                end if
+                size = compatStatSize(session.fs.Stat(job.filename))
+                if size > limit then session.error = "size"
             end if
         end if
     end for
@@ -277,12 +284,12 @@ sub compatCompleteTransfer(session, event)
     else
         limit = session.maxBody
         if job.kind = "init" then limit = session.maxInit
-        stat = session.fs.Stat(job.filename)
-        if stat = invalid
+        size = compatStatSize(session.fs.Stat(job.filename))
+        if size < 0
             session.error = "file"
-        else if stat.size <= 0 or stat.size > limit
+        else if size = 0 or size > limit
             session.error = "size"
-        else if compatMakeCacheRoom(session, stat.size, job.kind)
+        else if compatMakeCacheRoom(session, size, job.kind)
             bytes = CreateObject("roByteArray")
             if not bytes.ReadFile(job.filename)
                 session.error = "read"

@@ -40,7 +40,7 @@ function testCreateObject(kind, ignored = invalid, flags = invalid)
     if kind = "roFileSystem"
         return {Stat: function(filename)
             bytes = getGlobalAA().files[filename]
-            if bytes = invalid then return invalid
+            if bytes = invalid then return {}
             if type(bytes) = "String" or type(bytes) = "roString" then return {size: Len(bytes)}
             return {size: bytes.Count()}
         end function, Delete: function(filename)
@@ -547,5 +547,30 @@ sub main()
     g.events.Push(testNodeEvent("cancelRequested",true))
     compatDrainEvents(session)
     check(session.cancelled and g.events.Count() = 0,"Already-queued cancellation is drained before the next socket tick")
+    for each stat in [invalid, {}, {type:"directory"}, {size:invalid}, {size:"12"}, {size:-1}]
+        check(compatStatSize(stat) = -1,"Native missing or nonnumeric file size is never compared as a number")
+    end for
+    check(compatStatSize({size:0}) = 0 and compatStatSize({size:112}) = 112,"Known file sizes retain zero and exact byte counts")
+    testReset()
+    session = compatServerSession(m.top.sourceUrl,m.top.requestId)
+    compatNeedResource(session,"https://video.ttvnw.net/path/init.mp4","init")
+    compatTickTransfers(session)
+    job = session.jobs[0]
+    body = g.files[job.filename]
+    g.files.Delete(job.filename)
+    compatTickTransfers(session)
+    check(session.error = "" and session.jobs.Count() = 1,"Empty native Stat while async download creates its file keeps waiting without a debugger crash")
+    g.files[job.filename] = body
+    compatDrainEvents(session)
+    check(session.error = "" and session.cacheBytes = body.Count(),"Delayed file creation completes and caches normally")
+    compatCleanupServer(session)
+    testReset()
+    session = compatServerSession(m.top.sourceUrl,m.top.requestId)
+    compatNeedResource(session,"https://video.ttvnw.net/path/init.mp4","init")
+    compatTickTransfers(session)
+    g.files.Delete(session.jobs[0].filename)
+    compatDrainEvents(session)
+    check(session.error = "file" and session.cacheBytes = 0,"Missing size after successful transfer reports a file error without entering the debugger")
+    compatCleanupServer(session)
     print "PASS loopback lifecycle, coalesced CDN fetches, shared originals, sparse HTTP views, bounded queues, cancellation and direct fallback"
 end sub
