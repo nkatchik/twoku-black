@@ -104,7 +104,9 @@ from Twitch's reported rendition height and frame rate.
 
 Network adaptation is separate: three successful video-segment downloads taking
 longer than their playback duration trigger a lower-bitrate choice within 80% of
-measured throughput. Auto can also try an untried lower quality after a native
+measured throughput on direct playback. Repaired fMP4 uses a local relay, so its
+native download timings are excluded from this calculation; buffering and progress
+watchdogs still apply. Auto can also try an untried lower quality after a native
 error, prolonged buffering, or stalled playback. It stops retrying when eligible
 qualities are exhausted. Failed live streams retain the player controls instead
 of returning to the grid. Quality switches preserve VOD/clip
@@ -120,14 +122,18 @@ The UI keeps remote focus while the decoder loads or stops.
 Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
 HTTPS, with bounded requests. Some current Twitch deliveries combine audio and
 video in fragmented MP4 segments, which [Roku does not support for
-CMAF](https://developer.roku.com/dev/docs/media). Lowering quality cannot correct
-that packaging; those streams need separate audio/video renditions. An external
-repackaging proxy is one solution; an in-app repair is also technically plausible
-but has not been implemented or validated on Roku. See the
-[delivery investigation](docs/playback-compatibility.md) for tested alternatives
-and the local repackaging experiment. Off-device regressions and public
-Twitch endpoint checks pass; Roxton decoder behavior and the final TV rendering
-still require device testing.
+CMAF](https://developer.roku.com/dev/docs/media). The app now includes an experimental
+compatibility Task: it exposes separate audio/video HLS renditions through a
+loopback HTTP listener, changing container metadata without transcoding. Both
+views share downloaded original segments. Ordinary MPEG-TS and clips remain
+direct; unsupported preparation also falls back to the original URL.
+
+The Task has bounded caches and transfers, runs independently of the UI, and is
+cancelled on exit or quality changes. No external server or configuration is
+needed. See the [delivery investigation](docs/playback-compatibility.md) for the
+implementation, media validation, and remaining native checks. Off-device tests
+verify unchanged packets and decoded frames; sustained Roxton playback, audio/video
+synchronization, and CPU usage still require device testing.
 
 ## Supported Features
 * Live channels and games, ordered by viewers

@@ -159,3 +159,30 @@ While browsing, searching, opening a profile, signing in, or starting playback,
 only a spinner should indicate pending work. Completion, failure, cancellation,
 and leaving a screen must stop its visible spinner. Game covers now request
 285×380 pixels instead of enlarging 136×190 thumbnails.
+
+## In-app fMP4 compatibility
+
+The combined runner includes production fMP4 parsing/patch decisions and media
+playlist rewriting. Relay tests cover HTTP requests, byte ranges, partial headers,
+connection limits, shared downloads, cache eviction/pinning, deadlines, and cleanup.
+Player regressions cover split/direct preparation, cancellation
+on Back or a new quality, late results, missing results, bounded preparation
+fallback, active relay failure, original URL preservation, and recorded resume
+position. Local segment timings must not feed Internet bandwidth adaptation.
+
+Run the additional media proof with `brs`, FFmpeg and ffprobe installed:
+
+```sh
+python3 tests/verify_fmp4.py --brs /path/to/brs --server-spans
+```
+
+It generates an audio-first fragmented MP4, feeds its bytes to the production
+BrightScript parser, applies the returned patches, and compares selected packet
+hashes/timestamps plus decoded frame hashes/timestamps. `--server-spans` also
+checks production HTTP span construction and partial writes at patch boundaries.
+To check an existing combined initialization-and-media capture, add
+`--fixture /path/to/capture.mp4`.
+Fixtures remain outside the repository. The off-device interpreter substitutes
+native byte-array storage, sockets, transfers, and SceneGraph events; it does not
+prove native Roku decoder acceptance or on-device CPU cost. See
+[device acceptance](../docs/playback-compatibility.md#verification-and-device-acceptance).
