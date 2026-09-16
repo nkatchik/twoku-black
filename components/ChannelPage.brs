@@ -1,4 +1,5 @@
 sub init()
+    m.channelLoading = false
     m.playbackRequestId = 0
     m.playbackStatus = m.top.findNode("playbackStatus")
     m.top.focusable = true
@@ -7,8 +8,10 @@ sub init()
     m.description = m.top.findNode("description")
     m.followers = m.top.findNode("followers")
     m.emptyLabel = m.top.findNode("emptyLabel")
+    m.busy = m.top.findNode("busy")
     m.pastBroadcastsList = m.top.findNode("pastBroadcastsList")
     m.getUserChannel = CreateObject("roSGNode", "GetUserChannel")
+    m.getUserChannel.includeFollowers = true
     m.getUserChannel.observeField("searchResults", "onGetUserInfo")
     m.getUserChannel.observeField("state", "onUserStopped")
     m.getVideos = CreateObject("roSGNode", "GetVideos")
@@ -27,9 +30,6 @@ sub init()
     m.seenVideos = {}
     m.moreVideos = true
     m.userId = ""
-    if CreateObject("roDeviceInfo").GetUIResolution().width = 1920
-        m.top.findNode("profileImageMask").maskSize = [144,144]
-    end if
 end sub
 
 function channelHasVideos() as Boolean
@@ -38,7 +38,7 @@ function channelHasVideos() as Boolean
 end function
 
 sub focusContent()
-    if not m.top.visible then return
+    if not channelVisible() then return
     m.top.streamItemFocused = false
     if channelHasVideos()
         m.pastBroadcastsList.setFocus(true)
@@ -48,7 +48,8 @@ sub focusContent()
 end sub
 
 sub onGetFocus()
-    if not m.top.visible then cancelPlaybackRequest()
+    m.busy.enabled = channelVisible()
+    if not channelVisible() then cancelPlaybackRequest()
     focusContent()
 end sub
 
@@ -58,8 +59,11 @@ sub onSelectedStreamerChange()
     m.avatar.uri = ""
     m.description.text = ""
     m.followers.text = ""
-    m.emptyLabel.text = "Loading videos…"
-    m.emptyLabel.visible = true
+    m.channelLoading = true
+    m.emptyLabel.text = ""
+    m.emptyLabel.visible = false
+    m.busy.enabled = channelVisible()
+    m.busy.active = true
     m.pastBroadcastsList.content = invalid
     m.videoItems = []
     m.seenVideos = {}
@@ -87,13 +91,16 @@ sub onGetUserInfo()
     user = m.getUserChannel.searchResults
     if user = invalid or user.id = invalid
         m.emptyLabel.text = "Couldn't load this channel. Press OK to retry."
+        m.emptyLabel.visible = true
+        m.channelLoading = false
+        m.busy.active = false
         return
     end if
     m.userId = user.id
     m.username.text = user.display_name
     m.avatar.uri = user.profile_image_url
     m.description.text = user.description
-    m.followers.text = "Recent broadcasts"
+    m.followers.text = channelFollowerLabel(user.followers)
     m.top.streamDurationSeconds = m.getUserChannel.streamDurationSeconds
     getVideos()
 end sub
@@ -115,6 +122,8 @@ end sub
 
 sub onGetVideos()
     if m.videosLogin <> m.top.streamerSelectedName then return
+    m.channelLoading = false
+    m.busy.active = false
     results = m.getVideos.searchResults
     if results <> invalid
         for each video in results
@@ -150,7 +159,7 @@ sub onGetVideos()
     m.emptyLabel.visible = not channelHasVideos()
     m.emptyLabel.text = "No videos available"
     if m.getVideos.errorMessage <> "" then m.emptyLabel.text = m.getVideos.errorMessage
-    if wasEmpty and m.top.visible then focusContent()
+    if wasEmpty and channelVisible() then focusContent()
 end sub
 
 sub getMoreVideos()
@@ -160,7 +169,7 @@ sub getMoreVideos()
 end sub
 
 sub onGridFocus()
-    if not m.top.visible or not channelHasVideos() then return
+    if not channelVisible() or not channelHasVideos() then return
     if m.pastBroadcastsList.rowItemFocused[0] >= m.pastBroadcastsList.content.getChildCount() - 2
         getMoreVideos()
     end if
@@ -177,14 +186,16 @@ sub onVideoItemSelect()
     m.getStuffVideo.requestId = m.playbackRequestId
     m.getStuffVideo.cancelRequested = false
     m.getStuffVideo.errorMessage = ""
-    m.playbackStatus.text = "Opening video…"
+    m.playbackStatus.text = ""
+    m.busy.active = true
     m.getStuffVideo.control = "RUN"
 end sub
 
 sub onGetVideoUrl()
     if m.getStuffVideo.cancelRequested or m.getStuffVideo.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
-    if not m.top.visible or m.videoLogin <> m.top.streamerSelectedName then return
+    m.busy.active = false
+    if not channelVisible() or m.videoLogin <> m.top.streamerSelectedName then return
     if m.getStuffVideo.streamUrl = "" then return
     m.top.thumbnailInfo = m.getStuffVideo.thumbnailInfo
     m.top.playbackInfo = m.getStuffVideo.playbackInfo
@@ -192,7 +203,7 @@ sub onGetVideoUrl()
 end sub
 
 function onKeyEvent(key, press) as Boolean
-    if not press or not m.top.visible then return false
+    if not press or not channelVisible() then return false
     if key = "OK" and not channelHasVideos()
         onSelectedStreamerChange()
         return true
@@ -201,6 +212,7 @@ function onKeyEvent(key, press) as Boolean
 end function
 
 sub cancelPlaybackRequest()
+    m.busy.active = m.channelLoading
     m.playbackRequestId += 1
     m.getStuffVideo.cancelRequested = true
     m.getStuffVideo.requestId = m.playbackRequestId
@@ -208,9 +220,28 @@ sub cancelPlaybackRequest()
 end sub
 
 sub onPlaybackStopped()
-    if not m.top.visible or m.getStuffVideo.state <> "stop" then return
+    if not channelVisible() or m.getStuffVideo.state <> "stop" then return
     if m.getStuffVideo.cancelRequested or m.getStuffVideo.requestId <> m.playbackRequestId then return
+    m.busy.active = false
     if m.getStuffVideo.errorMessage <> ""
         m.playbackStatus.text = m.getStuffVideo.errorMessage
     end if
 end sub
+
+function channelFollowerLabel(count) as String
+    kind = LCase(type(count))
+    if kind <> "integer" and kind <> "roint" and kind <> "float" and kind <> "double" and kind <> "longinteger" and kind <> "rolonginteger" then return ""
+    if count < 0 then return ""
+    digits = Int(count).ToStr()
+    label = ""
+    for index = 1 to Len(digits)
+        if index > 1 and (Len(digits) - index + 1) MOD 3 = 0 then label += ","
+        label += Mid(digits, index, 1)
+    end for
+    if count = 1 then return label + " follower"
+    return label + " followers"
+end function
+
+function channelVisible() as Boolean
+    return m.top.visible and m.top.parentVisible
+end function

@@ -9,6 +9,9 @@ end function
 sub main()
     m.top = node()
     m.top.visible = true
+    m.top.parentVisible = true
+    m.busy = node()
+    m.channelLoading = false
     m.top.streamerSelectedName = "channel"
     m.pastBroadcastsList = node()
     m.emptyLabel = node()
@@ -37,5 +40,11 @@ sub main()
     cancelPlaybackRequest()
     onGetVideoUrl()
     check(m.top.videoUrl = invalid, "Cancelled VOD lookup does not publish late playback")
-    print "PASS VOD grid, focus after loading, pagination deduplication, stale channel and playback guards"
+    m.top.parentVisible = false
+    m.pastBroadcastsList.setFocus(false)
+    focusContent()
+    check(not m.pastBroadcastsList.hasFocus(), "Hidden Home ancestor prevents late channel results stealing player focus")
+    check(channelFollowerLabel(1234567) = "1,234,567 followers", "Actual follower counts are grouped without losing precision")
+    check(channelFollowerLabel(0) = "0 followers" and channelFollowerLabel(invalid) = "", "Unknown follower count is distinct from real zero")
+    print "PASS follower labels, ancestor focus, VOD grid, focus after loading, pagination deduplication, stale channel and playback guards"
 end sub

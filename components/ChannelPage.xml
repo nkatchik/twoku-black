@@ -4,6 +4,7 @@
 
     <interface>
         <function name="cancelPlaybackRequest" />
+        <field id="parentVisible" type="boolean" value="true" onChange="onGetFocus" />
         <function name="focusContent" />
         <field id="playbackInfo" type="assocarray" />
         <field id="streamUrl" type="string" />
@@ -27,10 +28,11 @@
     <children>
         <Rectangle width="1280" height="720" color="0x08080AFF" />
         <Group id="header" translation="[43,36]">
-            <MaskGroup id="profileImageMask" maskUri="pkg:/images/twellie-avatar-mask.png" maskSize="[96,96]">
+            <Group id="profileImageMask">
                 <Rectangle width="96" height="96" color="0x18181BFF" />
                 <Poster id="avatar" width="96" height="96" loadDisplayMode="scaleToFill" />
-            </MaskGroup>
+                <Poster width="96" height="96" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x08080AFF" loadDisplayMode="scaleToFit" />
+            </Group>
             <Label id="username" translation="[124,0]" width="1070" height="44" color="0xFFFFFFFF">
                 <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="34" />
             </Label>
@@ -44,9 +46,10 @@
         <RowList id="pastBroadcastsList" itemComponentName="ChannelVideoItem" translation="[43,172]"
             numRows="2" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
             focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="fixedFocus" />
-        <Label id="emptyLabel" translation="[43,345]" width="1194" height="110" horizAlign="center" color="0x5C5C66FF" text="Loading videos…">
+        <Label id="emptyLabel" translation="[43,345]" width="1194" height="110" horizAlign="center" color="0x5C5C66FF" visible="false">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
         </Label>
+        <LoadingIndicator id="busy" translation="[612,392]" size="56" />
         <Label id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
         </Label>
