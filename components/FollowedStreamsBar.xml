@@ -6,6 +6,8 @@
         <field id="focused" type="bool" value="false" onChange="onGetFocus" />
         <field id="streamerSelected" type="string" alwaysNotify="true" />
         <field id="followedStreams" type="array" onChange="onFollowedStreamsChange" />
+        <field id="loggedIn" type="boolean" value="false" onChange="updateEmptyState" />
+        <field id="loginRequested" type="boolean" alwaysNotify="true" />
     </interface>
 
     <script type="text/brightscript" uri="pkg:/components/FollowedStreamsBar.brs" />
@@ -17,7 +19,16 @@
             color="0x26262CFF"
             width="78"
             height="1000"
-            translation="[0,0]" />
+            translation="[0,0]">
+            <Label id="emptyLabel" translation="[5,45]" width="68" height="50"
+                text="Login" font="font:SmallSystemFont" horizAlign="center" wrap="true" />
+            <Group id="emptyHint" translation="[78,40]" visible="false">
+                <Rectangle color="0x26262CFF" width="355" height="88" />
+                <Label id="emptyHintText" translation="[12,12]" width="331" height="64"
+                    font="font:SmallSystemFont" wrap="true"
+                    text="Sign in to see followed channels. Press OK to log in." />
+            </Group>
+        </Rectangle>
         
         <Poster
             uri="pkg:/images/live_rectangle.9.png"

@@ -8,14 +8,16 @@ python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 ```
 
-The seven suites execute production BrightScript functions. Transport, task fields,
+The eight suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
 finite request waits, failed async starts, invalid token/JSON responses, a maximum
 of one authentication retry, anonymous startup, parent focus routing, empty grids,
 partial content rows, and failed or exhausted pagination. Focus doubles enforce
 one active target and walk the parent chain. Navigation checks cover the route to
-Login, moving between header and grid, and restoring focus after screen display. They do not validate
+Login, moving between header and grid, and restoring focus after screen display.
+Signed-out sidebar checks cover its placeholder, Login action, empty-list arrows,
+and returning to the header when Following has no content. They do not validate
 Roku scheduling, rendering, remote input delivery, or playback.
 
 At baseline commit `61afe43`, BrighterScript 0.73.5 reports 21 existing errors in
@@ -24,6 +26,10 @@ must not add diagnostics. Do not interpret that unchanged baseline as a clean
 whole-project compile.
 
 ## Device acceptance
+
+On Roxton, the user confirmed that `e98d79c` loads content and exits to Roku Home
+instantly, but remote navigation remained broken. The subsequent focus and sidebar
+changes still require verification on that device.
 
 1. Sideload the updated ZIP and launch with no saved login. Confirm the header
    responds immediately and content appears. Press Down to enter the grid.

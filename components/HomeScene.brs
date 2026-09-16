@@ -47,6 +47,7 @@ sub init()
     m.channelPage.observeField("streamUrl", "onLiveStreamSelectedFromChannel")
 
     m.followBar.observeField("streamerSelected", "onBrowseItemSelect")
+    m.followBar.observeField("loginRequested", "onFollowBarLogin")
     m.recentsBar.observeField("streamerSelected", "onBrowseItemSelect")
 
     m.getStreams = createObject("roSGNode", "GetStreams")
@@ -165,6 +166,7 @@ sub onLiveStreamSelectedFromChannel()
 end sub
 
 sub onNewUser()
+    m.followBar.loggedIn = m.top.loggedInUserName <> ""
     ? "HomeScene > loggedInUserProfileImage > " m.top.loggedInUserProfileImage
     m.loggedUserName.text = m.top.loggedInUserName
     m.loggedUserName.color = "0xEFEFF1FF"
@@ -176,6 +178,11 @@ sub onNewUser()
     m.headerRect.translation = [-150 - width, 0]
     m.loggedUserGroup.translation = [1220 - width, 15]
     m.loggedUserGroup.visible = true
+end sub
+
+sub onFollowBarLogin()
+    m.followBar.focused = false
+    m.top.buttonPressed = "login"
 end sub
 
 sub onGetFocus()
@@ -197,7 +204,11 @@ sub onGetFocus()
                 m.browseButtons.setFocus(true)
             end if
         else if m.browseFollowingList.visible = true
-            m.browseFollowingList.setFocus(true)
+            if hasRows(m.browseFollowingList)
+                m.browseFollowingList.setFocus(true)
+            else
+                m.browseButtons.setFocus(true)
+            end if
             m.followingListIsFocused = true
         else if m.channelPage.visible
             'm.channelPage.setFocus(true)
@@ -430,6 +441,15 @@ sub onFollowingSelect()
     m.browseFollowingList.visible = true
     'm.browseOfflineFollowingList.visible = true
     m.offlineChannelsLabel.visible = true
+    if not hasRows(m.browseFollowingList)
+        if not m.followBar.loggedIn
+            showLoadStatus("Sign in to see followed channels. Select Login in the header.")
+            m.offlineChannelsLabel.visible = false
+        else
+            showLoadStatus("No followed live channels to show.")
+        end if
+        m.browseButtons.setFocus(true)
+    end if
 end sub
 
 sub getMoreChannels()
@@ -614,6 +634,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             else if key = "down"
                 if m.currentlySelectedButton = 0 and not hasRows(m.browseCategoryList) then return true
                 if m.currentlySelectedButton = 1 and not hasRows(m.browseList) then return true
+                if m.currentlySelectedButton = 2 and not hasRows(m.browseFollowingList) then return true
                 ' Reset button colours to unfocused colours when user focuses away from header
                 for button = 0 to 5
                     if button <> 3 and button <> 4
@@ -737,7 +758,11 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 m.browseCategoryList.setFocus(true)
             else if m.browseFollowingList.visible = true
                 ? "BROWSEFOLLOWINGLIST"
-                m.browseFollowingList.setFocus(true)
+                if hasRows(m.browseFollowingList)
+                    m.browseFollowingList.setFocus(true)
+                else
+                    m.browseButtons.setFocus(true)
+                end if
                 m.followingListIsFocused = true
             else if m.channelPage.visible
                 m.channelPage.streamItemFocused = true
@@ -757,7 +782,11 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             else if m.browseCategoryList.visible = true
                 m.browseCategoryList.setFocus(true)
             else if m.browseFollowingList.visible = true
-                m.browseFollowingList.setFocus(true)
+                if hasRows(m.browseFollowingList)
+                    m.browseFollowingList.setFocus(true)
+                else
+                    m.browseButtons.setFocus(true)
+                end if
                 m.followingListIsFocused = true
             else if m.channelPage.visible
                 m.channelPage.streamItemFocused = true

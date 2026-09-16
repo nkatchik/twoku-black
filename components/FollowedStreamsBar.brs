@@ -1,5 +1,8 @@
 sub init()
     m.top.focusable = true
+    m.emptyLabel = m.top.findNode("emptyLabel")
+    m.emptyHint = m.top.findNode("emptyHint")
+    m.emptyHintText = m.top.findNode("emptyHintText")
     m.children = []
     for child = 2 to m.top.getChildCount() - 1
         m.children.push(m.top.getChild(child))
@@ -15,6 +18,20 @@ sub init()
         m.maskSize = [75, 75]
     else
         m.maskSize = [50, 50]
+    end if
+end sub
+
+sub updateEmptyState()
+    if m.emptyLabel = invalid or m.children = invalid then return
+    empty = m.children.count() = 0
+    m.emptyLabel.visible = empty
+    m.emptyHint.visible = empty and m.top.focused
+    if m.top.loggedIn
+        m.emptyLabel.text = "None"
+        m.emptyHintText.text = "No followed channels to show. Press Right to return."
+    else
+        m.emptyLabel.text = "Login"
+        m.emptyHintText.text = "Sign in to see followed channels. Press OK to log in."
     end if
 end sub
 
@@ -152,9 +169,11 @@ sub onFollowedStreamsChange()
     for child = 2 to m.top.getChildCount() - 1
         m.children.push(m.top.getChild(child))
     end for
+    updateEmptyState()
 end sub
 
 sub onGetFocus()
+    updateEmptyState()
     if m.top.focused = true
         ' for each stream in m.children
         '     stream.getChild(2).visible = true
@@ -192,8 +211,15 @@ sub onGetFocus()
     end if
 end sub
 
-sub onKeyEvent(key, press) as Boolean
+function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
+    if press and m.children.count() = 0
+        if key = "OK" and not m.top.loggedIn
+            m.top.loginRequested = true
+            return true
+        end if
+        return key = "up" or key = "down" or key = "OK"
+    end if
     if press
         if key = "up"
             if m.currentIndex - 1 >= 0
@@ -261,4 +287,4 @@ sub onKeyEvent(key, press) as Boolean
         end if
     end if
     return handled
-end sub
+end function

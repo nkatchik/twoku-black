@@ -18,6 +18,7 @@ sub setup()
     m.offlineChannelList = node()
     m.offlineChannelsLabel = node()
     m.followBar = node()
+    m.followBar.loggedIn = false
     m.recentsBar = node()
     m.channelPage = node()
     m.getStreams = node()
@@ -107,5 +108,17 @@ sub main()
     m.top.startupError = "offline"
     onStartupError()
     check(m.loadStatus.visible and m.appLaunchComplete, "Auth failure shows error and completes launch")
+    setup()
+    focusContent()
+    m.currentlyFocusedButton = 2
+    check(onKeyEvent("OK", true), "Following tab can be selected while signed out")
+    check(m.browseButtons.hasFocus() and not m.browseFollowingList.hasFocus(), "Empty Following tab keeps header focus")
+    check(m.loadStatus.visible, "Signed-out Following tab explains the empty state")
+    check(onKeyEvent("down", true) and m.browseButtons.hasFocus(), "Down cannot enter empty Following list")
+    m.top.setFocus(true)
+    focusContent()
+    check(m.browseButtons.hasFocus(), "Returning to empty Following tab restores header focus")
+    onFollowBarLogin()
+    check(m.top.buttonPressed = "login" and not m.followBar.focused, "Sidebar Login routes to login page")
     print "PASS parent focus, empty-grid input, auth gating, retry, partial rows, error recovery, pagination"
 end sub

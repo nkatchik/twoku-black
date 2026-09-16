@@ -30,7 +30,8 @@ suites = {
     'token': functions('GetToken.brs', ['getStreamLink']),
     'streams': functions('GetStreams.brs', ['getSearchResults']),
     'categories': functions('GetCategories.brs', ['getSearchResults']),
-    'home': functions('HomeScene.brs', ['hasRows', 'focusContent', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect']),
+    'home': functions('HomeScene.brs', ['hasRows', 'focusContent', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect', 'onFollowBarLogin']),
+    'sidebar': functions('FollowedStreamsBar.brs', ['updateEmptyState', 'onKeyEvent']),
     'entry': (ROOT / 'source/main.brs').read_text(),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'focusHome', 'onScreenShown']),
 }
