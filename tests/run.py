@@ -40,9 +40,19 @@ suites = {
     'token': functions('GetToken.brs', ['getStreamLink']),
     'streams': functions('GetStreams.brs', ['getSearchResults']),
     'categories': functions('GetCategories.brs', ['getSearchResults']),
-    'home': functions('HomeScene.brs', ['hasRows', 'focusContent', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect', 'onFollowingError', 'onGetFollowedStreams', 'requestOfflineFollowing', 'onOfflineStopped', 'onGetOfflineFollowed', 'onFollowBarLogin']),
+    'home': functions('HomeScene.brs', ['hasRows', 'focusContent', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect', 'onFollowingError', 'onGetFollowedStreams', 'requestOfflineFollowing', 'onOfflineStopped', 'onGetOfflineFollowed', 'onFollowBarLogin', 'activeGrid', 'hasOfflineChannels', 'focusActiveGrid', 'updateHeaderFocus', 'updateFollowingLayout']),
     'sidebar': functions('FollowedStreamsBar.brs', ['updateEmptyState', 'onKeyEvent']),
     'entry': (ROOT / 'source/main.brs').read_text(),
+    'videofeed': functions('GetVideos.brs', ['getSearchResults']),
+    'playback': (ROOT / 'components/Playback.brs').read_text(),
+    'player': (ROOT / 'components/Playback.brs').read_text() + '\n\n' + (ROOT / 'components/CustomVideo.brs').read_text(),
+    'playbackrequest': (ROOT / 'components/Playback.brs').read_text() + '\n\n' + (ROOT / 'components/PlaybackRequest.brs').read_text(),
+    'clipfeed': functions('GetClips.brs', ['getStartDate', 'getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
+    'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
+    'offlinegrid': functions('OfflineChannelList.brs', ['hasOfflineChannels','focusContent','onGetFocus','onOfflineChannelsChange','onChannelSelected','onKeyEvent']),
+    'categorypage': functions('CategoryScene.brs', ['categoryGrid','categoryHasRows','focusContent','itemCategoryText','cancelPlaybackRequest','onStreamUrlChange']),
+    'channelpage': functions('ChannelPage.brs', ['onGetVideos','channelHasVideos','focusContent','cancelPlaybackRequest','onGetVideoUrl']),
+    'playback_routes': functions('MainScene.brs', ['beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
@@ -67,3 +77,6 @@ with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
             verify_qr(output)
             Path('/tmp/twoku-qr-test-output.txt').write_text(output)
         print(f'{name}: ' + next(line for line in output.splitlines() if line.startswith('PASS')))
+
+# Chat has a separate runner because its transport substitutes timed waits.
+subprocess.run([sys.executable, str(ROOT / 'tests/run_chat.py'), '--brs', args.brs], check=True)

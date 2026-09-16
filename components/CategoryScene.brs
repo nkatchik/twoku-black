@@ -18,6 +18,9 @@ sub init()
     m.getStuff = CreateObject("roSGNode", "GetStuff")
     m.getStuff.observeField("streamUrl", "onStreamUrlChange")
     m.getStuff.observeField("state", "onPlaybackStopped")
+    m.getClipPlayback = CreateObject("roSGNode", "GetClipPlayback")
+    m.getClipPlayback.observeField("streamUrl", "onClipPlaybackUrl")
+    m.getClipPlayback.observeField("state", "onClipPlaybackStopped")
     m.browseList.observeField("itemSelected", "onBrowseItemSelect")
     m.browseClipsList.observeField("itemSelected", "onBrowseClipsItemSelect")
     m.browseList.observeField("rowItemFocused", "onGridFocus")
@@ -185,7 +188,7 @@ sub insertClips()
                 item.Title = clip.title
                 item.Description = clip.broadcaster_name
                 item.HDPosterUrl = clip.thumbnail_url
-                item.ShortDescriptionLine1 = clip.creator_name
+                item.ShortDescriptionLine1 = clip.id
                 item.ShortDescriptionLine2 = numberToText(clip.viewer_count)
                 m.clipRows.push(item)
             end if
@@ -198,6 +201,7 @@ sub insertClips()
     if m.clipLine.visible
         m.emptyLabel.visible = not categoryHasRows(m.browseClipsList)
         m.emptyLabel.text = "No clips in this category"
+        if m.getClips.errorMessage <> "" then m.emptyLabel.text = m.getClips.errorMessage
     end if
 end sub
 
@@ -231,14 +235,39 @@ end sub
 
 sub onBrowseClipsItemSelect()
     if not m.browseClipsList.visible or not categoryHasRows(m.browseClipsList) then return
+    if m.getClipPlayback.state = "run" then return
     index = m.browseClipsList.rowItemSelected
     item = m.browseClipsList.content.getChild(index[0]).getChild(index[1])
-    thumbnail = item.HDPosterUrl
     m.top.liveTitle = item.Title
     m.top.liveName = item.Description
-    m.top.streamerRequested = item.ShortDescriptionLine1
-    m.top.clipUrl = Left(thumbnail, Len(thumbnail) - 20) + ".mp4"
+    m.top.liveViewers = item.ShortDescriptionLine2
+    m.top.liveGame = m.top.currentCategoryName
+    m.playbackRequestId += 1
+    m.getClipPlayback.requestId = m.playbackRequestId
+    m.getClipPlayback.clipId = item.ShortDescriptionLine1
+    m.getClipPlayback.cancelRequested = false
+    m.getClipPlayback.errorMessage = ""
+    m.playbackStatus.text = "Opening clip…"
+    m.getClipPlayback.control = "RUN"
+end sub
+
+sub onClipPlaybackUrl()
+    if not m.top.visible or m.getClipPlayback.cancelRequested then return
+    if m.getClipPlayback.requestId <> m.playbackRequestId or m.getClipPlayback.streamUrl = "" then return
+    info = m.getClipPlayback.playbackInfo
+    m.top.streamerRequested = info.login
+    m.top.liveTitle = info.title
+    m.top.liveName = info.name
+    m.top.playbackInfo = info
+    m.playbackStatus.text = ""
     m.top.fromClip = true
+    m.top.clipUrl = m.getClipPlayback.streamUrl
+end sub
+
+sub onClipPlaybackStopped()
+    if not m.top.visible or m.getClipPlayback.state <> "stop" then return
+    if m.getClipPlayback.cancelRequested or m.getClipPlayback.requestId <> m.playbackRequestId then return
+    if m.getClipPlayback.errorMessage <> "" then m.playbackStatus.text = m.getClipPlayback.errorMessage
 end sub
 
 sub onGridFocus()
@@ -317,6 +346,10 @@ sub cancelPlaybackRequest()
     m.playbackRequestId += 1
     m.getStuff.cancelRequested = true
     m.getStuff.requestId = m.playbackRequestId
+    if m.getClipPlayback <> invalid
+        m.getClipPlayback.cancelRequested = true
+        m.getClipPlayback.requestId = m.playbackRequestId
+    end if
     m.playbackStatus.text = ""
 end sub
 

@@ -8,7 +8,7 @@ python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 ```
 
-The fourteen suites execute production BrightScript functions. Transport, task fields,
+The twenty-six suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
 finite request waits, failed async starts, invalid token/JSON responses, a maximum
@@ -66,12 +66,11 @@ app". Login changes still require approval and follow-list verification on Roxto
    or Categories, and confirm retry succeeds.
 3. Switch tabs while loading; try an empty result and a category with fewer than
    seven entries. Confirm rows render and the header remains reachable.
-4. Return from Search/Options to Home and confirm focus reaches the header or grid.
+4. Return from Search to Home and confirm focus reaches the header or grid.
 5. Select Login and scan the QR with your phone. Confirm Twitch opens with the
    code already filled in, then approve Twellie. Also check manual code entry.
-   Confirm Home shows your username, the left rail lists your live followed
-   channels, and Following shows live/offline follows. An account with no live
-   followed channels should retain usable header focus.
+   Confirm Home shows your username, Following shows live/offline follows. An account with no live
+   followed channels should retain usable header or offline-grid focus.
 6. Press Back while awaiting approval, then reopen Login. Confirm the cancelled
    attempt cannot complete the new one and a fresh code appears. Let a code expire
    and press OK to retry. Try login with the network disconnected: an error must
@@ -84,3 +83,49 @@ Capture a launch log from the device's developer console with
 `nc DEVICE_IP 8085` before launching. The new request diagnostics include HTTP
 status/failure reasons and avoid printing authentication tokens. Hardware checks
 remain pending until performed on the affected device.
+
+## Twellie interface and playback regressions
+
+The combined runner also executes the two chat suites. New checks cover
+four-column packing, removal of the Settings navigation slot, offline-only
+Following focus, category/channel return routes, stale stream/VOD callbacks,
+quality names and HLS attribute ordering, audio/codec filtering, Auto selection,
+buffering and non-advancing playback, native invalid initial timestamps,
+stopped-state handoffs during quick reopen, late callbacks after Back, chat
+preference isolation for recorded video, and retained position/pause on switches.
+Clip checks cover slugs, actual signed MP4 qualities, query escaping, the exact
+seven-day period, cancellation, and exhausted pagination. Chat checks cover
+partial IRC lines, message floods, bounded rendering and queue lengths, hidden
+startup, cooperative cancellation, and delayed restart after a fast toggle.
+
+The `brs` interpreter does not emulate the native decoder or SceneGraph event
+scheduler. It also has a nested-quote FormatJSON bug; request tests inspect the
+query structures, and live checks serialize the production query with Python.
+
+On 2026-09-16, the exact production live query and Twitch master returned HTTP
+200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
+selected 480p30. The production clip query returned four signed MP4 qualities;
+a 1024-byte media-range request returned HTTP 206. No account approval or user
+token was involved. The new UI
+removed the old OfflineChannelList diagnostic; the compiler now reports the
+remaining 20 pre-existing unused WebSocket diagnostics, with no new diagnostics.
+
+Device acceptance for this build:
+
+1. Compare Channels, Games, Following, Search, Login, and the channel/VOD page
+   to Twellie. Confirm four-column grids, white focus, no side rails or Settings.
+2. Open a live card directly. With chat disabled, confirm full-screen video and
+   no chat connection. Toggle Chat on and off; relaunch and check persistence.
+3. Open Quality using the on-screen button or `*`. Select 480p, then another
+   available quality, then Auto. Verify the selected quality persists across
+   streams; Auto steps down when the decoder stalls.
+4. Press Back during loading, while the quality menu is open, during a quality
+   switch, and after video starts. Confirm each layer closes and browsing
+   responds. Reopen another stream quickly while the old decoder stops.
+5. Play a VOD and a clip, seek, pause, and change quality. Confirm time and pause
+   state survive switching. Verify recorded video never opens live chat.
+6. Try a busy live chat, then hide it and leave playback. Confirm no remote lag
+   or messages leak into the next stream.
+
+TV rendering, actual codec support, uninterrupted playback, and remote latency
+remain device acceptance checks, not claims established by these doubles.

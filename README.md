@@ -63,16 +63,52 @@ and during the five-minute followed-channel refresh. `GetUser` is the sole owner
 of refresh-token rotation. Followed channels use Twitch's current
 `streams/followed` and `channels/followed` endpoints.
 
+## Navigation and playback
+
+The interface follows [Twellie](https://github.com/nkatchik/smarttv-twitch): dark
+backgrounds, white focus outlines, four-column grids, a compact account chip,
+and the same bottom player controls and quality popup. Channels, Games,
+Following, Search, and Login are in the header. The old Settings screen and
+its button have been removed; followed channels live in the Following tab.
+The Twellie TV mark comes from that project's `src/assets/logo.png`; its GPLv3
+license is included as `images/twellie-logo-LICENSE.txt`.
+
+Use **Up** from the first grid row to reach the tabs and **Down** to return.
+**OK** on a live channel opens it immediately. ***** on a channel card opens
+its channel page and past broadcasts. Following also includes offline channels.
+
+During playback, **OK** or an arrow reveals the controls. **Left/Right** moves
+between Channel, Chat (live only), and Quality. ***** opens Quality directly;
+**Up/Down** chooses a rendition, **OK** applies it, and **Back** dismisses it.
+The selected quality and live-chat preference persist. Chat is read-only, as
+in Twellie, and is disconnected while hidden.
+
+**Auto** starts with the highest AVC rendition at or below 720p/30fps when
+available, and steps down after prolonged buffering or stalled playback.
+Manual qualities remain explicit choices. Quality switches preserve VOD/clip
+position and pause state. Left/Right on the progress bar or the rewind/fast-forward
+keys seek by ten seconds. Play/Pause toggles recorded playback.
+
+**Back** closes the quality popup, then the controls, then visible chat, then
+returns to browsing. During a playback error or loading state it returns
+immediately. Native decoder shutdown uses asynchronous stop on Roku versions
+that provide it (OS 12.5+); older versions retain the platform's synchronous stop.
+The UI keeps remote focus while the decoder loads or stops.
+
+Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
+HTTPS, with bounded requests. Source/60fps variants remain available manually.
+Off-device regressions and public Twitch endpoint checks pass; Roxton decoder
+behavior and the final TV rendering still require device testing.
+
 ## Supported Features
-* Browsing live channels and categories by viewer count (press down to load more)
-* Search (with buggy auto-complete)
-* Viewing followed live streamers
-* Viewing popular clips from the past 7 days for each category
-* Chat (only for live streams)
-* VODs (except subscriber-only)
+* Live channels and games, ordered by viewers
+* Search for live/offline channels and games
+* Followed live and offline channels
+* Category clips from the last seven days, with quality selection
+* Read-only live chat
+* VODs with seeking and quality selection (except subscriber-only)
+* QR-based Twitch sign-in
 
 ## Notable Unsupported Features
-* All clip functionality not mentioned
-* Chat (for VODs)
+* VOD chat and chat message entry
 * Subscriber-only VODs
-* Everything else not mentioned

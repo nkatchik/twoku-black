@@ -12,13 +12,11 @@ function init()
     '     end if
     ' end for
 
-    m.instructions = m.top.findNode("instructions")
-
-    m.getStatus = createObject("roSGNode", "GetStatus")
-    m.getStatus.observeField("appStatus", "onAppStatusReceived")
-    m.getStatus.control = "RUN"
 
     m.videoPlayer = m.top.findNode("videoPlayer")
+    m.getPlayerInfo = createObject("roSGNode", "GetUserChannel")
+    m.getPlayerInfo.observeField("searchResults", "onPlayerInfo")
+    m.getPlayerInfo.observeField("state", "onPlayerInfoStopped")
     m.keyboardGroup = m.top.findNode("keyboardGroup")
     m.homeScene = m.top.findNode("homeScene")
     m.categoryScene = m.top.findNode("categoryScene")
@@ -47,9 +45,10 @@ function init()
 
     m.videoPlayer.observeField("back", "onVideoPlayerBack")
     m.videoPlayer.observeField("toggleChat", "onToggleChat")
-    m.videoPlayer.observeField("streamLayoutMode", "onToggleStreamLayout")
+    m.videoPlayer.observeField("channelRequested", "onPlayerChannelRequested")
+    m.videoPlayer.observeField("qualityPreference", "onQualityPreference")
 
-    m.top.backgroundColor = "0x18181BFF"
+    m.top.backgroundColor = "0x08080AFF"
     m.top.backgroundUri = ""
 
     m.currentScene = "home"
@@ -95,23 +94,11 @@ function init()
         m.login = loggedInUser
     end if
 
-    ' videoQuality = checkSavedVideoQuality()
-    videoQuality = checkRegistrySection("VideoSettings", "VideoQuality")
-    if videoQuality <> invalid
-        m.global.addFields({videoQuality: Int(Val(videoQuality))})
-    else
-        m.global.addFields({videoQuality: 2})
-    end if
+    quality = checkRegistrySection("VideoSettings", "PreferredQuality")
+    if quality = invalid or quality = "" then quality = "Auto"
+    m.global.addFields({preferredQuality: quality})
 
-    ' videoFramerate = checkSavedVideoFramerate()
-    videoFramerate = checkRegistrySection("VideoSettings", "VideoFramerate")
-    if videoFramerate <> invalid
-        m.global.addFields({videoFramerate: Int(Val(videoFramerate))})
-    else
-        m.global.addFields({videoFramerate: 60})
-    end if
-
-    ' chatOption = checkSavedChatOption()
+    ' Chat preference is applied when a live stream actually starts.
     chatOption = checkRegistrySection("VideoSettings", "ChatOption")
     if chatOption <> invalid and chatOption = "true"
         m.global.addFields({chatOption: true})
@@ -149,12 +136,11 @@ function init()
     m.uiResolutionWidth = deviceInfo.GetUIResolution().width
 
     m.chat = m.top.findNode("chat")
-    m.chat.observeField("doneFocus", "onChatDoneFocus")
 
-    m.options = createObject("roSGNode", "Options")
-    m.options.visible = false
 
-    m.top.appendChild(m.options)
+    m.playbackKind = ""
+    m.playerChannel = ""
+    m.routingChannel = false
 
     startAuthentication()
     refreshFollows()
@@ -171,10 +157,7 @@ sub focusHome()
 end sub
 
 sub onChatDoneFocus()
-    if m.chat.doneFocus
-        m.videoPlayer.setFocus(true)
-        m.chat.doneFocus = false
-    end if
+    if m.videoPlayer.visible then m.videoPlayer.callFunc("focusContent")
 end sub
 
 sub onLoginFinish()
@@ -222,43 +205,19 @@ sub onTokenStateChanged()
     refreshFollows()
 end sub
 
-sub onAppStatusReceived()
-    ? "onAppStatusReceived >> " m.getStatus.appStatus
-    if m.getStatus.appStatus = "true"
-        m.instructions.visible = true
-    end if
-end sub
 
 sub onStreamChangeFromChannelPage()
-    m.stream["streamFormat"] = "hls"
-    m.stream["url"] = m.homeScene.videoUrl
-    m.chat.visible = false
-    m.videoPlayer.chatIsVisible = m.chat.visible
-
-    m.videoPlayer.videoTitle =  m.homeScene.videoTitle
-    m.videoPlayer.channelUsername =  m.homeScene.channelUsername
-    'm.videoPlayer.channelAvatar =  ""
-    m.videoPlayer.channelAvatar =  m.homeScene.channelAvatar
-    updateRecents()
-
-    m.videoPlayer.width = 0
-    m.videoPlayer.height = 0
-    m.videoPlayer.setFocus(true)
-    
-    m.keyboardGroup.visible = false
-    ' m.channelPage.visible = false
-    
-    m.videoPlayer.visible = true
-    m.videoPlayer.content = m.stream
+    if not m.homeScene.visible or m.homeScene.videoUrl = "" then return
+    m.currentScene = "home"
+    m.playbackKind = "vod"
+    m.playerChannel = m.homeScene.streamerSelectedName
+    m.videoPlayer.videoTitle = m.homeScene.videoTitle
+    m.videoPlayer.channelUsername = m.homeScene.channelUsername
+    m.videoPlayer.channelAvatar = m.homeScene.channelAvatar
+    m.videoPlayer.gameName = ""
+    m.videoPlayer.viewerText = ""
     m.videoPlayer.thumbnailInfo = m.homeScene.thumbnailInfo
-    m.homeScene.thumbnailInfo = invalid
-    m.videoPlayer.control = "play"
-    if m.videoPlayer.thumbnailInfo <> invalid
-        if m.videoPlayer.videoBookmarks.DoesExist(m.videoPlayer.thumbnailInfo.video_id.ToStr())
-            ? "MainScene >> position > " m.videoPlayer.videoBookmarks[m.videoPlayer.thumbnailInfo.video_id.ToStr()]
-            m.videoPlayer.seek = Val(m.videoPlayer.videoBookmarks[m.videoPlayer.thumbnailInfo.video_id.ToStr()])
-        end if
-    end if
+    beginPlayback(m.homeScene.videoUrl, m.homeScene.videoPlaybackInfo, "hls")
 end sub
 
 sub updateRecents()
@@ -281,32 +240,31 @@ sub updateRecents()
 end sub
 
 sub onStreamerSelected()
-    if m.homeScene.visible
-        'm.channelPage.streamerSelectedName = m.homeScene.streamerSelectedName
-        'm.channelPage.streamerSelectedThumbnail = m.homeScene.streamerSelectedThumbnail
-        m.lastScene = "home"
-    else if m.categoryScene.visible
-        m.homeScene.lastScene = "category"
-        m.homeScene.streamerSelectedThumbnail = m.categoryScene.streamerSelectedThumbnail
-        m.homeScene.streamerSelectedName = m.categoryScene.streamerSelectedName
-        m.lastLastScene = "home" 'm.lastScene
+    if m.routingChannel then return
+    m.routingChannel = true
+    channel = ""
+    thumbnail = ""
+    if m.categoryScene.visible
+        channel = m.categoryScene.streamerSelectedName
+        thumbnail = m.categoryScene.streamerSelectedThumbnail
         m.lastScene = "category"
     else if m.keyboardGroup.visible
-        'm.channelPage.streamerSelectedName = m.keyboardGroup.streamerSelectedName
-        'm.channelPage.streamerSelectedThumbnail = ""
-        m.homeScene.streamerSelectedName = m.keyboardGroup.streamerSelectedName
-        m.homeScene.streamerSelectedThumbnail = ""
-        m.lastLastScene = "home"
+        channel = m.keyboardGroup.streamerSelectedName
         m.lastScene = "search"
+    else
+        m.lastScene = "home"
     end if
-    m.homeScene.visible = false
+    ' Home's alwaysNotify observer may fire synchronously when forwarded below.
+    ' Hide the origin first and keep the guard until its channel page is ready.
     m.keyboardGroup.visible = false
     m.categoryScene.visible = false
-
-    'm.channelPage.visible = true
     m.homeScene.visible = true
-
+    if channel <> ""
+        m.homeScene.streamerSelectedThumbnail = thumbnail
+        m.homeScene.streamerSelectedName = channel
+    end if
     m.currentScene = "channel"
+    m.routingChannel = false
 end sub
 
 function checkRegistrySection(section as object, key as object)
@@ -347,10 +305,6 @@ function onHeaderButtonPress()
         m.global.sessionVersion += 1
         m.loginPage.visible = true
         m.loginPage.setFocus(true)
-    else if m.homeScene.buttonPressed = "options"
-        m.homeScene.visible = false
-        m.options.visible = true
-        m.options.setFocus(true)
     end if
 end function
 
@@ -382,6 +336,8 @@ sub onUserLogin()
 end sub
 
 function onCategoryItemSelectFromSearch()
+    m.categoryScene.currentCategoryName = m.keyboardGroup.categorySelectedName
+    m.categoryScene.currentCategoryImage = m.keyboardGroup.categorySelectedImage
     m.categoryScene.currentCategory = m.keyboardGroup.categorySelected
     m.homeScene.visible = false
     m.keyboardGroup.visible = false
@@ -391,6 +347,8 @@ function onCategoryItemSelectFromSearch()
 end function
 
 function onCategoryItemSelect()
+    m.categoryScene.currentCategoryName = m.homeScene.categorySelectedName
+    m.categoryScene.currentCategoryImage = m.homeScene.categorySelectedImage
     m.categoryScene.currentCategory = m.homeScene.categorySelected
     m.homeScene.visible = false
     m.keyboardGroup.visible = false
@@ -398,57 +356,45 @@ function onCategoryItemSelect()
     m.lastScene = "home"
 end function
 
-function onClipChange()
+sub onClipChange()
+    if not m.categoryScene.visible or m.categoryScene.clipUrl = "" then return
     m.categoryScene.fromClip = true
-    m.stream["streamFormat"] = "mp4"
-    if m.categoryScene.visible = true
-        m.currentScene = "category"
-        m.stream["url"] = m.categoryScene.clipUrl
-    end if
-    m.videoPlayer.setFocus(true)
-    m.categoryScene.visible = false
-    m.keyboardGroup.visible = false
-    m.videoPlayer.width = 0
-    m.videoPlayer.height = 0
-    m.videoPlayer.visible = true
-    m.videoPlayer.content = m.stream
-    m.videoPlayer.control = "play"
-end function
+    m.currentScene = "category"
+    m.playbackKind = "clip"
+    m.playerChannel = m.categoryScene.streamerRequested
+    m.videoPlayer.videoTitle = m.categoryScene.liveTitle
+    m.videoPlayer.channelUsername = m.categoryScene.liveName
+    m.videoPlayer.channelAvatar = m.categoryScene.playbackInfo.avatar
+    m.videoPlayer.gameName = m.categoryScene.liveGame
+    m.videoPlayer.viewerText = m.categoryScene.liveViewers
+    beginPlayback(m.categoryScene.clipUrl, m.categoryScene.playbackInfo, "mp4")
+end sub
 
-function onStreamChange()
-    m.stream["streamFormat"] = "hls"
+sub onStreamChange()
     if m.keyboardGroup.visible
         m.currentScene = "search"
-        m.chat.channel = m.keyboardGroup.streamerRequested
-        m.stream["url"] = m.keyboardGroup.streamUrl
+        source = m.keyboardGroup
     else if m.homeScene.visible
         m.currentScene = "home"
-        m.chat.channel = m.homeScene.streamerSelectedName 'm.homeScene.streamerRequested
-        m.videoPlayer.videoTitle =  m.homeScene.videoTitle
-        m.videoPlayer.channelUsername =  m.homeScene.channelUsername
-        m.videoPlayer.channelAvatar =  m.homeScene.channelAvatar
-        updateRecents()
-        m.videoPlayer.streamDurationSeconds =  m.homeScene.streamDurationSeconds
-        m.stream["url"] = m.homeScene.streamUrl
+        source = m.homeScene
     else if m.categoryScene.visible
         m.currentScene = "category"
-        m.chat.channel = m.categoryScene.streamerRequested
-        m.stream["url"] = m.categoryScene.streamUrl
-    ' else if m.channelPage.visible
-    '     m.currentScene = "channel"
-    '     m.channelPage.visible = false
-    '     m.chat.channel = m.channelPage.streamerSelectedName
-    '     m.stream["url"] = m.channelPage.streamUrl
+        source = m.categoryScene
+    else
+        return
     end if
-    ' m.chat.visible = m.global.chatOption
-    ' m.videoPlayer.chatIsVisible = m.chat.visible
-    onToggleStreamLayout()
-    m.videoPlayer.setFocus(true)
-    m.keyboardGroup.visible = false
-    m.videoPlayer.visible = true
-    m.videoPlayer.content = m.stream
-    m.videoPlayer.control = "play"
-end function
+    if source.streamUrl = "" then return
+    m.playerChannel = source.streamerRequested
+    m.playbackKind = "live"
+    m.videoPlayer.videoTitle = source.liveTitle
+    m.videoPlayer.channelUsername = source.liveName
+    if m.videoPlayer.channelUsername = "" then m.videoPlayer.channelUsername = m.playerChannel
+    m.videoPlayer.gameName = source.liveGame
+    m.videoPlayer.viewerText = source.liveViewers
+    m.videoPlayer.channelAvatar = ""
+    m.videoPlayer.thumbnailInfo = invalid
+    beginPlayback(source.streamUrl, source.playbackInfo, "hls")
+end sub
 
 sub refreshFollows()
     if m.loginPage.visible then return
@@ -480,129 +426,143 @@ function onLogin()
 end function
 
 sub onVideoPlayerBack()
-    if m.videoPlayer.back = true
-        m.videoPlayer.control = "stop"
-        m.videoPlayer.visible = false
-        m.keyboardGroup.visible = false
-        if m.currentScene = "home"
-            m.homeScene.visible = false
-            m.homeScene.visible = true
-            focusHome()
-        else if m.currentScene = "category"
-            m.categoryScene.visible = true
-            'm.categoryScene.fromClip = false
-            m.categoryScene.callFunc("focusContent")
-        else if m.currentScene = "search"
-            m.keyboardGroup.visible = true
-        else if m.currentScene = "channel"
-            m.homeScene.visible = false
-            m.homeScene.visible = true
-            focusHome()
-            'm.channelPage.visible = true
-            'm.channelPage.setFocus(true)
-        end if
-        m.chat.visible = false
-        m.videoPlayer.chatIsVisible = m.chat.visible
-        m.videoPlayer.back = false
-    end if
+    if not m.videoPlayer.back then return
+    closePlayback()
 end sub
 
 sub onToggleChat()
-    if m.videoPlayer.toggleChat = true
-        m.chat.visible = not m.chat.visible
-        m.videoPlayer.chatIsVisible = m.chat.visible
-        m.videoPlayer.toggleChat = false
-    end if
+    if not m.videoPlayer.toggleChat then return
+    m.videoPlayer.toggleChat = false
+    if m.playbackKind <> "live" then return
+    m.global.chatOption = not m.global.chatOption
+    preference = "false"
+    if m.global.chatOption then preference = "true"
+    setRegistrySection("VideoSettings", "ChatOption", preference)
+    onToggleStreamLayout()
 end sub
 
 sub onToggleStreamLayout()
-    if m.videoPlayer.streamLayoutMode = 0 'stream is shrinked
-        m.videoPlayer.width = 1030
-        m.videoPlayer.height = 720
-        m.chat.visible = true
-        m.videoPlayer.chatIsVisible = m.chat.visible
-    else if m.videoPlayer.streamLayoutMode = 1 'layout with chat on top of stream
-        m.videoPlayer.width = 0
-        m.videoPlayer.height = 0
-        m.chat.visible = true
-        m.videoPlayer.chatIsVisible = m.chat.visible
-    else if m.videoPlayer.streamLayoutMode = 2 'no chat layout fullscreen
-        m.videoPlayer.width = 0
-        m.videoPlayer.height = 0
-        m.chat.visible = false
-        m.videoPlayer.chatIsVisible = m.chat.visible
+    showChat = m.videoPlayer.visible and m.playbackKind = "live" and m.global.chatOption
+    m.videoPlayer.chatIsVisible = showChat
+    if showChat
+        m.chat.channel = m.playerChannel
+        m.chat.channelUsername = m.videoPlayer.channelUsername
+        m.chat.channelAvatar = m.videoPlayer.channelAvatar
+        m.chat.viewerText = m.videoPlayer.viewerText
     end if
+    m.chat.visible = showChat
 end sub
 
 function onKeyEvent(key, press) as Boolean
-    handled = false
-    if press
-        if m.videoPlayer.visible = true and key = "back" 
-            m.videoPlayer.back = true
-            handled = true
-        else if m.videoPlayer.visible = true and key = "rewind"
-            'm.chat.visible = not m.chat.visible
-            'handled = true
-        else if m.homeScene.visible = true and key = "options"
-            m.homeScene.visible = false
+    if not press then return false
+    if m.videoPlayer.visible
+        if key = "back"
+            closePlayback()
+            return true
+        end if
+        return false
+    end if
+    if m.loginPage.visible and key = "back"
+        m.loginPage.visible = false
+        m.homeScene.visible = true
+        focusHome()
+        return true
+    end if
+    if (m.keyboardGroup.visible or m.categoryScene.visible) and key = "back"
+        m.keyboardGroup.callFunc("cancelPlaybackRequest")
+        m.categoryScene.callFunc("cancelPlaybackRequest")
+        m.keyboardGroup.visible = false
+        m.categoryScene.visible = false
+        if m.lastScene = "search"
+            m.lastScene = "home"
             m.keyboardGroup.visible = true
             m.keyboardGroup.callFunc("focusContent")
-            handled = true
-        else if m.options.visible and key = "back"
-            m.options.visible = false
-            m.homeScene.visible = false
+        else
             m.homeScene.visible = true
             focusHome()
-            handled = true
-        'else if (m.keyboardGroup.visible or m.categoryScene.visible or m.channelPage.visible) and key = "back"
-        else if (m.keyboardGroup.visible or m.categoryScene.visible) and key = "back"
-            m.categoryScene.visible = false
-            m.keyboardGroup.visible = false
-            m.options.visible = false
-            'm.channelPage.visible = false
-            m.homeScene.visible = false
-            if m.lastScene = "home"
-                m.homeScene.visible = false
-                m.homeScene.visible = true
-                focusHome()
-            else if m.lastScene = "category"
-                m.lastScene = m.lastLastScene
-                m.lastLastScene = "home"
-                m.categoryScene.visible = true
-                'm.categoryScene.fromClip = false
-                m.categoryScene.callFunc("focusContent")
-            else if m.lastScene = "search"
-                m.lastScene = m.lastLastScene
-                m.lastLastScene = "home"
-                m.keyboardGroup.visible = true
-            else
-                m.homeScene.visible = false
-                m.homeScene.visible = true
-                focusHome()
-            end if
-            handled = true
-        else if m.homeScene.visible and key = "back"
-            if m.homeScene.lastScene = "category"
-                m.homeScene.visible = false
-                m.categoryScene.visible = true
-                m.lastScene = m.lastLastScene
-                m.lastLastScene = "home"
-                'm.categoryScene.setFocus(true)
-                handled = true
-            end if
-            'handled = true
-        else if m.loginPage.visible and key = "back"
-            m.loginPage.visible = false
-            m.homeScene.visible = false
-            m.homeScene.visible = true
-            focusHome()
-            return true
-        else if key = "OK" and m.videoPlayer.visible
-            m.chat.setKeyboardFocus = true
-            handled = true
         end if
+        return true
     end if
-
-    '? "MAINSCENE > handled " handled " > (" key ", " press ")"
-    return handled
+    return false
 end function
+
+
+sub beginPlayback(url as String, info as Dynamic, streamFormat as String)
+    m.chat.visible = false
+    m.homeScene.visible = false
+    m.categoryScene.visible = false
+    m.keyboardGroup.visible = false
+    m.videoPlayer.contentKind = m.playbackKind
+    m.videoPlayer.chatEnabled = m.playbackKind = "live"
+    m.videoPlayer.playbackInfo = info
+    content = createObject("roSGNode", "ContentNode")
+    content.streamFormat = streamFormat
+    content.url = url
+    content.live = m.playbackKind = "live"
+    m.videoPlayer.visible = true
+    m.videoPlayer.content = content
+    onToggleStreamLayout()
+    m.videoPlayer.callFunc("focusContent")
+    m.videoPlayer.control = "play"
+    requestPlayerInfo()
+end sub
+
+sub closePlayback()
+    ' Restore UI immediately; cancellation/decoder shutdown do not gate navigation.
+    m.chat.visible = false
+    m.videoPlayer.visible = false
+    m.videoPlayer.callFunc("stopPlayback")
+    m.videoPlayer.back = false
+    m.videoPlayer.chatIsVisible = false
+    if m.currentScene = "category"
+        m.categoryScene.visible = true
+        m.categoryScene.callFunc("focusContent")
+    else if m.currentScene = "search"
+        m.keyboardGroup.visible = true
+        m.keyboardGroup.callFunc("focusContent")
+    else
+        m.homeScene.visible = true
+        focusHome()
+    end if
+end sub
+
+sub onPlayerChannelRequested()
+    if not m.videoPlayer.channelRequested then return
+    m.videoPlayer.channelRequested = false
+    channel = m.playerChannel
+    closePlayback()
+    if channel = "" then return
+    m.categoryScene.visible = false
+    m.keyboardGroup.visible = false
+    m.homeScene.visible = true
+    m.homeScene.streamerSelectedThumbnail = ""
+    m.homeScene.streamerSelectedName = channel
+end sub
+
+sub onQualityPreference()
+    preference = m.videoPlayer.qualityPreference
+    if preference = "" then return
+    m.global.preferredQuality = preference
+    setRegistrySection("VideoSettings", "PreferredQuality", preference)
+end sub
+
+sub requestPlayerInfo()
+    if not m.videoPlayer.visible or m.playerChannel = "" then return
+    if m.videoPlayer.channelAvatar <> "" or m.getPlayerInfo.state = "run" then return
+    m.getPlayerInfo.loginRequested = m.playerChannel
+    m.getPlayerInfo.control = "RUN"
+end sub
+
+sub onPlayerInfo()
+    if not m.videoPlayer.visible or m.getPlayerInfo.loginRequested <> m.playerChannel then return
+    info = m.getPlayerInfo.searchResults
+    if type(info) <> "roAssociativeArray" then return
+    if GetInterface(info.profile_image_url, "ifString") <> invalid
+        m.videoPlayer.channelAvatar = info.profile_image_url
+        m.chat.channelAvatar = info.profile_image_url
+    end if
+end sub
+
+sub onPlayerInfoStopped()
+    if m.getPlayerInfo.state = "stop" and m.getPlayerInfo.loginRequested <> m.playerChannel then requestPlayerInfo()
+end sub

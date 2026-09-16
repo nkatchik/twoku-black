@@ -16,24 +16,23 @@ sub init()
 
     m.searchLabel = m.top.findNode("searchLabel")
     'm.loginButton = m.top.findNode("loggedUserName")'m.top.findNode("loginButton")
-    m.optionsButton = m.top.findNode("optionsButton")
+    m.headerCursor = m.top.findNode("headerCursor")
+    m.followingLiveLabel = m.top.findNode("followingLiveLabel")
     m.offlineChannelsLabel = m.top.findNode("offlineChannelsLabel")
 
-    'm.actualBrowseButtons = [ m.categoryButton, m.liveButton, m.followingButton, m.searchLabel, m.loginButton, m.optionsButton ]
 
     m.channelPage = m.top.findNode("channelPage")
-    m.followBar = m.top.findNode("followBar")
+    m.followBar = {loggedIn: false, focused: false}
     m.browseButtons = m.top.findNode("browseButtons")
     m.browseMain = m.top.findNode("browseMain")
-    m.recentsBar = m.top.findNode("recentsBar")
 
     m.loggedUserGroup = m.top.findNode("loggedUserGroup")
     m.profileImage = m.top.findNode("profileImage")
     m.loggedUserName = m.top.findNode("loggedUserName")
 
-    m.actualBrowseButtons = [ m.categoryButton, m.liveButton, m.followingButton, m.searchLabel, m.optionsButton, m.loggedUserName ]
+    m.actualBrowseButtons = [ m.categoryButton, m.liveButton, m.followingButton, m.searchLabel, m.loggedUserName ]
 
-    m.headerRect = m.top.findNode("headerRect")
+    m.browseButtons.observeField("focusedChild", "updateHeaderFocus")
 
     m.browseList.observeField("itemSelected", "onBrowseItemSelect")
     m.browseCategoryList.observeField("itemSelected", "onBrowseItemSelect")
@@ -46,15 +45,15 @@ sub init()
     'm.channelPage.observeField("videoUrl", "onVideoSelectedFromChannel")
     m.channelPage.observeField("streamUrl", "onLiveStreamSelectedFromChannel")
 
-    m.followBar.observeField("streamerSelected", "onBrowseItemSelect")
-    m.followBar.observeField("loginRequested", "onFollowBarLogin")
-    m.recentsBar.observeField("streamerSelected", "onBrowseItemSelect")
 
     m.getStreams = createObject("roSGNode", "GetStreams")
     m.getStreams.observeField("searchResults", "onSearchResultChange")
 
     m.getStuff = createObject("roSGNode", "GetStuff")
     m.getStuff.observeField("streamUrl", "onStreamUrlChange")
+    m.getStuff.observeField("state", "onPlaybackRequestStopped")
+    m.playbackPending = false
+    m.playbackRequestId = 0
 
     m.getCategories = createObject("roSGNode", "GetCategories")
     m.getCategories.observeField("searchResults", "onCategoryResultChange")
@@ -69,12 +68,6 @@ sub init()
     m.top.observeField("currentlyLiveStreamerIds", "onGetFollowedStreams")
     m.top.observeField("streamerSelectedName", "onStreamerSelected")
 
-    deviceInfo = CreateObject("roDeviceInfo")
-    uiResolutionWidth = deviceInfo.GetUIResolution().width
-
-    if uiResolutionWidth = 1920
-        m.top.findNode("profileImageMask").maskSize = [75, 75]
-    end if
 
     m.offset = 0
     m.append = false
@@ -93,6 +86,7 @@ sub init()
 
     m.browseCategoryList.visible = false
     m.browseFollowingList.visible = false
+    m.followingLiveLabel.visible = false
     m.browseOfflineFollowingList.visible = false
 end sub
 
@@ -119,7 +113,7 @@ sub onStartupError()
     if message = ""
         showLoadStatus("Connecting to Twitch...")
     else
-        showLoadStatus(message + " Select Live Channels or Categories to retry.")
+        showLoadStatus(message + " Select Channels or Games to retry.")
         finishLaunch()
     end if
 end sub
@@ -154,31 +148,37 @@ sub onStreamerSelected()
         m.browseList.visible = false
     else if m.currentlySelectedButton = 2
         m.browseFollowingList.visible = false
+    m.followingLiveLabel.visible = false
         m.offlineChannelsLabel.visible = false
         m.offlineChannelList.visible = false
         m.browseOfflineFollowingList.visible = false
     end if
     m.wasLastScene = true
+    m.browseMain.visible = false
     m.channelPage.visible = true
 end sub
 
 sub onLiveStreamSelectedFromChannel()
+    m.top.playbackInfo = m.channelPage.playbackInfo
+    m.top.liveTitle = m.channelPage.videoTitle
+    m.top.liveName = m.channelPage.channelUsername
+    m.top.liveGame = ""
+    m.top.liveViewers = m.channelPage.streamViewers
+    m.top.streamerRequested = m.top.streamerSelectedName
     m.top.streamUrl = m.channelPage.streamUrl
 end sub
 
 sub onNewUser()
     m.followBar.loggedIn = m.top.loggedInUserName <> ""
-    ? "HomeScene > loggedInUserProfileImage > " m.top.loggedInUserProfileImage
     m.loggedUserName.text = m.top.loggedInUserName
-    m.loggedUserName.color = "0xEFEFF1FF"
-    m.loggedUserName.translation = [60, 20]
+    if m.loggedUserName.text = "" then m.loggedUserName.text = "Login"
+    m.loggedUserName.translation = [12,7]
+    m.loggedUserName.width = 184
     m.profileImage.uri = m.top.loggedInUserProfileImage
-    width = m.loggedUserName.localBoundingRect().width + 10
-    m.searchLabel.translation = [1080 - width, 24]
-    m.optionsButton.translation = [1145 - width, 24]
-    m.headerRect.translation = [-150 - width, 0]
-    m.loggedUserGroup.translation = [1220 - width, 15]
-    m.loggedUserGroup.visible = true
+    if m.profileImage.uri <> ""
+        m.loggedUserName.translation = [46,7]
+        m.loggedUserName.width = 152
+    end if
 end sub
 
 sub onFollowBarLogin()
@@ -187,82 +187,55 @@ sub onFollowBarLogin()
 end sub
 
 sub onGetFocus()
-    if m.top.visible = true
-        if m.followBar.focused
-            m.followBar.setFocus(true)
-        else if m.recentsBar.focused
-            m.recentsBar.setFocus(true)
-        else if m.browseCategoryList.visible = true
-            if hasRows(m.browseCategoryList)
-                m.browseCategoryList.setFocus(true)
-            else
-                m.browseButtons.setFocus(true)
-            end if
-        else if m.browseList.visible = true
-            if hasRows(m.browseList)
-                m.browseList.setFocus(true)
-            else
-                m.browseButtons.setFocus(true)
-            end if
-        else if m.browseFollowingList.visible = true
-            if hasRows(m.browseFollowingList)
-                m.browseFollowingList.setFocus(true)
-            else
-                m.browseButtons.setFocus(true)
-            end if
-            m.followingListIsFocused = true
-        else if m.channelPage.visible
-            'm.channelPage.setFocus(true)
-            m.channelPage.visible = false
-            m.channelPage.visible = true
-        end if
+    if not m.top.visible
+        cancelPlaybackRequest()
+        return
+    end if
+    if m.channelPage.visible
+        m.browseMain.visible = false
+        m.channelPage.callFunc("focusContent")
+    else
+        m.browseMain.visible = true
+        focusActiveGrid()
     end if
 end sub
 
 sub onStreamUrlChange()
-    ? "HomeScene > streamURL change > " m.getStuff.streamerRequested
+    if not m.playbackPending or not m.top.visible then return
+    if m.getStuff.requestId <> m.playbackRequestId or m.getStuff.streamUrl = "" then return
+    m.playbackPending = false
+    showLoadStatus("")
     m.top.streamerRequested = m.getStuff.streamerRequested
+    m.top.playbackInfo = m.getStuff.playbackInfo
     m.top.streamUrl = m.getStuff.streamUrl
 end sub
 
 sub onBrowseItemSelect()
-    if m.followBar.hasFocus()
-        'm.getStuff.streamerRequested = m.followBar.streamerSelected
-        'm.getStuff.control = "RUN"
+    if m.offlineChannelList.isInFocusChain()
         m.top.streamerSelectedThumbnail = ""
-        m.top.streamerSelectedName = m.followBar.streamerSelected
-        ? "selected: "; m.top.streamerSelectedName
-    else if m.recentsBar.hasFocus()
-        m.top.streamerSelectedThumbnail = ""
-        m.top.streamerSelectedName = m.recentsBar.streamerSelected
-    else if m.browseList.visible = true
-        'm.getStuff.streamerRequested = m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).ShortDescriptionLine1
-        'm.getStuff.control = "RUN"
-        m.top.streamerSelectedName =  m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).ShortDescriptionLine1
-        m.top.streamerSelectedThumbnail =  m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).HDPosterUrl
-        'm.top.streamerSelectedThumbnail =  m.browseList.content.getChild(m.browseList.rowItemSelected[0]).getChild(m.browseList.rowItemSelected[1]).HDPosterUrl
-        m.wasLastScene = true
-        m.channelPage.streamItemFocused = true
-    else if m.browseCategoryList.visible = true
-        m.top.categorySelected = m.browseCategoryList.content.getChild(m.browseCategoryList.rowItemSelected[0]).getChild(m.browseCategoryList.rowItemSelected[1]).ShortDescriptionLine1
-    else if m.browseFollowingList.hasFocus()
-        m.top.streamerSelectedName =  m.browseFollowingList.content.getChild(m.browseFollowingList.rowItemSelected[0]).getChild(m.browseFollowingList.rowItemSelected[1]).ShortDescriptionLine1
-        m.top.streamerSelectedThumbnail =  m.browseFollowingList.content.getChild(m.browseFollowingList.rowItemSelected[0]).getChild(m.browseFollowingList.rowItemSelected[1]).HDPosterUrl
-        m.channelPage.streamItemFocused = true
-    else if m.browseOfflineFollowingList.hasFocus()
-        m.top.streamerSelectedName =  m.browseOfflineFollowingList.content.getChild(m.browseOfflineFollowingList.rowItemSelected[0]).getChild(m.browseOfflineFollowingList.rowItemSelected[1]).ShortDescriptionLine1
-        m.top.streamerSelectedThumbnail =  m.browseOfflineFollowingList.content.getChild(m.browseOfflineFollowingList.rowItemSelected[0]).getChild(m.browseOfflineFollowingList.rowItemSelected[1]).HDPosterUrl
-        m.channelPage.streamItemFocused = true
-    else if m.offlineChannelList.hasFocus()
         m.top.streamerSelectedName = m.offlineChannelList.channelSelected
-        m.top.streamerSelectedThumbnail = ""
-        m.channelPage.streamItemFocused = true
+        return
+    end if
+    list = activeGrid()
+    if not hasRows(list) then return
+    selected = list.rowItemSelected
+    row = list.content.getChild(selected[0])
+    if row = invalid then return
+    item = row.getChild(selected[1])
+    if item = invalid then return
+    if m.currentlySelectedButton = 0
+        m.top.categorySelectedName = item.Title
+        m.top.categorySelectedImage = item.HDPosterUrl
+        m.top.categorySelected = item.ShortDescriptionLine1
+    else
+        playLiveItem(item)
     end if
 end sub
 
 sub onHomeLoad()
     m.browseCategoryList.visible = false
     m.browseFollowingList.visible = false
+    m.followingLiveLabel.visible = false
     m.browseOfflineFollowingList.visible = false
     m.offlineChannelList.visible = false
     m.offlineChannelsLabel.visible = false
@@ -286,7 +259,7 @@ end sub
 sub onSearchResultChange()
     if m.getStreams.errorMessage <> ""
         if m.browseList.visible
-            showLoadStatus(m.getStreams.errorMessage + " Select Live Channels to retry.")
+            showLoadStatus(m.getStreams.errorMessage + " Select Channels to retry.")
             if m.top.isInFocusChain() then m.browseButtons.setFocus(true)
         end if
         m.append = false
@@ -318,7 +291,7 @@ sub onSearchResultChange()
             rowItem.ShortDescriptionLine2 = numberToText(stream.viewers)
             row.appendChild(rowItem)
             cnt += 1
-            if cnt <> 0 and cnt MOD 3 = 0
+            if cnt <> 0 and cnt MOD 4 = 0
                 content.appendChild(row)
                 row = createObject("RoSGNode", "ContentNode")
                 alreadyAppended = true
@@ -333,7 +306,7 @@ sub onSearchResultChange()
         if hasRows(m.browseList)
             showLoadStatus("")
         else
-            showLoadStatus("No live channels found. Select Live Channels to retry.")
+            showLoadStatus("No live channels found. Select Channels to retry.")
         end if
     end if
     m.browseList.jumpToItem = lastFocusedRow
@@ -359,7 +332,7 @@ end sub
 sub onCategoryResultChange()
     if m.getCategories.errorMessage <> ""
         if m.browseCategoryList.visible
-            showLoadStatus(m.getCategories.errorMessage + " Select Categories to retry.")
+            showLoadStatus(m.getCategories.errorMessage + " Select Games to retry.")
             if m.top.isInFocusChain() then m.browseButtons.setFocus(true)
         end if
         m.appendCategory = false
@@ -389,7 +362,7 @@ sub onCategoryResultChange()
             rowItem.HDPosterUrl = stream.logo
             row.appendChild(rowItem)
             cnt += 1
-            if cnt <> 0 and cnt MOD 7 = 0 and content <> invalid
+            if cnt <> 0 and cnt MOD 4 = 0 and content <> invalid
                 content.appendChild(row)
                 row = createObject("RoSGNode", "ContentNode")
                 alreadyAppended = true
@@ -404,7 +377,7 @@ sub onCategoryResultChange()
         if hasRows(m.browseCategoryList)
             showLoadStatus("")
         else
-            showLoadStatus("No categories found. Select Categories to retry.")
+            showLoadStatus("No categories found. Select Games to retry.")
         end if
     end if
     m.browseCategoryList.jumpToItem = lastFocusedRow
@@ -415,6 +388,7 @@ end sub
 sub onCategorySelect()
     m.browseList.visible = false
     m.browseFollowingList.visible = false
+    m.followingLiveLabel.visible = false
     m.browseOfflineFollowingList.visible = false
     m.offlineChannelList.visible = false
     m.offlineChannelsLabel.visible = false
@@ -440,6 +414,7 @@ sub onFollowingSelect()
     m.browseList.visible = false
     m.browseCategoryList.visible = false
     m.browseFollowingList.visible = true
+    m.followingLiveLabel.visible = hasRows(m.browseFollowingList)
     'm.browseOfflineFollowingList.visible = true
     m.offlineChannelsLabel.visible = true
     if not hasRows(m.browseFollowingList)
@@ -451,6 +426,7 @@ sub onFollowingSelect()
         end if
         m.browseButtons.setFocus(true)
     end if
+    updateFollowingLayout()
     onFollowingError()
 end sub
 
@@ -519,7 +495,7 @@ sub onGetFollowedStreams()
             rowItem.ShortDescriptionLine2 = numberToText(stream.viewer_count)
             row.appendChild(rowItem)
             cnt += 1
-            if cnt <> 0 and cnt MOD 3 = 0
+            if cnt <> 0 and cnt MOD 4 = 0
                 content.appendChild(row)
                 row = createObject("RoSGNode", "ContentNode")
                 m.numRowsInFollowingList += 1
@@ -539,15 +515,7 @@ sub onGetFollowedStreams()
 end sub
 
 sub onBrowseFollowing()
-    if m.browseFollowingList.itemFocused = m.numRowsInFollowingList
-        m.offlineChannelsLabel.translation = [100,465]
-        'm.browseOfflineFollowingList.translation = [100,500]
-        m.offlineChannelList.visible = true
-    else
-        m.offlineChannelsLabel.translation = [100,700]
-        m.browseOfflineFollowingList.translation = [100,750]
-        m.offlineChannelList.visible = false
-    end if
+    updateFollowingLayout()
 end sub
 
 sub onGetOfflineFollowed()
@@ -584,303 +552,98 @@ sub onGetOfflineFollowed()
     end if
     m.browseOfflineFollowingList.content = content
     m.browseOfflineFollowingList.jumpToItem = lastFocusedRow
+    updateFollowingLayout()
 end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
-    handled = false
-    if m.top.visible = true and press
-        if (m.browseList.hasFocus() = true or m.browseCategoryList.hasFocus() = true or m.browseFollowingList.hasFocus() = true) and key = "up"
-            ' Reset focused button when user goes on button header
-            if m.currentlyFocusedButton = 0
-                m.actualBrowseButtons[1].color = "0x00FFD1FF"
-                m.currentlyFocusedButton = 1
+    if not m.top.visible or not press then return false
+    if m.channelPage.visible
+        if key <> "back" then return false
+        m.channelPage.callFunc("cancelPlaybackRequest")
+        m.channelPage.visible = false
+        m.browseMain.visible = true
+        m.wasLastScene = false
+        focusActiveGrid()
+        return true
+    end if
+    if m.playbackPending and key = "back"
+        cancelPlaybackRequest()
+        return true
+    end if
+    if m.browseButtons.hasFocus()
+        if key = "left" or key = "right"
+            order = [1,0,2,3,4]
+            index = 0
+            for i = 0 to order.Count() - 1
+                if order[i] = m.currentlyFocusedButton then index = i
+            end for
+            if key = "right" and index < 4 then index += 1
+            if key = "left" and index > 0 then index -= 1
+            m.currentlyFocusedButton = order[index]
+            updateHeaderFocus()
+            return true
+        else if key = "down"
+            focusActiveGrid()
+            return true
+        else if key = "OK"
+            if m.currentlyFocusedButton = 3
+                m.top.buttonPressed = "search"
+            else if m.currentlyFocusedButton = 4
+                m.top.buttonPressed = "login"
             else
-                m.actualBrowseButtons[0].color = "0x00FFD1FF"
-                m.currentlyFocusedButton = 0
-            end if
-
-            m.browseButtons.setFocus(true)
-            handled = true
-        else if m.browseButtons.hasFocus() = true
-            if key = "right"
-                if m.currentlyFocusedButton <> 3 and m.currentlyFocusedButton <> 4
-                    m.actualBrowseButtons[m.currentlyFocusedButton].color = "0xEFEFF1FF"
-                else
-                    m.actualBrowseButtons[m.currentlyFocusedButton].blendColor = "0xEFEFF1FF"
-                end if
-                if m.currentlyFocusedButton < 5
-                    m.currentlyFocusedButton += 1
-                    if m.currentlyFocusedButton = m.currentlySelectedButton and m.currentlyFocusedButton < 5
-                        m.currentlyFocusedButton += 1
-                    end if
-                end if
-                'm.actualBrowseButtons[m.currentlyFocusedButton].color = "0x00FFD1FF"
-                if m.currentlyFocusedButton <> 3 and m.currentlyFocusedButton <> 4
-                    m.actualBrowseButtons[m.currentlyFocusedButton].color = "0x00FFD1FF"
-                else
-                    m.actualBrowseButtons[m.currentlyFocusedButton].blendColor = "0x00FFD1FF"
-                end if
-                handled = true
-            else if key = "left"
-                'm.actualBrowseButtons[m.currentlyFocusedButton].color = "0xEFEFF1FF"
-                if m.currentlyFocusedButton <> 3 and m.currentlyFocusedButton <> 4
-                    m.actualBrowseButtons[m.currentlyFocusedButton].color = "0xEFEFF1FF"
-                else
-                    m.actualBrowseButtons[m.currentlyFocusedButton].blendColor = "0xEFEFF1FF"
-                end if
-                if m.currentlyFocusedButton > 0 and not (m.currentlyFocusedButton = 1 and m.currentlySelectedButton = 0)
-                    m.currentlyFocusedButton -= 1
-                    if m.currentlyFocusedButton = m.currentlySelectedButton and m.currentlyFocusedButton > 0
-                        m.currentlyFocusedButton -= 1
-                    end if
-                end if
-                'm.actualBrowseButtons[m.currentlyFocusedButton].color = "0x00FFD1FF"
-                if m.currentlyFocusedButton <> 3 and m.currentlyFocusedButton <> 4
-                    m.actualBrowseButtons[m.currentlyFocusedButton].color = "0x00FFD1FF"
-                else
-                    m.actualBrowseButtons[m.currentlyFocusedButton].blendColor = "0x00FFD1FF"
-                end if
-                handled = true
-            else if key = "down"
-                if m.currentlySelectedButton = 0 and not hasRows(m.browseCategoryList) then return true
-                if m.currentlySelectedButton = 1 and not hasRows(m.browseList) then return true
-                if m.currentlySelectedButton = 2 and not hasRows(m.browseFollowingList) then return true
-                ' Reset button colours to unfocused colours when user focuses away from header
-                for button = 0 to 5
-                    if button <> 3 and button <> 4
-                        m.actualBrowseButtons[button].color = "0xEFEFF1FF"
-                    else
-                        m.actualBrowseButtons[button].blendColor = "0xEFEFF1FF"
-                    end if
-                end for
-
+                m.currentlySelectedButton = m.currentlyFocusedButton
                 if m.currentlySelectedButton = 0
-                    m.categoryButton.color = "0x00FFD1FF"
-                    'm.liveButton.color = "0xEFEFF1FF"
-                    m.browseCategoryList.setFocus(true)
-                    m.currentlyFocusedButton = 0
-                    handled = true
-                else if m.currentlySelectedButton = 1
-                    m.liveButton.color = "0x00FFD1FF"
-                    'm.categoryButton.color = "0xEFEFF1FF"
-                    m.browseList.setFocus(true)
-                    m.currentlyFocusedButton = 1
-                    handled = true
-                else if m.currentlySelectedButton = 2
-                    m.followingButton.color = "0x00FFD1FF"
-                    'm.categoryButton.color = "0xEFEFF1FF"
-                    m.browseFollowingList.setFocus(true)
-                    m.followingListIsFocused = true
-                    m.currentlyFocusedButton = 2
-                    handled = true
-                end if
-
-            else if key = "OK"
-                if m.currentlyFocusedButton = 3
-                    m.top.buttonPressed = "search"
-                    m.searchLabel.blendColor = "0xEFEFF1FF"
-                    m.liveButton.color = "0x00FFD1FF"
-                    handled = true
-                else if m.currentlyFocusedButton = 5
-                    m.top.buttonPressed = "login"
-                    'm.loginButton.color = "0xEFEFF1FF"
-                    handled = true
-                else if m.currentlyFocusedButton = 4
-                    m.top.buttonPressed = "options"
-                    m.optionsButton.blendColor = "0xEFEFF1FF"
-                    handled = true
-                else if m.currentlyFocusedButton = 1
-                    m.actualBrowseButtons[m.currentlySelectedButton].color = "0xEFEFF1FF"
-                    m.searchLabel.blendColor = "0xEFEFF1FF"
-                    m.loggedUserName.color = "0xEFEFF1FF"
-                    m.liveButton.color = "0x00FFD1FF"
-                    m.liveLine.visible = true
-                    m.categoryLine.visible = false
-                    m.categoryButton.color = "0xEFEFF1FF"
-                    m.followingLine.visible = false
-                    m.getCategories.pagination = ""
-                    m.browseList.setFocus(true)
-                    m.currentlySelectedButton = 1
-                    onHomeLoad()
-                    handled = true
-                else if m.currentlyFocusedButton = 0
-                    m.actualBrowseButtons[m.currentlySelectedButton].color = "0xEFEFF1FF"
-                    m.searchLabel.blendColor = "0xEFEFF1FF"
-                    m.loggedUserName.color = "0xEFEFF1FF"
-                    m.categoryButton.color = "0x00FFD1FF"
-                    m.categoryLine.visible = true
-                    m.liveLine.visible = false
-                    m.liveButton.color = "0xEFEFF1FF"
-                    m.followingLine.visible = false
-                    m.browseCategoryList.setFocus(true)
-                    m.currentlySelectedButton = 0
                     onCategorySelect()
-                    handled = true
-                else if m.currentlyFocusedButton = 2
-                    m.actualBrowseButtons[m.currentlyFocusedButton].color = "0x00FFD1FF"
-                    m.categoryButton.color = "0xEFEFF1FF"
-                    m.liveButton.color = "0xEFEFF1FF"
-                    m.categoryLine.visible = false
-                    m.liveLine.visible = false
-                    m.followingLine.visible = true
-                    m.currentlySelectedButton = 2
-                    m.browseFollowingList.setFocus(true)
-                    m.followingListIsFocused = true
+                else if m.currentlySelectedButton = 1
+                    onHomeLoad()
+                else
                     onFollowingSelect()
-                    handled = true
                 end if
-            end if 
-        else if (m.browseList.hasFocus() or m.browseCategoryList.hasFocus() or m.browseFollowingList.hasFocus() or m.browseOfflineFollowingList.hasFocus() or m.offlineChannelList.hasFocus() or m.channelPage.streamItemFocused) and key = "left"
-            'm.browseButtons.translation = "[200, 0]"
-            'm.browseList.translation = "[300,165]"
-            'm.browseCategoryList.translation = "[300,165]"
-            'm.browseMain.translation = "[250, 0]"
-            ' if key = "left"
-            ? "STREAMITEM"
-            m.followBar.setFocus(true)
-            m.followBar.focused = true
-            m.channelPage.streamItemFocused = false
-            handled = true
-            ' end if
-        else if (m.browseList.hasFocus() or m.browseCategoryList.hasFocus() or m.browseFollowingList.hasFocus() or m.browseOfflineFollowingList.hasFocus() or m.offlineChannelList.hasFocus() or m.channelPage.streamItemFocused) and key = "right"
-            'm.browseButtons.translation = "[200, 0]"
-            'm.browseList.translation = "[300,165]"
-            'm.browseCategoryList.translation = "[300,165]"
-            'm.browseMain.translation = "[250, 0]"
-            ' if key = "right"
-            ? "STREAMITEM 2"
-            m.recentsBar.setFocus(true)
-            m.recentsBar.focused = true
-            m.channelPage.streamItemFocused = false
-            handled = true
-            ' end if
-        else if m.followBar.hasFocus() = true and key = "right"
-            'm.browseButtons.translation = "[0, 0]"
-            'm.browseList.translation = "[100,165]"
-            'm.browseCategoryList.translation = "[100,165]"
-            ? "FOLLOW ???????????????????????????????????????????????????"
-            m.browseMain.translation = "[0, 0]"
-            if m.browseList.visible = true
-                ? "BROWSELIST"
-                m.browseList.setFocus(true)
-            else if m.browseCategoryList.visible = true
-                ? "BROWSECATEGORYLIST"
-                m.browseCategoryList.setFocus(true)
-            else if m.browseFollowingList.visible = true
-                ? "BROWSEFOLLOWINGLIST"
-                if hasRows(m.browseFollowingList)
-                    m.browseFollowingList.setFocus(true)
-                else
-                    m.browseButtons.setFocus(true)
-                end if
-                m.followingListIsFocused = true
-            else if m.channelPage.visible
-                m.channelPage.streamItemFocused = true
-                m.channelPage.visible = false
-                m.channelPage.visible = true
+                focusActiveGrid()
             end if
-            m.followBar.focused = false
-            handled = true
-        else if m.recentsBar.hasFocus() = true and key = "left"
-            'm.browseButtons.translation = "[0, 0]"
-            'm.browseList.translation = "[100,165]"
-            'm.browseCategoryList.translation = "[100,165]"
-            ? "RECENTS ???????????????????????????????????????????????????"
-            m.browseMain.translation = "[0, 0]"
-            if m.browseList.visible = true
-                m.browseList.setFocus(true)
-            else if m.browseCategoryList.visible = true
-                m.browseCategoryList.setFocus(true)
-            else if m.browseFollowingList.visible = true
-                if hasRows(m.browseFollowingList)
-                    m.browseFollowingList.setFocus(true)
-                else
-                    m.browseButtons.setFocus(true)
-                end if
-                m.followingListIsFocused = true
-            else if m.channelPage.visible
-                m.channelPage.streamItemFocused = true
-                m.channelPage.visible = false
-                m.channelPage.visible = true
-            end if
-            m.recentsBar.focused = false
-            handled = true
-        else if m.browseList.hasFocus() = true and key = "down"
-            getMoreChannels()
-            handled = true
-        else if m.browseCategoryList.hasFocus() = true and key = "down"
-            getMoreCategories()
-            handled = true
-        else if m.browseFollowingList.hasFocus() = true and key = "down"
-            m.offlineChannelsLabel.translation = [100,465]
-            'm.browseOfflineFollowingList.translation = [100,500]
-            'm.browseOfflineFollowingList.setFocus(true)
-            m.offlineChannelList.visible = true
-            m.offlineChannelList.setFocus(true)
-            m.followingListIsFocused = false
-            handled = true
-        'else if m.browseOfflineFollowingList.hasFocus() = true and key = "up"
-        else if m.offlineChannelList.hasFocus() and key = "up"
+            updateHeaderFocus()
+            return true
+        end if
+    else if key = "up" or key = "back"
+        if m.offlineChannelList.isInFocusChain() and hasRows(m.browseFollowingList)
             m.browseFollowingList.setFocus(true)
             m.followingListIsFocused = true
-            handled = true
-        'end if
-    'else if press = false
-        else if key = "back" 'and m.wasLastScene = true
-            if m.channelPage.visible
-                m.channelPage.visible = false
-                'm.channelPage.visible = true
-                if m.currentlySelectedButton = 0 'm.categoryLine.visible = true
-                    m.browseCategoryList.visible = true
-                    m.browseCategoryList.setFocus(true)
-                    'handled = true
-                else if m.currentlySelectedButton = 1 'm.liveLine.visible = true
-                    m.browseList.visible = true
-                    m.browseList.setFocus(true)
-                    handled = true
-                else if m.currentlySelectedButton = 2
-                    m.browseFollowingList.visible = true
-                    m.offlineChannelsLabel.visible = true
-                    
-                    if m.followingListIsFocused = true
-                        m.browseFollowingList.setFocus(true)
-                    else
-                        m.offlineChannelList.visible = true
-                        m.offlineChannelList.setFocus(true)
-                    end if
-
-                    handled = true
-                end if
-            else if m.currentlySelectedButton = 0 and m.channelPage.visible'm.top.lastScene = "category"
-                'm.top.lastScene = ""
-            else if m.currentlySelectedButton = 0 'm.categoryLine.visible = true
-                m.browseCategoryList.visible = true
-                m.browseCategoryList.setFocus(true)
-                'handled = true
-            else if m.currentlySelectedButton = 1 'm.liveLine.visible = true
-                m.browseList.visible = true
-                m.browseList.setFocus(true)
-                'handled = true
-            else if m.currentlySelectedButton = 2
-                m.browseFollowingList.visible = true
-                m.offlineChannelsLabel.visible = true
-                m.browseFollowingList.setFocus(true)
-                m.followingListIsFocused = true
-            end if
-            'm.channelPage.visible = false
-            m.wasLastScene = false
+        else
+            m.currentlyFocusedButton = m.currentlySelectedButton
+            m.browseButtons.setFocus(true)
         end if
+        updateHeaderFocus()
+        return true
+    else if key = "down"
+        if m.browseList.hasFocus()
+            getMoreChannels()
+        else if m.browseCategoryList.hasFocus()
+            getMoreCategories()
+        else if m.browseFollowingList.hasFocus() and hasOfflineChannels()
+            m.offlineChannelList.visible = true
+            m.offlineChannelList.callFunc("focusContent")
+            m.followingListIsFocused = false
+        end if
+        return true
+    else if key = "options"
+        list = activeGrid()
+        if m.currentlySelectedButton <> 0 and hasRows(list)
+            focused = list.rowItemFocused
+            row = list.content.getChild(focused[0])
+            if row <> invalid
+                item = row.getChild(focused[1])
+                if item <> invalid
+                    m.top.streamerSelectedThumbnail = item.HDPosterUrl
+                    m.top.streamerSelectedName = item.ShortDescriptionLine1
+                end if
+            end if
+        end if
+        return true
+    else if key = "left" or key = "right"
+        ' RowList handles moves inside a row. At the edge, retain grid focus.
+        return true
     end if
-
-    ? "HOMESCENE > key " key " " handled
-    if m.followBar.hasFocus()
-        ? "focus: followbar"
-    else if m.recentsBar.hasFocus()
-        ? "focus: recentsbar"
-    else
-        ? "focus: something else"
-    end if
-    return handled
+    return false
 end function
 
 sub onFollowingError()
@@ -892,5 +655,101 @@ sub onFollowingError()
         else if m.followBar.loggedIn
             showLoadStatus("No followed live channels to show.")
         end if
+    end if
+end sub
+
+
+function activeGrid() as Object
+    if m.currentlySelectedButton = 0 then return m.browseCategoryList
+    if m.currentlySelectedButton = 2 then return m.browseFollowingList
+    return m.browseList
+end function
+
+function hasOfflineChannels() as Boolean
+    channels = m.offlineChannelList.offlineChannels
+    if type(channels) <> "roArray" then return false
+    return channels.Count() > 0
+end function
+
+sub focusActiveGrid()
+    list = activeGrid()
+    if hasRows(list)
+        list.setFocus(true)
+    else if m.currentlySelectedButton = 2 and hasOfflineChannels()
+        m.offlineChannelList.visible = true
+        m.offlineChannelList.callFunc("focusContent")
+    else
+        m.browseButtons.setFocus(true)
+    end if
+    updateHeaderFocus()
+end sub
+
+sub updateHeaderFocus()
+    m.categoryLine.visible = m.currentlySelectedButton = 0
+    m.liveLine.visible = m.currentlySelectedButton = 1
+    m.followingLine.visible = m.currentlySelectedButton = 2
+    for index = 0 to 4
+        m.actualBrowseButtons[index].color = "0xA9A9B2FF"
+        if index = m.currentlySelectedButton then m.actualBrowseButtons[index].color = "0xF4F4F7FF"
+    end for
+    m.headerCursor.visible = m.browseButtons.hasFocus()
+    if m.headerCursor.visible
+        m.actualBrowseButtons[m.currentlyFocusedButton].color = "0xFFFFFFFF"
+        positions = [212,95,305,424,1027]
+        widths = [69,93,95,70,210]
+        m.headerCursor.translation = [positions[m.currentlyFocusedButton],75]
+        m.headerCursor.width = widths[m.currentlyFocusedButton]
+    end if
+end sub
+
+sub playLiveItem(item as Object)
+    if m.getStuff.state = "run" then return
+    m.playbackRequestId += 1
+    m.playbackPending = true
+    m.getStuff.cancelRequested = false
+    m.getStuff.requestId = m.playbackRequestId
+    m.getStuff.streamerRequested = item.ShortDescriptionLine1
+    m.top.liveTitle = item.Title
+    m.top.liveName = item.Description
+    m.top.liveGame = ""
+    if type(item.Categories) = "roArray"
+        if item.Categories.Count() > 0 then m.top.liveGame = item.Categories[0]
+    end if
+    m.top.liveViewers = item.ShortDescriptionLine2
+    showLoadStatus("Opening " + item.Description + "...")
+    m.getStuff.control = "RUN"
+end sub
+
+sub cancelPlaybackRequest()
+    m.channelPage.callFunc("cancelPlaybackRequest")
+    m.playbackPending = false
+    m.playbackRequestId += 1
+    m.getStuff.cancelRequested = true
+    showLoadStatus("")
+end sub
+
+sub onPlaybackRequestStopped()
+    if m.getStuff.state <> "stop" or not m.playbackPending then return
+    if m.getStuff.requestId <> m.playbackRequestId then return
+    m.playbackPending = false
+    if m.getStuff.errorMessage <> "" then showLoadStatus(m.getStuff.errorMessage + " Press OK to retry.")
+end sub
+
+sub updateFollowingLayout()
+    if m.currentlySelectedButton <> 2 then return
+    live = hasRows(m.browseFollowingList)
+    m.followingLiveLabel.visible = live
+    offline = hasOfflineChannels()
+    showOffline = not live
+    if live then showOffline = m.browseFollowingList.itemFocused = m.numRowsInFollowingList
+    m.offlineChannelsLabel.visible = offline and showOffline
+    m.offlineChannelList.visible = offline and showOffline
+    if live
+        m.offlineChannelsLabel.translation = [43,439]
+        m.offlineChannelList.translation = [40,480]
+    else
+        m.offlineChannelsLabel.translation = [43,120]
+        m.offlineChannelList.translation = [40,164]
+        if offline then showLoadStatus("")
     end if
 end sub

@@ -21,6 +21,9 @@ sub setup()
     m.browseFollowingList = node()
     m.browseOfflineFollowingList = node()
     m.offlineChannelList = node()
+    m.offlineChannelList.callFunc = function(name)
+        if name = "focusContent" then m.setFocus(true)
+    end function
     m.offlineChannelsLabel = node()
     m.followBar = node()
     m.followBar.loggedIn = false
@@ -43,11 +46,13 @@ sub setup()
     m.liveButton = m.actualBrowseButtons[1]
     m.followingButton = m.actualBrowseButtons[2]
     m.searchLabel = m.actualBrowseButtons[3]
-    m.optionsButton = m.actualBrowseButtons[4]
-    m.loggedUserName = m.actualBrowseButtons[5]
+    m.loggedUserName = m.actualBrowseButtons[4]
+    m.headerCursor = node()
+    m.followingLiveLabel = node()
     m.categoryLine = node()
     m.liveLine = node()
     m.followingLine = node()
+    m.playbackPending = false
     m.appLaunchComplete = false
     m.append = false
     m.appendCategory = false
@@ -60,10 +65,11 @@ sub main()
     check(onKeyEvent("down", true), "Down on empty grid is handled")
     check(not m.browseList.hasFocus(), "Empty grid cannot take focus from header")
     check(not m.top.hasFocus() and m.top.isInFocusChain(), "Only the leaf owns focus; Home remains its ancestor")
+    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 0, "Right moves to Games")
     check(onKeyEvent("right", true) and m.currentlyFocusedButton = 2, "Right moves to Following")
     check(onKeyEvent("right", true) and m.currentlyFocusedButton = 3, "Right moves to Search")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 4, "Right moves to Options")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 5, "Right moves to Login")
+    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 4, "Right moves directly to Login without Settings")
+    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 4, "Login is the final header item")
     check(onKeyEvent("OK", true) and m.top.buttonPressed = "login", "Login is reachable before content loads")
     onHomeLoad()
     check(m.getStreams.control = "", "No content task before authentication")
@@ -148,5 +154,20 @@ sub main()
     m.top.followingError = "Follow request failed"
     onFollowingError()
     check(m.loadStatus.text = "Follow request failed", "Follow errors are visible")
+    setup()
+    m.currentlySelectedButton = 2
+    m.offlineChannelList.offlineChannels = [{login: "offline", display_name: "Offline"}]
+    m.browseFollowingList.visible = true
+    focusActiveGrid()
+    check(m.offlineChannelList.hasFocus(), "Following with only offline channels remains navigable")
+    check(onKeyEvent("up", true) and m.browseButtons.hasFocus(), "Offline-only Following can return to tabs")
+    setup()
+    m.top.apiReady = true
+    m.getStreams.searchResults = []
+    for i = 1 to 5
+        m.getStreams.searchResults.Push({title: "A", display_name: "A", game: "G", thumbnail: "x", name: "a", viewers: 1})
+    end for
+    onSearchResultChange()
+    check(m.browseList.content.getChildCount() = 2 and m.browseList.content.children[0].children.Count() = 4, "Twellie channels use four columns with a short final row")
     print "PASS parent focus, empty-grid input, auth gating, retry, partial rows, error recovery, pagination"
 end sub

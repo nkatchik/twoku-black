@@ -421,6 +421,9 @@ sub renderQuality()
 end sub
 
 sub showQuality()
+    for index = 0 to m.controlActions.Count() - 1
+        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + index * 148,438]
+    end for
     m.qualityIndex = 0
     if m.preference <> "Auto"
         for index = 0 to m.variants.Count() - 1

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="GetClipPlayback" extends="Task">
+    <interface>
+        <field id="clipId" type="string" />
+        <field id="requestId" type="integer" value="0" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="playbackInfo" type="assocarray" />
+        <field id="errorMessage" type="string" />
+        <field id="streamUrl" type="string" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/GetClipPlayback.brs" />
+    <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+</component>
