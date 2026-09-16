@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="Logout" extends="Task">
+    <interface>
+        <field id="accessToken" type="string" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/Logout.brs" />
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+</component>

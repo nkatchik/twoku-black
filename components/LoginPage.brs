@@ -1,5 +1,9 @@
 sub init()
     m.top.focusable = true
+    m.pendingView = m.top.findNode("pendingView")
+    m.accountView = m.top.findNode("accountView")
+    m.accountLabel = m.top.findNode("accountLabel")
+    m.busy = m.top.findNode("busy")
     m.code = m.top.findNode("code")
     m.qr = m.top.findNode("qr")
     m.qrHelp = m.top.findNode("qrHelp")
@@ -19,20 +23,21 @@ sub init()
 end sub
 
 sub whenFinished()
-    if m.top.visible and not m.getAuth.cancelRequested and m.getAuth.finished
+    if m.top.visible and m.top.accountName = "" and not m.getAuth.cancelRequested and m.getAuth.finished
         m.top.finished = true
     end if
 end sub
 
 sub onAuthUpdate()
-    if not m.top.visible or m.getAuth.cancelRequested then return
+    if not m.top.visible or m.top.accountName <> "" or m.getAuth.cancelRequested then return
     m.code.text = m.getAuth.code
     m.qr.uri = m.getAuth.qrUri
     m.qr.visible = m.getAuth.qrUri <> "" and m.getAuth.code <> "" and m.getAuth.errorMessage = ""
     m.qrHelp.visible = m.qr.visible
     ' The code can be entered at the short address; no query string to type.
     m.address.text = "www.twitch.tv/activate"
-    m.status.text = m.getAuth.statusMessage
+    m.status.text = m.getAuth.errorMessage
+    m.busy.active = m.getAuth.code = "" and m.getAuth.errorMessage = ""
     if m.getAuth.errorMessage <> ""
         m.hint.text = "Press OK to try again. Press Back to return."
     else
@@ -41,11 +46,15 @@ sub onAuthUpdate()
 end sub
 
 sub startLogin()
+    if m.top.accountName <> "" then return
+    m.pendingView.visible = true
+    m.accountView.visible = false
+    m.busy.active = true
     m.top.finished = false
     clearLoginQr()
     m.code.text = ""
     m.address.text = "www.twitch.tv/activate"
-    m.status.text = "Getting a sign-in code..."
+    m.status.text = ""
     m.hint.text = "Press Back to cancel."
     if m.getAuth.state = "run"
         ' Keep the old attempt cancelled until it stops; never revive its code.
@@ -60,10 +69,11 @@ sub startLogin()
 end sub
 
 sub onAuthStopped()
-    if m.getAuth.state <> "stop" or not m.top.visible then return
+    if m.getAuth.state <> "stop" or not m.top.visible or m.top.accountName <> "" then return
     if m.retryWhenStopped
         startLogin()
     else if not m.getAuth.finished and m.getAuth.errorMessage = ""
+        m.busy.active = false
         clearLoginQr()
         m.code.text = ""
         m.status.text = "Sign-in stopped before it completed. Please try again."
@@ -72,9 +82,16 @@ sub onAuthStopped()
 end sub
 
 sub onVisible()
+    m.busy.enabled = m.top.visible
     if m.top.visible
-        startLogin()
+        m.top.logoutRequested = false
+        if m.top.accountName <> ""
+            showAccount()
+        else
+            startLogin()
+        end if
     else
+        m.busy.active = false
         m.retryWhenStopped = false
         m.getAuth.cancelRequested = true
         clearLoginQr()
@@ -82,7 +99,23 @@ sub onVisible()
     end if
 end sub
 
+sub showAccount()
+    m.retryWhenStopped = false
+    m.getAuth.cancelRequested = true
+    m.top.finished = false
+    clearLoginQr()
+    m.code.text = ""
+    m.busy.active = false
+    m.pendingView.visible = false
+    m.accountView.visible = true
+    m.accountLabel.text = "Logged in as " + m.top.accountName
+end sub
+
 function onKeyEvent(key as String, press as Boolean) as Boolean
+    if m.top.accountName <> ""
+        if press and key = "OK" then m.top.logoutRequested = true
+        return key <> "back"
+    end if
     if press and key = "OK" and m.getAuth.state <> "run"
         startLogin()
         return true

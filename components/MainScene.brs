@@ -42,6 +42,7 @@ function init()
     ' m.channelPage.observeField("streamUrl", "onStreamChange")
 
     m.loginPage.observeField("finished", "onLoginFinish")
+    m.loginPage.observeField("logoutRequested", "onLogoutRequested")
 
     m.videoPlayer.observeField("back", "onVideoPlayerBack")
     m.videoPlayer.observeField("toggleChat", "onToggleChat")
@@ -299,14 +300,54 @@ function onHeaderButtonPress()
         m.keyboardGroup.visible = true
         m.keyboardGroup.callFunc("focusContent")
     else if m.homeScene.buttonPressed = "login"
-        'm.top.dialog = createObject("RoSGNode", "LoginPrompt")
-        'm.top.dialog.observeField("buttonSelected", "onLogin")
         m.homeScene.visible = false
-        m.global.sessionVersion += 1
+        m.loginPage.accountName = ""
+        if m.homeScene.loggedInUserId <> "" and m.homeScene.loggedInUserName <> ""
+            ' Viewing the current account does not invalidate its running refresh.
+            m.loginPage.accountName = m.homeScene.loggedInUserName
+        else
+            m.global.sessionVersion += 1
+        end if
         m.loginPage.visible = true
         m.loginPage.setFocus(true)
     end if
 end function
+
+sub onLogoutRequested()
+    if not m.loginPage.visible or not m.loginPage.logoutRequested or m.loginPage.accountName = "" then return
+    m.loginPage.logoutRequested = false
+    m.global.sessionVersion += 1
+    m.global.userToken = ""
+    m.global.sessionRefreshRequested = false
+    m.login = ""
+    section = CreateObject("roRegistrySection", "LoggedInUserData")
+    token = ""
+    if section.Exists("UserToken") then token = section.Read("UserToken")
+    for each key in ["UserToken", "RefreshToken", "UserClientId", "LoggedInUser"]
+        section.Delete(key)
+    end for
+    section.Flush()
+    m.homeScene.loggedInSessionVersion = m.global.sessionVersion
+    m.homeScene.loggedInUserId = ""
+    m.homeScene.loggedInUserName = ""
+    m.homeScene.loggedInUserProfileImage = ""
+    m.homeScene.followingError = ""
+    m.homeScene.followedStreams = []
+    m.homeScene.currentlyLiveStreamerIds = {}
+    m.chat.loggedInUsername = ""
+    m.loginPage.visible = false
+    m.loginPage.accountName = ""
+    m.homeScene.callFunc("clearAccount")
+    if m.global.appBearerToken = "" then startAuthentication()
+    m.homeScene.visible = true
+    focusHome()
+    ' The old credentials cannot be restored by an in-flight GetUser callback.
+    if token <> ""
+        m.logoutTask = CreateObject("roSGNode", "Logout")
+        m.logoutTask.accessToken = token
+        m.logoutTask.control = "RUN"
+    end if
+end sub
 
 sub onUserLogin()
     if m.getUser.sessionVersion <> m.global.sessionVersion then return

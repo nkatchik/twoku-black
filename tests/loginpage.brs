@@ -1,6 +1,10 @@
 sub resetPage()
-    m.top = {visible: true, finished: false}
+    m.top = {visible: true, finished: false, accountName: "", logoutRequested: false}
     m.getAuth = {state: "stop", control: "", finished: false, cancelRequested: false, errorMessage: "", qrUri: "", code: "", statusMessage: ""}
+    m.pendingView = node()
+    m.accountView = node()
+    m.accountLabel = node()
+    m.busy = node()
     m.qr = node()
     m.qrHelp = node()
     m.code = node()
@@ -14,6 +18,7 @@ sub main()
     resetPage()
     onVisible()
     check(m.getAuth.control = "RUN" and m.code.text = "", "Opening login starts code request")
+    check(m.busy.active and m.busy.enabled and m.status.text = "", "Pending sign-in uses a visible spinner without temporary status copy")
     whenFinished()
     check(not m.top.finished, "Resetting the task's finished field does not signal success")
     m.getAuth.code = "ABCD1234"
@@ -53,5 +58,16 @@ sub main()
     onAuthUpdate()
     onAuthStopped()
     check(not m.qr.visible and m.code.text = "", "Unexpected task stop also hides the activation code")
-    print "PASS start, cancellation, late completion, reopen, successful completion, error display, retry"
+    resetPage()
+    m.top.accountName = "ExampleViewer"
+    onVisible()
+    check(m.accountView.visible and not m.pendingView.visible, "Signed-in chip shows the account view")
+    check(m.getAuth.control = "" and m.getAuth.cancelRequested, "Viewing account never starts device authorization")
+    check(m.accountLabel.text = "Logged in as ExampleViewer" and not m.busy.active, "Account view identifies current user without a loading spinner")
+    check(onKeyEvent("OK", true) and m.top.logoutRequested, "Focused Log out action emits logout request")
+    m.getAuth.finished = true
+    whenFinished()
+    check(not m.top.finished, "Old authorization cannot replace account view")
+    check(not onKeyEvent("back", true), "Account Back returns through the page owner")
+    print "PASS start, account mode, logout action, cancellation, late completion, reopen, successful completion, error display, retry"
 end sub
