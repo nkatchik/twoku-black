@@ -12,6 +12,7 @@ bounded container metadata and never traverses mdat payload bytes.
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import struct
 import subprocess
@@ -48,7 +49,7 @@ def boxes(data):
         position += size
 
 
-def production_patches(brs, source, work):
+def production_patches(brs, source, work, server_spans=False):
     top = list(boxes(source))
     media_offset = next(offset for offset, _, kind in top if kind == b'moof')
     # Preserve the original init/segment boundary, as the on-device server does.
@@ -86,6 +87,15 @@ sub main()
     print "FMP4_PASS"
 end sub
 '''
+    if server_spans:
+        server = (ROOT / 'components/PlaybackCompatibility.brs').read_text()
+        for name in ('compatViewSpans', 'compatSendClient'):
+            match = re.search(r'(?ims)^(?:function|sub)\s+' + name + r'\([^\n]*\n.*?^end (?:function|sub)', server)
+            if match is None:
+                raise ValueError('Missing production server helper: ' + name)
+            implementation += '\n' + match.group()
+        bridge = bridge.replace('    for each patch in result.patches', '    emitServerProof(data,result.patches,kind,part)\n    for each patch in result.patches', 1)
+        bridge += SERVER_BRIDGE
     program = work / 'verify.brs'
     program.write_text(implementation + '\n' + bridge)
     output, diagnostics = invoke([brs, '--root', str(work), str(program)])
@@ -101,7 +111,104 @@ end sub
         if replacement != b'free':
             raise AssertionError('A patch modifies more than a box type')
         patches[kind].append((offset, replacement))
+    if server_spans:
+        verify_spans(output, source, media_offset, patches)
     return patches
+
+
+
+SERVER_BRIDGE = r"""
+sub emitServerRange(data, patches, kind, part, name, first, amount)
+    spans = compatViewSpans(data,patches,first,amount)
+    print "FMP4_RANGE "; kind; " "; part; " "; name; " "; first.ToStr(); " "; amount.ToStr()
+    for each span in spans
+        storage = "original"
+        if span.data.Count() = 4 then storage = "free"
+        print "FMP4_SPAN "; kind; " "; part; " "; name; " "; storage; " "; span.offset.ToStr(); " "; span.length.ToStr()
+    end for
+end sub
+sub emitServerProof(data, patches, kind, part)
+    emitServerRange(data,patches,kind,part,"full",0,data.Count())
+    number = 0
+    for each patch in patches
+        for byte = 0 to 3
+            emitServerRange(data,patches,kind,part,number.ToStr(),patch.offset+byte,1)
+            number += 1
+        end for
+        emitServerRange(data,patches,kind,part,number.ToStr(),patch.offset-1,6)
+        number += 1
+        emitServerRange(data,patches,kind,part,number.ToStr(),patch.offset+1,2)
+        number += 1
+    end for
+    socket = {chunks: [], calls: 0,
+        IsWritable: function()
+            return true
+        end function,
+        Send: function(data,offset,amount)
+            m.calls += 1
+            ' Exercise transient backpressure and partial native writes.
+            if m.calls mod 7 = 0 then return 0
+            if amount > 13007 then amount = 13007
+            if amount > 1 then amount = Int(amount/2)
+            m.chunks.Push({original: data.Count() <> 4, offset: offset, length: amount})
+            return amount
+        end function}
+    clock = {TotalMilliseconds: function()
+        return 123
+    end function}
+    session = {servedBytes: 0, clock: clock}
+    client = {socket: socket, spans: compatViewSpans(data,patches,0,data.Count()), spanIndex: 0, spanOffset: 0, phase: "sending"}
+    attempts = 0
+    while client.phase = "sending" and attempts < 10000
+        compatSendClient(session,client)
+        attempts += 1
+    end while
+    if client.phase <> "draining" or session.servedBytes <> data.Count()
+        print "FMP4_FAIL partial socket writes did not drain exactly once"
+        stop
+    end if
+    print "FMP4_RANGE "; kind; " "; part; " socket 0 "; data.Count().ToStr()
+    for each chunk in socket.chunks
+        storage = "free"
+        if chunk.original then storage = "original"
+        print "FMP4_SPAN "; kind; " "; part; " socket "; storage; " "; chunk.offset.ToStr(); " "; chunk.length.ToStr()
+    end for
+end sub
+"""
+
+
+def verify_spans(output, source, media_offset, patches):
+    parts = {'init': source[:media_offset], 'media': source[media_offset:]}
+    expected = {}
+    for kind, changes in patches.items():
+        patched = bytearray(source)
+        for offset, replacement in changes:
+            patched[offset:offset + 4] = replacement
+        expected[kind, 'init'] = patched[:media_offset]
+        expected[kind, 'media'] = patched[media_offset:]
+    cases = {}
+    for line in output.splitlines():
+        if line.startswith('FMP4_RANGE '):
+            _, kind, part, name, first, amount = line.split()
+            key = kind, part, name
+            if key in cases:
+                raise AssertionError('Duplicate server range case')
+            cases[key] = {'first': int(first), 'amount': int(amount), 'chunks': []}
+        elif line.startswith('FMP4_SPAN '):
+            _, kind, part, name, storage, offset, amount = line.split()
+            cases[kind, part, name]['chunks'].append((storage, int(offset), int(amount)))
+    if not cases:
+        raise AssertionError('No production sparse server ranges were checked')
+    for (kind, part, name), case in cases.items():
+        actual = bytearray()
+        for storage, offset, amount in case['chunks']:
+            original = b'free' if storage == 'free' else parts[part]
+            if amount <= 0 or offset < 0 or offset + amount > len(original):
+                raise AssertionError('Invalid sparse send range')
+            actual.extend(original[offset:offset + amount])
+        first, amount = case['first'], case['amount']
+        if actual != expected[kind, part][first:first + amount]:
+            raise AssertionError('Production sparse server changed range bytes: ' + name)
 
 
 def probe(ffprobe, path):
@@ -131,7 +238,7 @@ def frame_hashes(ffmpeg, path, kind):
 
 def verify_fixture(args, fixture, work):
     source = fixture.read_bytes()
-    patches = production_patches(args.brs, source, work)
+    patches = production_patches(args.brs, source, work, args.server_spans)
     baseline = probe(args.ffprobe, fixture)
     results = []
     for kind, changes in patches.items():
@@ -159,7 +266,7 @@ def verify_fixture(args, fixture, work):
         results.append({'kind': kind, 'patches': len(changes), 'patch_bytes': len(changes) * 4,
                         'packets': len(actual_packets), 'decoded_frames': len(actual_frames),
                         'payload_and_timing_unchanged': True})
-    return {'fixture': fixture.name, 'source_bytes': len(source), 'sha256': hashlib.sha256(source).hexdigest(), 'views': results}
+    return {'fixture': fixture.name, 'source_bytes': len(source), 'sha256': hashlib.sha256(source).hexdigest(), 'server_spans_verified': args.server_spans, 'views': results}
 
 
 def main():
@@ -167,6 +274,7 @@ def main():
     parser.add_argument('--brs', default='brs')
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--ffprobe', default='ffprobe')
+    parser.add_argument('--server-spans', action='store_true', help='Also verify production sparse ranges and partial socket sends')
     parser.add_argument('--fixture', type=Path, action='append', default=[])
     args = parser.parse_args()
     for name in ('brs', 'ffmpeg', 'ffprobe'):
