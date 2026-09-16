@@ -1,7 +1,6 @@
 sub init()
     m.live = m.top.findNode("live")
     m.offline = m.top.findNode("offline")
-    m.liveFocus = m.top.findNode("liveFocus")
 end sub
 
 sub showContent()
@@ -18,15 +17,16 @@ sub showContent()
 end sub
 
 sub onItemFocus()
-    if m.liveFocus = invalid then return
-    opacity = 0.0
-    if m.top.rowListHasFocus
-        opacity = m.top.focusPercent * m.top.rowFocusPercent
-        if m.top.itemHasFocus then opacity = 1.0
-    end if
-    m.liveFocus.opacity = opacity
-    m.liveFocus.visible = opacity > 0 and m.live.visible
+    if m.live = invalid then return
     m.live.itemHasFocus = m.top.rowListHasFocus and m.top.itemHasFocus and m.live.visible
     m.offline.itemHasFocus = m.top.rowListHasFocus and m.top.itemHasFocus and m.offline.visible
-    m.offline.focusOpacity = opacity
+    item = m.top.itemContent
+    if item = invalid or m.top.rowFocusPercent <= 0 then return
+    row = item.getParent()
+    if row = invalid then return
+    content = row.getParent()
+    if content = invalid then return
+    state = content.focusState
+    if state[0] = m.top.rowIndex and state[1] = m.top.rowFocusPercent and state[2] = m.top.rowListHasFocus then return
+    content.focusState = [m.top.rowIndex,m.top.rowFocusPercent,m.top.rowListHasFocus]
 end sub

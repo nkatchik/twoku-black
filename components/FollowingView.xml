@@ -18,6 +18,10 @@
                 vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus">
                 <Font role="rowLabelFont" uri="pkg:/fonts/Inter-SemiBold.ttf" size="20" />
             </RowList>
+            <Group id="focusCursor" visible="false">
+                <Poster id="liveFocus" uri="pkg:/images/twellie-focus.9.png" width="292" height="164" />
+                <Poster id="offlineFocus" translation="[41,6]" uri="pkg:/images/twellie-avatar-focus.png" width="108" height="108" />
+            </Group>
         </Group>
     </children>
 </component>

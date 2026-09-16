@@ -8,6 +8,9 @@ function testCreateObject(kind, name)
             m[key] = fields[key]
         end for
     end function
+    result.observeField = function(field, callback)
+        return true
+    end function
     return result
 end function
 
@@ -57,5 +60,29 @@ sub main()
     m.grid.rowItemFocused = [0,2]
     check(onKeyEvent("options",true), "Channel-details shortcut is handled on live cards")
     check(m.top.channelRequested.ShortDescriptionLine1 = "live2", "Details shortcut preserves focused live identity")
+    m.focusCursor = node()
+    m.liveFocus = node()
+    m.offlineFocus = node()
+    m.grid.setFocus(true)
+    m.grid.currFocusColumn = 1.5
+    m.grid.subBoundingRect = function(part)
+        return {x:302,y:42}
+    end function
+    m.grid.content.focusState = [0,1,true]
+    updateFollowingFocus()
+    check(m.focusCursor.visible and m.focusCursor.translation[0] = 453 and m.liveFocus.visible, "Single solid live cursor follows the native interpolated column")
+    m.grid.content.focusState = [2,0.5,true]
+    updateFollowingFocus()
+    check(not m.focusCursor.visible, "Vertical animation hides the cursor without fading")
+    m.grid.content.focusState = [2,1,true]
+    m.grid.currFocusColumn = 0.5
+    m.grid.subBoundingRect = function(part)
+        return {x:0,y:42}
+    end function
+    updateFollowingFocus()
+    check(m.focusCursor.visible and m.offlineFocus.visible and m.focusCursor.translation[0] = 99.5, "Offline circle uses its own column spacing and snaps to the settled row")
+    m.grid.setFocus(false)
+    updateFollowingFocus()
+    check(not m.focusCursor.visible, "Returning to header hides shared focus")
     print "PASS single Following row model, partial sections, refresh identity, late arrival, unified selection"
 end sub

@@ -3,14 +3,13 @@
     <interface>
         <field id="itemContent" type="node" onChange="showContent" />
         <field id="itemHasFocus" type="boolean" onChange="onItemFocus" />
-        <field id="focusPercent" type="float" onChange="onItemFocus" />
         <field id="rowFocusPercent" type="float" onChange="onItemFocus" />
         <field id="rowListHasFocus" type="boolean" onChange="onItemFocus" />
+        <field id="rowIndex" type="integer" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/FollowingItem.brs" />
     <children>
         <BrowseChannelItem id="live" visible="false" />
-        <BrowseOfflineChannelItem id="offline" translation="[0,6]" visible="false" />
-        <Poster id="liveFocus" uri="pkg:/images/twellie-focus.9.png" width="292" height="164" visible="false" />
+        <BrowseOfflineChannelItem id="offline" translation="[0,6]" visible="false" drawFocusFeedback="false" />
     </children>
 </component>

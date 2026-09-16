@@ -1,8 +1,13 @@
 sub init()
     m.top.focusable = true
     m.grid = m.top.findNode("grid")
+    m.focusCursor = m.top.findNode("focusCursor")
+    m.liveFocus = m.top.findNode("liveFocus")
+    m.offlineFocus = m.top.findNode("offlineFocus")
     m.grid.observeField("rowItemFocused", "onItemFocused")
     m.grid.observeField("rowItemSelected", "onItemSelected")
+    m.grid.observeField("currFocusColumn", "updateFollowingFocus")
+    m.top.observeField("visible", "updateFollowingFocus")
     m.focusLogin = ""
 end sub
 
@@ -20,6 +25,7 @@ end function
 
 function followingRows(liveStreams, offlineChannels) as Object
     content = CreateObject("roSGNode", "ContentNode")
+    content.addFields({focusState: [-1,0,false]})
     heights = []
     sizes = []
     spacings = []
@@ -89,6 +95,7 @@ sub onContentChanged()
     if m.grid = invalid then return
     focused = m.top.isInFocusChain()
     model = followingRows(m.top.liveStreams, m.top.offlineChannels)
+    model.content.observeField("focusState", "updateFollowingFocus")
     position = [0,0]
     for rowIndex = 0 to model.content.getChildCount() - 1
         row = model.content.getChild(rowIndex)
@@ -112,6 +119,7 @@ sub onContentChanged()
     else
         m.focusLogin = ""
     end if
+    updateFollowingFocus()
 end sub
 
 sub focusContent()
@@ -131,6 +139,32 @@ sub onItemFocused()
     if item = invalid then return
     m.top.focusedItem = item
     m.focusLogin = item.ShortDescriptionLine1
+    updateFollowingFocus()
+end sub
+
+sub updateFollowingFocus()
+    if m.focusCursor = invalid then return
+    m.focusCursor.visible = false
+    if not m.top.visible or not m.grid.hasFocus() or m.grid.content = invalid then return
+    state = m.grid.content.focusState
+    ' Vertical movement snaps into place once the new row has settled.
+    if state[0] < 0 or state[1] < 1 or not state[2] then return
+    row = m.grid.content.getChild(state[0])
+    if row = invalid or row.getChildCount() = 0 then return
+    column = m.grid.currFocusColumn
+    if column < 0 then column = 0
+    if column > row.getChildCount() - 1 then column = row.getChildCount() - 1
+    index = Int(column)
+    item = row.getChild(index)
+    live = item.followKind = "live"
+    stride = 199
+    if live then stride = 302
+    rect = m.grid.subBoundingRect("item" + state[0].ToStr() + "_" + index.ToStr())
+    ' Use Roku's own interpolated column so horizontal motion matches other grids.
+    m.focusCursor.translation = [rect.x + (column - index) * stride,rect.y]
+    m.liveFocus.visible = live
+    m.offlineFocus.visible = not live
+    m.focusCursor.visible = true
 end sub
 
 sub onItemSelected()
