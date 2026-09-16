@@ -3,8 +3,12 @@
 import argparse
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+from verify_qr import verify as verify_qr
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,10 +30,11 @@ parser.add_argument('--brs', default='brs')
 args = parser.parse_args()
 shared = (ROOT / 'tests/support.brs').read_text()
 suites = {
+    'qr': '\n\n'.join(p.read_text() for p in sorted((ROOT / 'components/qr').glob('*.brs'))) + '\n\n' + (ROOT / 'components/LoginQr.brs').read_text(),
     'network': functions('UrlFunctions.brs', ['createHttpUrl', 'createUrl', 'GETJSON', 'requestText', 'getApiJson', 'twitchClientId', 'nonEmptyString']),
-    'auth': functions('GetAuth.brs', ['authenticate', 'validDeviceGrant', 'waitForLoginPoll', 'failLogin']) + '\n\n' + functions('UrlFunctions.brs', ['twitchClientId', 'twitchScopes', 'nonEmptyString', 'validTokenPair', 'oauthError']),
+    'auth': functions('GetAuth.brs', ['authenticate', 'validDeviceGrant', 'waitForLoginPoll', 'failLogin']) + '\n\n' + functions('LoginQr.brs', ['loginActivationUri']) + '\n\n' + functions('UrlFunctions.brs', ['twitchClientId', 'twitchScopes', 'nonEmptyString', 'validTokenPair', 'oauthError']),
     'session': functions('UrlFunctions.brs', ['twitchClientId', 'nonEmptyString', 'validTokenPair', 'createHttpUrl', 'oauthUrl', 'oauthPost', 'validateUserToken', 'restoreUserSession', 'getRefreshToken', 'saveLogin']),
-    'loginpage': functions('LoginPage.brs', ['startLogin', 'onVisible', 'onKeyEvent', 'onAuthUpdate', 'whenFinished', 'onAuthStopped']),
+    'loginpage': functions('LoginPage.brs', ['startLogin', 'onVisible', 'onKeyEvent', 'onAuthUpdate', 'whenFinished', 'onAuthStopped', 'clearLoginQr']),
     'follows': functions('GetUser.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
     'offline': functions('GetOfflineFollowedChannels.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
     'token': functions('GetToken.brs', ['getStreamLink']),
@@ -58,4 +63,7 @@ with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
         if result.returncode or 'FAIL:' in output or 'PASS' not in output:
             Path('/tmp/twoku-failed-' + name + '.brs').write_text(path.read_text())
             raise SystemExit(f'{name} failed:\n{output}')
+        if name == 'qr':
+            verify_qr(output)
+            Path('/tmp/twoku-qr-test-output.txt').write_text(output)
         print(f'{name}: ' + next(line for line in output.splitlines() if line.startswith('PASS')))

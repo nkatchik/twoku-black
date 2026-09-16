@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="GetAuth" extends="Task">
     <interface>
+        <field id="qrUri" type="uri" />
         <field id="code" type="string" />
         <field id="verificationUri" type="string" />
         <field id="statusMessage" type="string" />
@@ -10,4 +11,14 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/GetAuth.brs" />
     <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+    <script type="text/brightscript" uri="pkg:/components/LoginQr.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.draw.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.help.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.high.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.low.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.mask.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.mid.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrCode.utils.brs" />
+    <script type="text/brightscript" uri="pkg:/components/qr/qrSegment.brs" />
 </component>

@@ -6,11 +6,13 @@
     <script type="text/brightscript" uri="pkg:/components/LoginPage.brs" />
     <children>
         <Label translation="[100,72]" text="Sign in to Twitch" font="font:LargeBoldSystemFont" />
-        <Label translation="[100,150]" text="On your phone or computer, open:" font="font:MediumSystemFont" />
-        <Label id="address" translation="[100,195]" width="1080" text="www.twitch.tv/activate" font="font:MediumBoldSystemFont" color="0x00FFD1FF" />
+        <Label id="qrHelp" translation="[780,120]" width="400" horizAlign="center" text="Scan to sign in on your phone" visible="false" font="font:MediumSystemFont" />
+        <Poster id="qr" translation="[800,175]" width="360" height="360" loadDisplayMode="limitSize" visible="false" />
+        <Label translation="[100,150]" text="Or open this address:" font="font:MediumSystemFont" />
+        <Label id="address" translation="[100,195]" width="650" text="www.twitch.tv/activate" font="font:MediumBoldSystemFont" color="0x00FFD1FF" />
         <Label translation="[100,270]" text="Enter this code:" font="font:MediumSystemFont" />
         <SimpleLabel id="code" translation="[100,320]" text="" color="0xEFEFF1FF" fontSize="48" fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-        <Label id="status" translation="[100,420]" width="1050" height="90" wrap="true" text="Getting a sign-in code..." font="font:MediumSystemFont" />
+        <Label id="status" translation="[100,420]" width="650" height="120" wrap="true" text="Getting a sign-in code..." font="font:MediumSystemFont" />
         <Label id="hint" translation="[100,570]" width="1050" text="Press Back to cancel." font="font:SmallSystemFont" />
     </children>
 </component>

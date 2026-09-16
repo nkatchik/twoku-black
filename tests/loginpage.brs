@@ -1,6 +1,8 @@
 sub resetPage()
     m.top = {visible: true, finished: false}
-    m.getAuth = {state: "stop", control: "", finished: false, cancelRequested: false, errorMessage: "", code: "", statusMessage: ""}
+    m.getAuth = {state: "stop", control: "", finished: false, cancelRequested: false, errorMessage: "", qrUri: "", code: "", statusMessage: ""}
+    m.qr = node()
+    m.qrHelp = node()
     m.code = node()
     m.address = node()
     m.status = node()
@@ -14,9 +16,14 @@ sub main()
     check(m.getAuth.control = "RUN" and m.code.text = "", "Opening login starts code request")
     whenFinished()
     check(not m.top.finished, "Resetting the task's finished field does not signal success")
+    m.getAuth.code = "ABCD1234"
+    m.getAuth.qrUri = "tmp:/test-qr.png"
+    onAuthUpdate()
+    check(m.qr.visible and m.qr.uri = "tmp:/test-qr.png" and m.qrHelp.visible, "New activation image is shown beside the manual code")
     m.getAuth.state = "run"
     m.top.visible = false
     onVisible()
+    check(not m.qr.visible and m.qr.uri = "" and not m.qrHelp.visible, "Leaving login immediately hides the old QR")
     check(m.getAuth.cancelRequested and m.code.text = "", "Hiding login cancels and clears code")
     m.getAuth.finished = true
     whenFinished()
@@ -31,11 +38,20 @@ sub main()
     whenFinished()
     check(m.top.finished, "Visible approved attempt signals success")
     resetPage()
+    m.getAuth.code = "ABCD1234"
+    m.getAuth.qrUri = "tmp:/expired.png"
     m.getAuth.errorMessage = "Sign-in expired"
     m.getAuth.statusMessage = m.getAuth.errorMessage
     onAuthUpdate()
+    check(not m.qr.visible, "Expired QR cannot remain scannable")
     check(Instr(1, m.hint.text, "OK") > 0 and m.status.text = "Sign-in expired", "Failure exposes retry hint")
     check(onKeyEvent("OK", true) and m.getAuth.control = "RUN", "OK retries a stopped attempt")
     check(not onKeyEvent("back", true), "Back bubbles to the page owner")
+    resetPage()
+    m.getAuth.code = "ABCD1234"
+    m.getAuth.qrUri = "tmp:/stopped.png"
+    onAuthUpdate()
+    onAuthStopped()
+    check(not m.qr.visible and m.code.text = "", "Unexpected task stop also hides the activation code")
     print "PASS start, cancellation, late completion, reopen, successful completion, error display, retry"
 end sub

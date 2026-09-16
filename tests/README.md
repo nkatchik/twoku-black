@@ -8,7 +8,7 @@ python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 ```
 
-The thirteen suites execute production BrightScript functions. Transport, task fields,
+The fourteen suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
 finite request waits, failed async starts, invalid token/JSON responses, a maximum
@@ -19,6 +19,13 @@ Login, moving between header and grid, and restoring focus after screen display.
 Signed-out sidebar checks cover its placeholder, Login action, empty-list arrows,
 and returning to the header when Following has no content. They do not validate
 Roku scheduling, rendering, remote input delivery, or playback.
+
+QR checks cover the exact prefilled activation link, preserved query parameters,
+local rendering, integer module sizes, the four-module quiet zone, image allocation
+failure, and hiding expired or cancelled codes. The emitted pixels match frozen
+Nayuki qrcodegen 1.8.0 reference matrices. For an independent decoder check, install `pillow` and
+`zxing-cpp` in an isolated environment, run the suites, then run
+`python tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode`.
 
 Login suites cover device grant validation, approval polling, slow-down, expiry,
 cancellation during polling and validation, late task results, retry, validated
@@ -60,7 +67,8 @@ app". Login changes still require approval and follow-list verification on Roxto
 3. Switch tabs while loading; try an empty result and a category with fewer than
    seven entries. Confirm rows render and the header remains reachable.
 4. Return from Search/Options to Home and confirm focus reaches the header or grid.
-5. Select Login, enter the code at `www.twitch.tv/activate`, and approve Twellie.
+5. Select Login and scan the QR with your phone. Confirm Twitch opens with the
+   code already filled in, then approve Twellie. Also check manual code entry.
    Confirm Home shows your username, the left rail lists your live followed
    channels, and Following shows live/offline follows. An account with no live
    followed channels should retain usable header focus.

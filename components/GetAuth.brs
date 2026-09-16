@@ -3,6 +3,8 @@ sub init()
 end sub
 
 sub authenticate()
+    if m.top.qrUri <> "" then DeleteFile(m.top.qrUri)
+    m.top.qrUri = ""
     m.top.finished = false
     m.top.errorMessage = ""
     m.top.code = ""
@@ -19,11 +21,17 @@ sub authenticate()
         return
     end if
 
-    m.top.verificationUri = grant.verification_uri
+    m.top.verificationUri = loginActivationUri(grant)
     m.top.code = grant.user_code
     m.top.statusMessage = "Approve access in your browser. This screen will update automatically."
     clock = CreateObject("roTimespan")
     clock.Mark()
+    qrUri = createLoginQr(m.top.verificationUri, "tmp:/twoku-login-" + grant.user_code + ".png")
+    if m.top.cancelRequested
+        if qrUri <> "" then DeleteFile(qrUri)
+        return
+    end if
+    m.top.qrUri = qrUri
     expiresMs = grant.expires_in * 1000
     intervalMs = 5000
     if GetInterface(grant.interval, "ifInt") <> invalid
@@ -103,6 +111,8 @@ end function
 sub failLogin(message as String)
     if m.top.cancelRequested then return
     m.top.code = ""
+    if m.top.qrUri <> "" then DeleteFile(m.top.qrUri)
+    m.top.qrUri = ""
     m.top.errorMessage = message
     m.top.statusMessage = message
 end sub

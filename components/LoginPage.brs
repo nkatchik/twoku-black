@@ -1,6 +1,8 @@
 sub init()
     m.top.focusable = true
     m.code = m.top.findNode("code")
+    m.qr = m.top.findNode("qr")
+    m.qrHelp = m.top.findNode("qrHelp")
     m.address = m.top.findNode("address")
     m.status = m.top.findNode("status")
     m.hint = m.top.findNode("hint")
@@ -8,6 +10,7 @@ sub init()
     m.top.observeField("visible", "onVisible")
     m.getAuth = createObject("roSGNode", "GetAuth")
     m.getAuth.observeField("code", "onAuthUpdate")
+    m.getAuth.observeField("qrUri", "onAuthUpdate")
     m.getAuth.observeField("verificationUri", "onAuthUpdate")
     m.getAuth.observeField("statusMessage", "onAuthUpdate")
     m.getAuth.observeField("errorMessage", "onAuthUpdate")
@@ -24,6 +27,9 @@ end sub
 sub onAuthUpdate()
     if not m.top.visible or m.getAuth.cancelRequested then return
     m.code.text = m.getAuth.code
+    m.qr.uri = m.getAuth.qrUri
+    m.qr.visible = m.getAuth.qrUri <> "" and m.getAuth.code <> "" and m.getAuth.errorMessage = ""
+    m.qrHelp.visible = m.qr.visible
     ' The code can be entered at the short address; no query string to type.
     m.address.text = "www.twitch.tv/activate"
     m.status.text = m.getAuth.statusMessage
@@ -36,6 +42,7 @@ end sub
 
 sub startLogin()
     m.top.finished = false
+    clearLoginQr()
     m.code.text = ""
     m.address.text = "www.twitch.tv/activate"
     m.status.text = "Getting a sign-in code..."
@@ -57,6 +64,8 @@ sub onAuthStopped()
     if m.retryWhenStopped
         startLogin()
     else if not m.getAuth.finished and m.getAuth.errorMessage = ""
+        clearLoginQr()
+        m.code.text = ""
         m.status.text = "Sign-in stopped before it completed. Please try again."
         m.hint.text = "Press OK to try again. Press Back to return."
     end if
@@ -68,6 +77,7 @@ sub onVisible()
     else
         m.retryWhenStopped = false
         m.getAuth.cancelRequested = true
+        clearLoginQr()
         m.code.text = ""
     end if
 end sub
@@ -79,3 +89,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     end if
     return false
 end function
+
+sub clearLoginQr()
+    m.qr.uri = ""
+    m.qr.visible = false
+    m.qrHelp.visible = false
+end sub

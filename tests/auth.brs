@@ -54,7 +54,7 @@ end function
 
 sub resetAuth(responses)
     g = getGlobalAA()
-    m.top = {finished: false, cancelRequested: false}
+    m.top = {finished: false, cancelRequested: false, qrUri: ""}
     g.top = m.top
     g.responses = responses
     g.requests = []
@@ -109,5 +109,16 @@ sub main()
     grant = deviceGrant()
     grant.verification_uri = "https://www.twitch.tv.evil.invalid/activate"
     check(not validDeviceGrant(grant), "Activation address must be Twitch")
+    grant = deviceGrant()
+    check(loginActivationUri(grant) = "https://www.twitch.tv/activate?device-code=ABCD1234", "Bare activation URL gains the user code")
+    grant.verification_uri = "https://www.twitch.tv/activate?public=true&device-code=ABCD1234"
+    check(loginActivationUri(grant) = grant.verification_uri, "Full Twitch link and public-client flag are preserved exactly")
+    grant.verification_uri = "https://www.twitch.tv/activate?public=true"
+    check(loginActivationUri(grant) = grant.verification_uri + "&device-code=ABCD1234", "Existing query parameters retain their separator")
     print "PASS device approval, polling intervals, expiry, cancellation, malformed responses, identity failure"
 end sub
+
+function createLoginQr(uri, filename)
+    check(Instr(1, uri, "device-code=ABCD1234") > 0, "QR receives prefilled activation link")
+    return ""
+end function

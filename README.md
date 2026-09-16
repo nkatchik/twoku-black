@@ -40,8 +40,10 @@ Twoku Public (should be available for users in Mexico and Brazil): C6ZVZD (https
 
 ## Twitch login
 
-Select **Login** in the header, then open [twitch.tv/activate](https://www.twitch.tv/activate)
-on your phone or computer and enter the code shown on the TV. Approve access;
+Select **Login** in the header and scan the QR code with your phone. It opens
+Twitch's activation page with the code already filled in. You can also open
+[twitch.tv/activate](https://www.twitch.tv/activate) and enter the displayed code.
+The QR image is generated locally on the Roku. Approve access;
 the app returns to Home and loads your username and followed channels. **Back**
 cancels the attempt; **OK** requests a new code after an error or expiration.
 
