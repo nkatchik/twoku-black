@@ -64,5 +64,16 @@ sub main()
     check(compatUpstreamUrlAllowed("https://video.ttvnw.net:443/a") and compatUpstreamUrlAllowed("https://media.twitchcdn.net/a"), "Trusted CDN subdomains and explicit HTTPS port remain supported")
     ts = compatParseMedia(header + "#EXTINF:2," + nl + "stream.ts" + nl, base)
     check(ts.valid and not ts.hasMap, "Ordinary transport-stream media is recognized for untouched direct playback")
+    repeatedMaps = header
+    for index = 1 to 513
+        repeatedMaps += "#EXT-X-MAP:URI=" + q + "init" + index.ToStr() + ".mp4" + q + nl
+    end for
+    bounded = compatParseMedia(repeatedMaps + "#EXTINF:2," + nl + "stream.m4s" + nl, base)
+    check(not bounded.valid and bounded.error = "Media playlist contains too many resources.", "Initialization-map declarations cannot bypass the resource bound")
+    repeatedComments = header
+    for index = 1 to 4096
+        repeatedComments += "#ignored" + nl
+    end for
+    check(not compatParseMedia(repeatedComments, base).valid, "Even dropped source declarations have a bounded line count")
     print "PASS opaque HLS routes, shared cache keys, live timelines, map changes, completed segments and restricted CDN references"
 end sub

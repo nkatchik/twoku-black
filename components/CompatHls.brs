@@ -7,6 +7,7 @@ function compatParseMedia(text as String, baseUrl as String) as Object
     if not compatUpstreamUrlAllowed(baseUrl) then return compatMediaError(result, "Unsupported media host.")
     rawLines = text.Split(Chr(10))
     if rawLines.Count() = 0 then return compatMediaError(result, "Empty media playlist.")
+    if rawLines.Count() > 4096 then return compatMediaError(result, "Media playlist contains too many lines.")
     if rawLines[0].Trim() <> "#EXTM3U" then return compatMediaError(result, "Invalid media playlist header.")
     result.lines.Push({kind: "line", text: "#EXTM3U"})
     ' fMP4 EXT-X-MAP requires HLS version 6; one fixed version also avoids
@@ -88,6 +89,8 @@ function compatParseMedia(text as String, baseUrl as String) as Object
             ' Drop partial segments, preload/prefetch hints, server-control and
             ' rendition reports. Only completed EXTINF segments are advertised.
             ' Unknown tags are omitted rather than leaking a URI attribute.
+            if result.entries.Count() > 512 then return compatMediaError(result, "Media playlist contains too many resources.")
+            if result.lines.Count() > 2048 then return compatMediaError(result, "Media playlist contains too many declarations.")
         end if
     end for
     if pendingDuration >= 0 then return compatMediaError(result, "Media segment URL is missing.")
