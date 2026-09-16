@@ -97,6 +97,10 @@ quality names and HLS attribute ordering, audio/codec filtering, Auto selection,
 buffering and non-advancing playback, native invalid initial timestamps,
 stopped-state handoffs during quick reopen, late callbacks after Back, chat
 preference isolation for recorded video, and retained position/pause on switches.
+Decoder lifecycle checks include repeated Back/visibility/scene cleanup before
+native state changes, twenty opens canceled before their first buffering event,
+hidden shutdown completion, error/finished states awaiting stop, and cancellation
+between the stopped acknowledgement and deferred restart.
 Clip checks cover slugs, actual signed MP4 qualities, query escaping, the exact
 seven-day period, cancellation, and exhausted pagination. Chat checks cover
 partial IRC lines, message floods, bounded rendering and queue lengths, hidden

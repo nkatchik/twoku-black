@@ -124,6 +124,10 @@ returns to browsing. During a playback error or loading state it returns
 immediately. Native decoder shutdown uses asynchronous stop on Roku versions
 that provide it (OS 12.5+); older versions retain the platform's synchronous stop.
 The UI keeps remote focus while the decoder loads or stops.
+Repeated close notifications share one stop request. New content waits for the
+native `stopped` acknowledgement, including after an error or completion, and
+starts on a later render event. Hidden players still release their old content
+when shutdown completes.
 
 Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
 HTTPS, with bounded requests. Some current Twitch deliveries combine audio and

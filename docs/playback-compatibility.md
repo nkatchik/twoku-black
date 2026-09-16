@@ -149,6 +149,44 @@ an app-wide snapshot, not a sustained benchmark or the relay's isolated cost.
 The developer screenshot omitted the video plane, so visual motion, audible audio,
 and synchronization still need the user's confirmation.
 
+## Decoder failure after repeated stream changes
+
+Later on 2026-09-16, the device entered a state where every attempted rendition
+failed with native error `-3`, category `mediaplayer`, detail `17`: "Failed to
+create decoder". This occurred on direct HLS deliveries as well, so the split
+relay was not required for the failure. Restarting Twoku created a fresh process
+but reproduced the same error on another live channel and every quality.
+Reinstalling the app also left the failure intact. A full TV system restart
+cleared the failure and allowed native playback to advance again.
+
+The lifecycle audit found two application defects: Back, visibility changes and
+scene cleanup could each issue a native stop for the same close; terminal
+`error`/`finished` states were accepted as idle before explicit shutdown completed.
+Native tracing confirmed that stopping from `error` does produce a `stopped`
+acknowledgement on this device. [Roku's asynchronous stop contract](https://developer.roku.com/dev/docs/video)
+requires shutdown to complete before another load uses the media player.
+
+`CustomVideo` now tracks decoder ownership before submitting play, makes stop
+idempotent, consumes shutdown completion even while hidden, and releases old
+content only after acknowledgement. Queued playback starts on a later render
+event. Back can cancel that queued start. Error recovery and manual quality
+switches use the same handoff, without removing any quality choices.
+
+After the system restart, the corrected build passed twelve consecutive native
+close/reopen cycles alternating between live streams. Every cycle reached
+`play` with `error=false` and advancing position. Selection-to-play times ranged
+from 1,722 to 2,456 ms, including ECP round trips and polling. Console traces
+showed paired stop requests/completions without new native or runtime errors.
+Four additional loads were canceled during native buffering; each stopped once
+and acknowledged completion. A final reopen advanced from 10,049 to 13,568 ms
+with `error=false`, and playback was left running.
+All 33 deterministic suites passed; the compiler still reports the same twenty
+pre-existing diagnostics in the unused legacy WebSocket code.
+
+The persistent native failure is established; its original trigger inside Roku's
+decoder is not. The lifecycle changes remove concrete races but do not establish
+that those races caused the device-level failure or that it cannot recur.
+
 ## Verification and device acceptance
 
 The deterministic BrightScript suites cover container bounds and offsets, HLS
