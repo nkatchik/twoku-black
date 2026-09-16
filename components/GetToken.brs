@@ -3,7 +3,7 @@ function init()
 end function
 
 function onStreamerChange()
-
+    m.top.errorMessage = ""
     m.top.appBearerToken = getStreamLink()
 
 end function
@@ -19,9 +19,15 @@ function getStreamLink() as Object
 
     url.SetUrl(access_token_url)
     
-    response_string = url.GetToString()
-
-    ? "GetToken response: "; response_string
-    
-    return response_string
+    response = requestText(url)
+    if response.error <> ""
+        m.top.errorMessage = response.error
+        return ""
+    end if
+    token = response.body.Trim()
+    if not CreateObject("roRegex", "^Bearer [A-Za-z0-9]+$", "").IsMatch(token)
+        m.top.errorMessage = "The sign-in service returned an invalid response. Try again."
+        return ""
+    end if
+    return token
 end function

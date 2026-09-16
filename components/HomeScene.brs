@@ -1,4 +1,5 @@
 sub init()
+    m.loadStatus = m.top.findNode("loadStatus")
     m.browseList = m.top.findNode("browseList")
     m.browseCategoryList = m.top.findNode("browseCategoryList")
     m.browseFollowingList = m.top.findNode("browseFollowingList")
@@ -63,6 +64,7 @@ sub init()
     m.getOfflineFollowed.observeField("offlineFollowedUsers", "onGetOfflineFollowed")
 
     m.top.observeField("visible", "onGetFocus")
+    m.top.observeField("focusedChild", "onHomeFocusChanged")
     m.top.observeField("currentlyLiveStreamerIds", "onGetFollowedStreams")
     m.top.observeField("streamerSelectedName", "onStreamerSelected")
 
@@ -88,11 +90,54 @@ sub init()
 
     m.wasLastScene = false
 
-    if m.top.visible = true
-        onHomeLoad()
-    end if
+    m.browseCategoryList.visible = false
+    m.browseFollowingList.visible = false
+    m.browseOfflineFollowingList.visible = false
+    m.browseButtons.setFocus(true)
+end sub
 
-    m.browseList.setFocus(true)
+sub onHomeFocusChanged()
+    ' MainScene focuses this Group at launch and when returning from other pages.
+    if m.top.hasFocus() then onGetFocus()
+end sub
+
+function hasRows(list as Object) as Boolean
+    if list.content = invalid then return false
+    return list.content.getChildCount() > 0
+end function
+
+sub showLoadStatus(message as String)
+    m.loadStatus.text = message
+    m.loadStatus.visible = message <> ""
+end sub
+
+sub onStartupError()
+    message = m.top.startupError
+    if message = ""
+        showLoadStatus("Connecting to Twitch...")
+    else
+        showLoadStatus(message + " Select Live Channels or Categories to retry.")
+        finishLaunch()
+    end if
+end sub
+
+sub onApiReady()
+    if not m.top.apiReady then return
+    if m.currentlySelectedButton = 0
+        onCategorySelect()
+    else if m.currentlySelectedButton = 1
+        onHomeLoad()
+    else
+        showLoadStatus("")
+        finishLaunch()
+    end if
+end sub
+
+sub finishLaunch()
+    if not m.appLaunchComplete
+        m.top.signalBeacon("AppLaunchComplete")
+        m.appLaunchComplete = true
+    end if
 end sub
 
 sub onStreamerSelected()
@@ -139,9 +184,17 @@ sub onGetFocus()
         else if m.recentsBar.focused
             m.recentsBar.setFocus(true)
         else if m.browseCategoryList.visible = true
-            m.browseCategoryList.setFocus(true)
+            if hasRows(m.browseCategoryList)
+                m.browseCategoryList.setFocus(true)
+            else
+                m.browseButtons.setFocus(true)
+            end if
         else if m.browseList.visible = true
-            m.browseList.setFocus(true)
+            if hasRows(m.browseList)
+                m.browseList.setFocus(true)
+            else
+                m.browseButtons.setFocus(true)
+            end if
         else if m.browseFollowingList.visible = true
             m.browseFollowingList.setFocus(true)
             m.followingListIsFocused = true
@@ -201,6 +254,15 @@ sub onHomeLoad()
     m.offlineChannelList.visible = false
     m.offlineChannelsLabel.visible = false
     m.browseList.visible = true
+    if m.top.isInFocusChain() and not hasRows(m.browseList) then m.browseButtons.setFocus(true)
+    if not m.top.apiReady
+        m.browseButtons.setFocus(true)
+        m.top.retryAuthentication = true
+        return
+    end if
+    if m.getStreams.state = "run" then return
+    showLoadStatus("Loading live channels...")
+    m.append = false
     m.getStreams.gameRequested = ""
     m.getStreams.offset = "0"
     m.getStreams.pagination = ""
@@ -209,6 +271,15 @@ sub onHomeLoad()
 end sub
 
 sub onSearchResultChange()
+    if m.getStreams.errorMessage <> ""
+        if m.browseList.visible
+            showLoadStatus(m.getStreams.errorMessage + " Select Live Channels to retry.")
+            if m.top.isInFocusChain() then m.browseButtons.setFocus(true)
+        end if
+        m.append = false
+        finishLaunch()
+        return
+    end if
     lastFocusedRow = 0
     if m.browseList.rowItemFocused[0] <> invalid
         lastFocusedRow = m.browseList.rowItemFocused[0]
@@ -241,18 +312,20 @@ sub onSearchResultChange()
             end if
         end for
         if rowItem <> invalid and cnt <> 0 and alreadyAppended = false
-            row.appendChild(rowItem)
+            content.appendChild(row)
         end if
     end if
     if m.browseList.visible = true
         m.browseList.content = content
+        if hasRows(m.browseList)
+            showLoadStatus("")
+        else
+            showLoadStatus("No live channels found. Select Live Channels to retry.")
+        end if
     end if
     m.browseList.jumpToItem = lastFocusedRow
     m.append = false
-    if m.appLaunchComplete <> true
-        m.top.signalBeacon("AppLaunchComplete")
-        m.appLaunchComplete = true
-    end if
+    finishLaunch()
 end sub
 
 sub numberToText(number) as Object
@@ -271,6 +344,15 @@ sub numberToText(number) as Object
 end sub
 
 sub onCategoryResultChange()
+    if m.getCategories.errorMessage <> ""
+        if m.browseCategoryList.visible
+            showLoadStatus(m.getCategories.errorMessage + " Select Categories to retry.")
+            if m.top.isInFocusChain() then m.browseButtons.setFocus(true)
+        end if
+        m.appendCategory = false
+        finishLaunch()
+        return
+    end if
     lastFocusedRow = 0
     if m.browseCategoryList.rowItemFocused[0] <> invalid
         lastFocusedRow = m.browseCategoryList.rowItemFocused[0]
@@ -280,12 +362,13 @@ sub onCategoryResultChange()
     else if m.appendCategory = false
         content = createObject("roSGNode", "ContentNode")
     end if 
-    if m.getStreams.searchResults <> invalid
+    if m.getCategories.searchResults <> invalid
         row = createObject("RoSGNode", "ContentNode")
         rowItem = invalid
         alreadyAppended = false
         cnt = 0
         for each stream in m.getCategories.searchResults
+            alreadyAppended = false
             rowItem = createObject("RoSGNode", "ContentNode")
             rowItem.Title = stream.name
             rowItem.Description = numberToText(stream.viewers)
@@ -299,13 +382,21 @@ sub onCategoryResultChange()
                 alreadyAppended = true
             end if
         end for
-        'if rowItem <> invalid and cnt <> 0 and alreadyAppended = false
-            'row.appendChild(rowItem)
-        'end if
+        if rowItem <> invalid and alreadyAppended = false
+            content.appendChild(row)
+        end if
     end if
     m.browseCategoryList.content = content
+    if m.browseCategoryList.visible
+        if hasRows(m.browseCategoryList)
+            showLoadStatus("")
+        else
+            showLoadStatus("No categories found. Select Categories to retry.")
+        end if
+    end if
     m.browseCategoryList.jumpToItem = lastFocusedRow
     m.appendCategory = false
+    finishLaunch()
 end sub
 
 sub onCategorySelect()
@@ -315,6 +406,16 @@ sub onCategorySelect()
     m.offlineChannelList.visible = false
     m.offlineChannelsLabel.visible = false
     m.browseCategoryList.visible = true
+    if m.top.isInFocusChain() and not hasRows(m.browseCategoryList) then m.browseButtons.setFocus(true)
+    if not m.top.apiReady
+        m.browseButtons.setFocus(true)
+        m.top.retryAuthentication = true
+        return
+    end if
+    if m.getCategories.state = "run" then return
+    showLoadStatus("Loading categories...")
+    m.appendCategory = false
+    m.getCategories.pagination = ""
     m.getCategories.searchText = ""
     m.getCategories.offset = "0"
     m.offsetCategory = 0
@@ -322,6 +423,7 @@ sub onCategorySelect()
 end sub
 
 sub onFollowingSelect()
+    showLoadStatus("")
     m.browseList.visible = false
     m.browseCategoryList.visible = false
     m.browseFollowingList.visible = true
@@ -330,6 +432,8 @@ sub onFollowingSelect()
 end sub
 
 sub getMoreChannels()
+    if not m.top.apiReady or m.getStreams.state = "run" then return
+    if m.getStreams.pagination = "" then return
     m.offset += 25
     m.append = true
     m.getStreams.gameRequested = ""
@@ -338,6 +442,8 @@ sub getMoreChannels()
 end sub
 
 sub getMoreCategories()
+    if not m.top.apiReady or m.getCategories.state = "run" then return
+    if m.getCategories.pagination = "" then return
     if m.offsetCategory = 0
         m.offsetCategory += 25
     else
@@ -505,6 +611,8 @@ sub onKeyEvent(key, press) as Boolean
                 end if
                 handled = true
             else if key = "down"
+                if m.currentlySelectedButton = 0 and not hasRows(m.browseCategoryList) then return true
+                if m.currentlySelectedButton = 1 and not hasRows(m.browseList) then return true
                 ' Reset button colours to unfocused colours when user focuses away from header
                 for button = 0 to 5
                     if button <> 3 and button <> 4

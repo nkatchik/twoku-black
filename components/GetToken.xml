@@ -5,8 +5,10 @@
     <interface>
         <field id="streamerRequested" type="string" />
         <field id="appBearerToken" type="string" />
+        <field id="errorMessage" type="string" />
     </interface>
     
     <script type="text/brightscript" uri="pkg:/components/GetToken.brs" />
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
 
 </component>

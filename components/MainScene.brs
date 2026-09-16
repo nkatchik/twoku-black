@@ -56,15 +56,13 @@ function init()
     m.lastScene = ""
     m.lastLastScene = ""
 
-    getInfo = createObject("RoSGNode", "GetInfo")
-    getInfo.control = "RUN"
-
     m.stream = createObject("RoSGNode", "ContentNode")
     m.stream["streamFormat"] = "hls"
 
     m.getToken = createObject("roSGNode", "GetToken")
-    m.getToken.observeField("appBearerToken", "onBearerTokenReceived")
-    m.getToken.control = "RUN"
+    m.getToken.observeField("state", "onTokenStateChanged")
+    m.homeScene.observeField("retryAuthentication", "startAuthentication")
+    m.global.addFields({appBearerToken: "", userToken: ""})
 
     m.login = ""
     m.getUser = createObject("roSGNode", "GetUser")
@@ -90,9 +88,7 @@ function init()
 
     ' loggedInUser = checkIfLoggedIn()
     loggedInUser = checkRegistrySection("LoggedInUserData", "LoggedInUser")
-    if loggedInUser <> invalid
-        m.getUser.loginRequested = loggedInUser
-        m.getUser.control = "RUN"
+    if loggedInUser <> invalid and loggedInUser <> ""
         m.login = loggedInUser
     end if
 
@@ -106,7 +102,7 @@ function init()
 
     ' videoFramerate = checkSavedVideoFramerate()
     videoFramerate = checkRegistrySection("VideoSettings", "VideoFramerate")
-    if videoQuality <> invalid
+    if videoFramerate <> invalid
         m.global.addFields({videoFramerate: Int(Val(videoFramerate))})
     else
         m.global.addFields({videoFramerate: 60})
@@ -123,9 +119,9 @@ function init()
     ' userToken = checkUserToken()
     userToken = checkRegistrySection("LoggedInUserData", "UserToken")
     if userToken <> invalid and userToken <> ""
-        m.global.addFields({userToken: userToken})
+        m.global.userToken = userToken
     else
-        m.global.addFields({userToken: ""})
+        m.global.userToken = ""
     end if
 
     ' videoBookmarks = checkVideoBookmarks()
@@ -140,11 +136,14 @@ function init()
     end if
 
     recentStreamers = checkRegistrySection("LoggedInUserData", "RecentStreamers")
+    m.homeScene.recentStreamers = []
     if recentStreamers <> invalid and recentStreamers <> ""
         parsedRecents = ParseJSON(recentStreamers)
-        m.homeScene.recentStreamers = parsedRecents.recents
-    else
-        m.homeScene.recentStreamers = []
+        if type(parsedRecents) = "roAssociativeArray"
+            if type(parsedRecents.recents) = "roArray"
+                m.homeScene.recentStreamers = parsedRecents.recents
+            end if
+        end if
     end if
 
     ? "MainScene >> registry space > " createObject("roRegistry").GetSpaceAvailable()
@@ -161,6 +160,7 @@ function init()
     m.top.appendChild(m.options)
 
     m.homeScene.setFocus(true)
+    startAuthentication()
 end function
 
 sub onChatDoneFocus()
@@ -174,7 +174,7 @@ sub onLoginFinish()
     if m.loginPage.finished = true
         ' loggedInUser = checkIfLoggedIn()
         loggedInUser = checkRegistrySection("LoggedInUserData", "LoggedInUser")
-        if loggedInUser <> invalid
+        if loggedInUser <> invalid and loggedInUser <> ""
             m.getUser.loginRequested = loggedInUser
             m.getUser.control = "RUN"
             m.login = loggedInUser
@@ -187,8 +187,26 @@ sub onLoginFinish()
     end if
 end sub
 
-sub onBearerTokenReceived()
-    m.global.addFields({appBearerToken: m.getToken.appBearerToken})
+sub startAuthentication()
+    if m.getToken.state = "run" then return
+    m.homeScene.apiReady = false
+    m.homeScene.startupError = ""
+    m.getToken.control = "RUN"
+end sub
+
+sub onTokenStateChanged()
+    if m.getToken.state <> "stop" then return
+    token = m.getToken.appBearerToken
+    if token = ""
+        message = m.getToken.errorMessage
+        if message = "" then message = "Could not connect to Twitch. Try again."
+        print "Startup authentication failed: "; message
+        m.homeScene.startupError = message
+        return
+    end if
+    m.global.appBearerToken = token
+    m.homeScene.apiReady = true
+    refreshFollows()
 end sub
 
 sub onAppStatusReceived()
@@ -322,7 +340,9 @@ function onHeaderButtonPress()
     end if
 end function
 
-function onUserLogin()
+sub onUserLogin()
+    if type(m.getUser.searchResults) <> "roAssociativeArray" then return
+    if m.getUser.searchResults.display_name = invalid then return
     m.homeScene.loggedInUserName = m.getUser.searchResults.display_name
     m.homeScene.loggedInUserProfileImage = m.getUser.searchResults.profile_image_url
     m.chat.loggedInUsername = m.getUser.searchResults.login
@@ -331,7 +351,7 @@ function onUserLogin()
     '? "currentlyLiveStreamerIds mainscene " m.getUser.currentlyLiveStreamerIds
     ' saveLogin()
     setRegistrySection("LoggedInUserData", "LoggedInUser", m.homeScene.loggedInUserName)
-end function
+end sub
 
 function onCategoryItemSelectFromSearch()
     m.categoryScene.currentCategory = m.keyboardGroup.categorySelected
@@ -403,7 +423,7 @@ function onStreamChange()
 end function
 
 function refreshFollows()
-    if m.login <> ""
+    if m.login <> "" and m.homeScene.apiReady and m.getUser.state <> "run"
         m.getUser.loginRequested = m.login
         m.getUser.control = "RUN"
     end if

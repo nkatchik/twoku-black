@@ -83,20 +83,13 @@ function getSearchResults() as Object
     'search_results_url = "https://api.twitch.tv/kraken/streams?client_id=jzkbprff40iqj646a697cyrvl0zt2m6&limit=24&offset=" + m.top.offset + "&game="
     search_results_url = "https://api.twitch.tv/helix/users?login=" + m.top.loginRequested
 
-    url = createUrl()
+    if m.top.loginRequested = "" then return invalid
+    search = getApiJson(search_results_url.EncodeUri())
+    if search = invalid then return invalid
+    if type(search.data) <> "roArray" then return invalid
+    if search.data.count() = 0 then return invalid
 
-    url.SetUrl(search_results_url.EncodeUri())
-
-    response_string = url.GetToString()
-    search = ParseJson(response_string)
-
-    if search.status <> invalid and search.status = 401
-        ? "401"
-        refreshToken()
-        return getSearchResults()
-    end if
-
-    result = {}
+    result = {followed_users: []}
     if search <> invalid and search.data <> invalid
         for each stream in search.data
             result.id = stream.id

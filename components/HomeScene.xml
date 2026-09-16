@@ -3,6 +3,9 @@
 <component name="HomeScene" extends="Group">
 
     <interface>
+        <field id="apiReady" type="boolean" value="false" onChange="onApiReady" />
+        <field id="startupError" type="string" alwaysNotify="true" onChange="onStartupError" />
+        <field id="retryAuthentication" type="boolean" alwaysNotify="true" />
         <field id="streamUrl" type="uri" />
         <field id="videoUrl" type="string" alwaysNotify="true" alias="channelPage.videoUrl" />
         <field id="thumbnailInfo" type="assocarray" alias="channelPage.thumbnailInfo" />
@@ -31,6 +34,9 @@
     <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
 
     <children>
+        <Label id="loadStatus" translation="[120,90]" width="1050" height="44"
+            font="font:SmallSystemFont" wrap="true"
+            text="Connecting to Twitch..." color="0xEFEFF1FF" />
         <Group id="browseMain" translation="[0,0]">
             <Group id="browseButtons">
                 <Rectangle

@@ -19,9 +19,7 @@ function getAppStatus() as Object
 
     url.SetUrl(app_status_url)
     
-    response_string = url.GetToString()
-
-    ? "GetToken response: "; response_string
-    
-    return response_string
+    response = requestText(url)
+    if response.error <> "" then return ""
+    return response.body.Trim()
 end function

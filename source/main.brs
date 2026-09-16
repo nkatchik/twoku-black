@@ -13,7 +13,7 @@ sub RunUserInterface()
         msgType = type(msg)
         if msgType = "roSGScreenEvent"
             if msg.isScreenClosed() then
-                print "EXIT " screen.getChildCount()
+                print "EXIT"
                 return
             end if
         end if

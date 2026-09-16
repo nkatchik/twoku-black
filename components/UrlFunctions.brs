@@ -5,19 +5,66 @@ function createUrl()
     url.SetCertificatesFile("common:/certs/ca-bundle.crt")
     url.InitClientCertificates()
     url.AddHeader("Client-ID", "w9msa6phhl3u8s2jyjcmshrfjczj2y")
-    while m.global.appBearerToken = invalid
-    end while
+    ' Callers start after authentication; never spin on a render-thread field.
     userToken = m.global.userToken
-    '? "(userToken) " userToken
     if userToken <> invalid and userToken <> ""
-        ? "we usin " userToken
-        ? "header btw: Authorization Bearer " + userToken
         url.AddHeader("Authorization", "Bearer " + userToken)
-    else
-        ? "we using global"
+    else if m.global.appBearerToken <> invalid and m.global.appBearerToken <> ""
         url.AddHeader("Authorization", m.global.appBearerToken)
     end if
     return url
+end function
+
+' Task-thread HTTP helper. Every request has a deadline, including failed starts.
+function requestText(url as Object, payload = invalid as Dynamic, timeoutMs = 10000 as Integer) as Object
+    port = CreateObject("roMessagePort")
+    url.SetMessagePort(port)
+    if payload = invalid
+        started = url.AsyncGetToString()
+    else
+        started = url.AsyncPostFromString(payload)
+    end if
+    if not started
+        return {code: 0, body: "", error: "Could not start the network request."}
+    end if
+    response = wait(timeoutMs, port)
+    if type(response) <> "roUrlEvent"
+        url.AsyncCancel()
+        return {code: 0, body: "", error: "The connection timed out. Check your network and try again."}
+    end if
+    code = response.GetResponseCode()
+    if code < 200 or code >= 300
+        print "HTTP request failed: "; code; " "; response.GetFailureReason()
+        return {code: code, body: response.GetString(), error: "The service is unavailable (HTTP " + code.ToStr() + "). Try again."}
+    end if
+    return {code: code, body: response.GetString(), error: ""}
+end function
+
+function getApiJson(link as String) as Object
+    m.requestError = ""
+    for attempt = 0 to 1
+        url = createUrl()
+        url.SetUrl(link)
+        response = requestText(url)
+        if response.code = 401 and attempt = 0
+            ' A stale saved user token must not prevent anonymous browsing.
+            if not refreshToken()
+                m.global.userToken = ""
+            end if
+        else
+            if response.error <> ""
+                m.requestError = response.error
+                return invalid
+            end if
+            data = ParseJson(response.body)
+            if type(data) <> "roAssociativeArray"
+                m.requestError = "The service returned an invalid response. Try again."
+                return invalid
+            end if
+            return data
+        end if
+    end for
+    return invalid
 end function
 
 function GETJSON(link as String) as Object
@@ -60,18 +107,22 @@ function POST(request_url as String, request_payload as String) as String
     return response.GetString()
 end function
 
-function refreshToken()
+function refreshToken() as Boolean
+    refresh = getRefreshToken()
+    if refresh = "" then return false
     url = CreateObject("roUrlTransfer")
     url.EnableEncodings(true)
     url.RetainBodyOnError(true)
     url.SetCertificatesFile("common:/certs/ca-bundle.crt")
     url.InitClientCertificates()
     url.SetUrl("https://twoku-web.herokuapp.com/refresh")
-    port = CreateObject("roMessagePort")
-    url.SetMessagePort(port)
-    url.AsyncPostFromString("code=" + getRefreshToken())
-    msg = port.WaitMessage(0)
-    oauth_token = ParseJson(msg.GetString())
+    result = requestText(url, "code=" + refresh.EncodeUriComponent())
+    if result.error <> "" then return false
+    oauth_token = ParseJson(result.body)
+    if type(oauth_token) <> "roAssociativeArray" then return false
+    if GetInterface(oauth_token.access_token, "ifString") = invalid then return false
+    if GetInterface(oauth_token.refresh_token, "ifString") = invalid then return false
+    if oauth_token.access_token = "" or oauth_token.refresh_token = "" then return false
 
     url = CreateObject("roUrlTransfer")
     url.EnableEncodings(true)
@@ -80,9 +131,14 @@ function refreshToken()
     url.InitClientCertificates()
     url.SetUrl("https://id.twitch.tv/oauth2/validate")
     url.AddHeader("Authorization", "Bearer " + oauth_token.access_token)
-    response = ParseJson(url.GetToString())
+    result = requestText(url)
+    if result.error <> "" then return false
+    response = ParseJson(result.body)
+    if type(response) <> "roAssociativeArray" then return false
+    if GetInterface(response.login, "ifString") = invalid then return false
 
     saveLogin(oauth_token.access_token, oauth_token.refresh_token, response.login)
+    return true
 end function
 
 function getRefreshToken()

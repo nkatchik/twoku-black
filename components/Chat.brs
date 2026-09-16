@@ -8,7 +8,7 @@ sub init()
     m.top.observeField("visible", "onInvisible")
     m.top.observeField("loggedInUsername", "setLoggedInUsername")
     m.chat.readyForNextComment = true
-    m.chat.control = "run"
+    ' Start chat only when it is shown, after the user opens a stream.
     m.userstate_change = false
     m.translation = 0
 end sub
