@@ -69,10 +69,9 @@ function parsePlaybackMaster(text as String, masterUrl as String) as Object
             if pending.VIDEO <> invalid then group = pending.VIDEO
             codecs = ""
             if pending.CODECS <> invalid then codecs = LCase(pending.CODECS)
-            ' Exclude audio-only and codecs the Roku AVC path cannot decode.
+            ' Keep every video rendition. Codec hints guide Auto, never the menu.
             isVideo = width > 0 and height > 0
-            compatible = codecs = "" or Instr(1, codecs, "avc1") > 0 or Instr(1, codecs, "avc3") > 0
-            if isVideo and compatible
+            if isVideo
                 uri = playbackAbsoluteUrl(masterUrl, line)
                 if uri <> "" and not seen.DoesExist(uri)
                     frameRate = 0.0
@@ -117,12 +116,10 @@ end function
 function playbackAutoIndex(variants as Object, capabilities = invalid) as Integer
     best = -1
     for index = 0 to variants.Count() - 1
-        if playbackVariantSupported(variants[index], capabilities)
-            if best < 0
-                best = index
-            else if playbackHigherQuality(variants[index], variants[best])
-                best = index
-            end if
+        if best < 0
+            best = index
+        else if playbackHigherPriority(variants[index], variants[best], capabilities)
+            best = index
         end if
     end for
     return best
@@ -131,7 +128,7 @@ end function
 function playbackPreferenceIndex(variants as Object, preference as String, capabilities = invalid) as Integer
     if preference <> "Auto"
         for index = 0 to variants.Count() - 1
-            if variants[index].name = preference and playbackVariantSupported(variants[index], capabilities) then return index
+            if variants[index].name = preference then return index
         end for
     end if
     return playbackAutoIndex(variants, capabilities)
@@ -143,15 +140,22 @@ function playbackFallbackIndex(variants as Object, current as Integer, tried as 
     best = -1
     for index = 0 to variants.Count() - 1
         variant = variants[index]
-        if playbackHigherQuality(source, variant) and not tried.DoesExist(index.ToStr()) and playbackVariantSupported(variant, capabilities)
+        if playbackHigherQuality(source, variant) and not tried.DoesExist(index.ToStr())
             if best < 0
                 best = index
-            else if playbackHigherQuality(variant, variants[best])
+            else if playbackHigherPriority(variant, variants[best], capabilities)
                 best = index
             end if
         end if
     end for
     return best
+end function
+
+function playbackHigherPriority(candidate, other, capabilities) as Boolean
+    candidateRecommended = playbackVariantRecommended(candidate, capabilities)
+    otherRecommended = playbackVariantRecommended(other, capabilities)
+    if candidateRecommended <> otherRecommended then return candidateRecommended
+    return playbackHigherQuality(candidate, other)
 end function
 
 function playbackHigherQuality(candidate, other) as Boolean
@@ -174,12 +178,10 @@ function playbackBandwidthIndex(variants as Object, current as Integer, measured
         variant = variants[index]
         bitrate = playbackVariantBandwidth(variant)
         if index <> current and not tried.DoesExist(index.ToStr()) and bitrate > 0 and bitrate < currentRate and bitrate <= budget
-            if playbackVariantSupported(variant, capabilities)
-                if best < 0
-                    best = index
-                else if playbackHigherQuality(variant, variants[best])
-                    best = index
-                end if
+            if best < 0
+                best = index
+            else if playbackHigherPriority(variant, variants[best], capabilities)
+                best = index
             end if
         end if
     end for
@@ -284,32 +286,42 @@ function playbackVideoModeLimits(mode as String) as Object
     return limits
 end function
 
-function playbackVariantSupported(variant, capabilities = invalid) as Boolean
-    ' The optional form keeps pure ranking useful to callers with an already
-    ' filtered list. Production resolvers always provide a fresh capability set.
+function playbackVariantRecommended(variant, capabilities = invalid) as Boolean
+    ' This is an Auto preference, never permission to attempt a quality.
     if capabilities = invalid then return true
-    width = playbackNumber(variant.width)
-    height = playbackNumber(variant.height)
-    rate = playbackNumber(variant.frameRate)
-    if width <= 0 or height <= 0 or rate <= 0 then return false
-    if width > playbackNumber(capabilities.maxWidth) or height > playbackNumber(capabilities.maxHeight) or rate > playbackNumber(capabilities.maxFrameRate) then return false
+    if not playbackVariantWithinOutput(variant, capabilities) then return false
+    if capabilities.allowUnverified = true then return true
     if type(capabilities.supported) <> "roAssociativeArray" then return false
     if not capabilities.supported.DoesExist(variant.url) then return false
     return capabilities.supported[variant.url] = true
+end function
+
+function playbackVariantWithinOutput(variant, capabilities) as Boolean
+    width = playbackNumber(variant.width)
+    height = playbackNumber(variant.height)
+    rate = playbackNumber(variant.frameRate)
+    if width <= 0 or height <= 0 then return false
+    ' Zero means unreported, not a device with no video output. Compare known
+    ' dimension/FPS hints without inventing missing metadata.
+    if capabilities.maxWidth > 0 and width > capabilities.maxWidth then return false
+    if capabilities.maxHeight > 0 and height > capabilities.maxHeight then return false
+    if capabilities.maxFrameRate > 0 and rate > capabilities.maxFrameRate then return false
+    return true
 end function
 
 function playbackDeviceCapabilities(variants as Object, device = invalid) as Object
     if device = invalid then device = CreateObject("roDeviceInfo")
     capabilities = playbackVideoModeLimits(device.GetVideoMode())
     capabilities.probes = []
+    capabilities.allowUnverified = true
     for each variant in variants
         capabilities.supported[variant.url] = false
         width = playbackNumber(variant.width)
         height = playbackNumber(variant.height)
         rate = playbackNumber(variant.frameRate)
-        if width > 0 and height > 0 and rate > 0 and width <= capabilities.maxWidth and height <= capabilities.maxHeight and rate <= capabilities.maxFrameRate
-            ' Twitch is requested in AVC. Unknown codec/profile metadata is not
-            ' an assertion of hardware support; keep it out of Auto.
+        if playbackVariantWithinOutput(variant, capabilities)
+            ' Preserve missing metadata and negative native hints as unverified.
+            ' Some devices play AVC successfully despite rejecting these probes.
             codec = {videoCodec: "", profile: "", level: 0}
             if type(variant.codecs) = "roString" or type(variant.codecs) = "String" then codec = playbackAvcCodec(variant.codecs)
             if variant.metadataEstimated = true and codec.videoCodec <> "" and codec.profile = ""
@@ -318,31 +330,40 @@ function playbackDeviceCapabilities(variants as Object, device = invalid) as Obj
             required = playbackAvcRequiredLevel(width, height, rate)
             if codec.videoCodec <> "" and codec.profile <> "" and required > 0
                 if codec.level > required then required = codec.level
-                format = {codec: "mpeg4 avc", profile: codec.profile, level: playbackLevelString(required)}
-                response = device.CanDecodeVideo(format)
-                supported = playbackDecodeResponse(response)
-                ' Some Roku versions report only their highest supported level.
-                ' A confirmed higher level also covers a lower-level stream.
-                if not supported and type(response) = "roAssociativeArray"
-                    if response.updated = "level" and type(response.level) = "roArray"
-                        for each level in response.level
-                            number = 0
-                            if type(level) = "roString" or type(level) = "String" then number = Val(level)
-                            if Int(number * 10 + 0.5) >= required
-                                higher = {codec: "mpeg4 avc", profile: codec.profile, level: level}
-                                if playbackDecodeResponse(device.CanDecodeVideo(higher))
-                                    supported = true
-                                    exit for
+                supported = false
+                for each alias in ["mpeg4 avc", "h264"]
+                    format = {codec: alias, profile: codec.profile, level: playbackLevelString(required)}
+                    response = device.CanDecodeVideo(format)
+                    supported = playbackDecodeResponse(response)
+                    ' Closest-format replies may update several fields and use
+                    ' numeric levels. Reprobe the actual profile at a covering level.
+                    if not supported and type(response) = "roAssociativeArray"
+                        if type(response.level) = "roArray"
+                            for each level in response.level
+                                number = playbackNumber(level)
+                                if type(level) = "roString" or type(level) = "String" then number = Val(level)
+                                higherLevel = Int(number * 10 + 0.5)
+                                if higherLevel >= required and higherLevel <= 62
+                                    higher = {codec: alias, profile: codec.profile, level: playbackLevelString(higherLevel)}
+                                    if playbackDecodeResponse(device.CanDecodeVideo(higher))
+                                        supported = true
+                                        exit for
+                                    end if
                                 end if
-                            end if
-                        end for
+                            end for
+                        end if
                     end if
-                end if
+                    if supported then exit for
+                end for
                 capabilities.supported[variant.url] = supported
+                if supported then capabilities.allowUnverified = false
                 capabilities.probes.Push({width: width, height: height, frameRate: rate, profile: codec.profile, level: format.level, supported: supported})
             end if
         end if
     end for
+    ' No positive response cannot prove that a whole Twitch ladder is unplayable.
+    ' Prefer the output hints when available and preserve actual probe outcomes.
+    print "Playback capabilities "; FormatJson({videoMode: capabilities.videoMode, allowUnverified: capabilities.allowUnverified, probes: capabilities.probes})
     return capabilities
 end function
 

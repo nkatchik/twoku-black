@@ -5,6 +5,7 @@ function testCreateObject(kind, name = invalid)
                 return "1080p60"
             end function,
             CanDecodeVideo: function(format)
+                if GetGlobalAA().decoderUnavailable = true then return {result: false}
                 return {result: Val(format.level) <= 4.1}
             end function
         }
@@ -71,10 +72,26 @@ sub main()
     resetRequests()
     g.responses = [
         {code: 200, body: FormatJson({data: {streamPlaybackAccessToken: {value: "token", signature: "sig"}}}), error: ""},
-        {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=1920x1080,FRAME-RATE=60,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + Chr(10) + "https://cdn.example/source.m3u8", error: ""}
+        {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=3840x2160,FRAME-RATE=60,CODECS=" + q + "avc1.640034,mp4a.40.2" + q + Chr(10) + "https://cdn.example/source.m3u8", error: ""}
     ]
     result = requestPlayback("demo", "", false)
-    check(result.initialIndex = -1 and result.url = "" and result.error <> "", "An entirely unsupported ladder never indexes -1 or starts an oversized quality")
+    check(result.initialIndex = 0 and result.url <> "" and result.error = "", "Output hints never block an available stream when no rendition matches")
+
+    resetRequests()
+    g.decoderUnavailable = true
+    ' Public asmongold247 master metadata captured 2026-09-16; URLs are placeholders.
+    master = "#EXTM3U" + Chr(10)
+    master += "#EXT-X-STREAM-INF:BANDWIDTH=6886210,RESOLUTION=1920x1080,CODECS=" + q + "avc1.64002A,mp4a.40.2" + q + ",VIDEO=" + q + "chunked" + q + ",FRAME-RATE=60.000" + Chr(10) + "https://cdn.example/asmongold-source.m3u8" + Chr(10)
+    master += "#EXT-X-STREAM-INF:BANDWIDTH=3422999,RESOLUTION=1280x720,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + ",FRAME-RATE=60.000" + Chr(10) + "https://cdn.example/asmongold-720.m3u8" + Chr(10)
+    master += "#EXT-X-STREAM-INF:BANDWIDTH=1427999,RESOLUTION=852x480,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + ",FRAME-RATE=30.000" + Chr(10) + "https://cdn.example/asmongold-480.m3u8"
+    g.responses = [
+        {code: 200, body: FormatJson({data: {streamPlaybackAccessToken: {value: "token", signature: "sig"}}}), error: ""},
+        {code: 200, body: master, error: ""}
+    ]
+    result = requestPlayback("asmongold247", "", false)
+    check(result.error = "" and result.initialIndex = 0 and result.url = "https://cdn.example/asmongold-source.m3u8", "Negative-only native probes do not block asmongold247's playable 1080p60 ladder")
+    check(result.capabilities.allowUnverified and not result.capabilities.supported[result.url], "Resolver distinguishes a native playback attempt from confirmed decoder support")
+    g.decoderUnavailable = false
 
     resetRequests()
     g.responses = [{code: 500, body: "<html>failure</html>", error: "HTTP 500"}]

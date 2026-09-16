@@ -90,11 +90,15 @@ between Channel, Chat (live only), and Quality. ***** opens Quality directly;
 The selected quality and live-chat preference persist. Chat is read-only, as
 in Twellie, and is disconnected while hidden.
 
-**Auto** starts with the highest-resolution AVC rendition that fits the device's
-video output and native decoder capabilities, then prefers the highest supported
-frame rate at that resolution. This includes 60fps when supported. Renditions
-above either the resolution or frame-rate ceiling cannot be selected manually.
-Live/VOD eligibility uses playlist dimensions, frame rate, and AVC profile/level;
+**Auto** prefers the highest-resolution rendition matching the device's reported
+video output and decoder capabilities, then the highest frame rate at that
+resolution. This includes 60fps when supported. These are preferences, never
+playback restrictions: if no rendition matches, Auto attempts the best available
+quality and uses the normal bounded playback recovery. Missing metadata stays
+unverified; it cannot mean that every stream is unsupported. Every video rendition
+remains selectable, including saved manual preferences and qualities with codec,
+resolution, or frame-rate hints outside the reported device capabilities.
+Live/VOD Auto recommendations use playlist dimensions, frame rate, and AVC profile/level;
 clips expose less metadata, so their width and AVC profile are explicitly estimated
 from Twitch's reported rendition height and frame rate.
 

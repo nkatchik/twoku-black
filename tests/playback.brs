@@ -14,7 +14,7 @@ function capabilityDevice(mode as String, maxLevel as Integer, highestOnly = fal
         end function,
         CanDecodeVideo: function(format)
             m.queries.Push(format)
-            check(format.codec = "mpeg4 avc", "Native decoder probe uses Roku's documented AVC codec name")
+            check(format.codec = "mpeg4 avc" or format.codec = "h264", "Native decoder probe tries the AVC names used by Roku clients")
             check(format.profile = "main" or format.profile = "high", "Native probe preserves the actual AVC profile")
             level = Int(Val(format.level) * 10 + 0.5)
             if level > m.maxLevel then return {result: false, updated: "level", level: [playbackLevelString(m.maxLevel)]}
@@ -47,10 +47,9 @@ sub main()
     playlist += "#EXT-X-STREAM-INF:" + codec + "VIDEO=" + q + "720p60" + q + ",RESOLUTION=1280x720,FRAME-RATE=60,BANDWIDTH=4200000" + Chr(10) + "//cdn.example/72060.m3u8" + Chr(10)
     playlist += "#EXT-X-STREAM-INF:" + codec + "RESOLUTION=640x360,FRAME-RATE=30,BANDWIDTH=900000" + Chr(10) + "360.m3u8" + Chr(10)
     playlist += "#EXT-X-STREAM-INF:BANDWIDTH=128000,VIDEO=" + q + "audio_only" + q + Chr(10) + "audio.m3u8" + Chr(10)
-    playlist += "#EXT-X-STREAM-INF:RESOLUTION=3840x2160,CODECS=" + q + "hvc1.1.6,mp4a.40.2" + q + Chr(10) + "hevc.m3u8" + Chr(10)
     playlist += "#EXT-X-STREAM-INF:RESOLUTION=1280x720" + Chr(10) + "720.m3u8" + Chr(10)
     variants = parsePlaybackMaster(playlist, "https://usher.example/path/master.m3u8?token=x")
-    check(variants.Count() = 5, "AVC manifest parser excludes audio, other codec ladders, and duplicate URLs")
+    check(variants.Count() = 5, "Manifest parser excludes audio-only renditions and duplicate URLs")
     check(variants[0].name = "1080p60 (source)" and Abs(variants[0].frameRate - 59.94) < 0.001, "Source preserves its fractional FPS without rounding up")
     check(variants[0].width = 1920 and variants[0].profile = "main" and variants[0].level = 31 and variants[0].profileLevelId = "4d401f", "Width and advertised AVC profile, constraints, and level remain available")
     check(variants[0].bandwidth = 6000000 and variants[0].averageBandwidth = 5400000, "Peak and average HLS bandwidth remain separate bits/second values")
@@ -66,8 +65,8 @@ sub main()
     device = capabilityDevice("1080p", 41, true)
     capabilities = playbackDeviceCapabilities(variants, device)
     check(playbackAutoIndex(variants, capabilities) = 1, "A level 4.1 decoder retains supported 720p60 instead of dropping to 720p30")
-    check(not playbackVariantSupported(variants[0], capabilities), "An insufficient returned level never authorizes the rejected source")
-    check(playbackPreferenceIndex(variants, "1080p60 (source)", capabilities) = 1, "Unsupported saved quality resolves to a supported Auto rendition")
+    check(not playbackVariantRecommended(variants[0], capabilities), "An insufficient returned level never authorizes the rejected source")
+    check(playbackPreferenceIndex(variants, "1080p60 (source)", capabilities) = 0, "An explicit saved quality remains playable despite advisory decoder rejection")
     check(playbackPreferenceIndex(variants, "720p", capabilities) = 2, "Supported explicit quality remains selectable")
     check(playbackFallbackIndex(variants,1,{"1":true},capabilities) = 2, "Generic fallback retains resolution before reducing it")
     check(playbackFallbackIndex(variants,4,{"4":true},capabilities) = -1, "An exhausted ladder cannot retry above its current quality")
@@ -75,41 +74,72 @@ sub main()
     check(playbackBandwidthIndex(variants,1,1800000,{"1":true},capabilities) = 3, "A tighter measured budget selects 480p rather than inventing decoder incapability")
     check(playbackBandwidthIndex(variants,1,0,{},capabilities) = -1, "Missing throughput cannot be treated as low bandwidth")
     check(playbackBandwidthIndex(variants,1,500000,{},capabilities) = -1, "A budget below every variant returns no candidate")
-    check(playbackVariantSupported(variants[1],capabilities), "Bandwidth adaptation never changes decoder eligibility")
+    check(playbackVariantRecommended(variants[1],capabilities), "Bandwidth adaptation never changes decoder eligibility")
 
     candidates = [testVariant(720,60,4000000), testVariant(1080,30,5000000), testVariant(1080,60,6500000)]
     capabilities = playbackDeviceCapabilities(candidates, capabilityDevice("1080p",41,true))
     check(playbackAutoIndex(candidates,capabilities) = 1, "Resolution takes priority over FPS on an unsorted ladder: 1080p30 beats 720p60")
     capabilities = playbackDeviceCapabilities(candidates, capabilityDevice("1080p30",42))
-    check(playbackAutoIndex(candidates,capabilities) = 1 and not playbackVariantSupported(candidates[0],capabilities), "No lower-resolution candidate may exceed the output FPS ceiling")
+    check(playbackAutoIndex(candidates,capabilities) = 1 and not playbackVariantRecommended(candidates[0],capabilities), "No lower-resolution candidate may exceed the output FPS ceiling")
     capabilities = playbackDeviceCapabilities(candidates, capabilityDevice("720p",42))
     check(playbackAutoIndex(candidates,capabilities) = 0, "Exact 720p60 output match beats variants above the output resolution")
-    check(playbackAutoIndex([candidates[1]],capabilities) = -1, "No match returns -1 instead of trying an above-ceiling source")
+    check(playbackAutoIndex([candidates[1]],capabilities) = 0, "Auto attempts the available source when no rendition matches the output hint")
     capabilities.maxFrameRate = 59.94
-    check(playbackAutoIndex(candidates,capabilities) = -1, "60fps is not rounded down to fit a 59.94fps ceiling")
+    check(not playbackVariantRecommended(candidates[0],capabilities) and playbackAutoIndex(candidates,capabilities) = 2, "Unmatched FPS stays unconfirmed while Auto still attempts the best available video")
     check(playbackAutoIndex([],capabilities) = -1, "An empty ladder has no playable index")
     unknown = testVariant(480,30,1400000)
     unknown.codecs = "avc1"
     capabilities = playbackDeviceCapabilities([unknown],capabilityDevice("1080p",41,true))
-    check(playbackAutoIndex([unknown],capabilities) = -1, "Unknown HLS profile metadata does not silently claim native support")
+    check(playbackAutoIndex([unknown],capabilities) = 0 and capabilities.allowUnverified and not capabilities.supported[unknown.url], "Unknown HLS profile permits a native attempt without claiming verified support")
     unknown.profile = "high"
     unknown.metadataEstimated = true
     capabilities = playbackDeviceCapabilities([unknown],capabilityDevice("1080p",41,true))
     check(playbackAutoIndex([unknown],capabilities) = 0, "Explicitly estimated clip metadata probes its own minimum level rather than inventing level 4.2")
     unknown.frameRate = 0
     capabilities = playbackDeviceCapabilities([unknown],capabilityDevice("1080p",42))
-    check(playbackAutoIndex([unknown],capabilities) = -1, "Missing FPS is unknown rather than an invented 30fps assertion")
+    check(playbackAutoIndex([unknown],capabilities) = 0 and unknown.frameRate = 0, "Missing FPS stays unknown without preventing playback")
     limits = playbackVideoModeLimits("2160p60b10")
     check(limits.maxWidth = 3840 and limits.maxHeight = 2160 and limits.maxFrameRate = 60, "Video output parsing preserves resolution/FPS independently of bit-depth suffix")
     limits = playbackVideoModeLimits("unknown")
-    check(limits.maxWidth = 0 and limits.maxFrameRate = 0, "Unknown output capability has an explicit unplayable result")
+    check(limits.maxWidth = 0 and limits.maxFrameRate = 0, "Unknown output capability remains unreported rather than a zero-pixel ceiling")
     device = capabilityDevice("1080p",42)
     device.CanDecodeVideo = function(format)
         return invalid
     end function
     capabilities = playbackDeviceCapabilities(variants,device)
-    check(playbackAutoIndex(variants,capabilities) = -1, "An unavailable native decoder result never becomes a guessed supported quality")
+    check(playbackAutoIndex(variants,capabilities) = 0 and capabilities.allowUnverified and not capabilities.supported[variants[0].url], "Unavailable decoder metadata permits source playback without asserting native support")
+    device.CanDecodeVideo = function(format)
+        return {result: false}
+    end function
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(playbackAutoIndex(variants,capabilities) = 0 and capabilities.allowUnverified, "A negative-only capability implementation cannot veto the whole AVC ladder")
+    device.mode = "720p"
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(playbackAutoIndex(variants,capabilities) = 1 and not playbackVariantRecommended(variants[0],capabilities), "Unverified fallback still enforces known output resolution")
+    device.mode = "1080p30"
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(playbackAutoIndex(variants,capabilities) = 2, "Unverified fallback still enforces known output FPS")
+    device.mode = "unknown"
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(playbackAutoIndex(variants,capabilities) = 0, "Missing output metadata cannot block every rendition")
+    device.mode = "1080p"
+    device.CanDecodeVideo = function(format)
+        return {result: format.codec = "h264"}
+    end function
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(playbackAutoIndex(variants,capabilities) = 0 and not capabilities.allowUnverified, "A device accepting only the h264 alias confirms 1080p60")
+    device.CanDecodeVideo = function(format)
+        if format.level = "4.2" then return {result: true}
+        return {result: false, updated: "profile,level", profile: ["main", "high"], level: [4.2]}
+    end function
+    capabilities = playbackDeviceCapabilities(variants,device)
+    check(capabilities.supported[variants[1].url] and not capabilities.allowUnverified, "Combined closest-format changes and numeric levels can confirm a rendition")
+    otherCodecs = parsePlaybackMaster("#EXT-X-STREAM-INF:RESOLUTION=3840x2160,FRAME-RATE=60,CODECS=" + q + "hvc1.1.6,mp4a.40.2" + q + Chr(10) + "hevc.m3u8", "https://cdn/master.m3u8")
+    check(otherCodecs.Count() = 1 and playbackAutoIndex(otherCodecs,capabilities) = 0, "Codec metadata cannot hide a rendition or prevent an Auto playback attempt")
+    capabilities = {maxWidth: 1280, maxHeight: 720, maxFrameRate: 30, supported: {}}
+    check(playbackFallbackIndex(variants,0,{"0":true},capabilities) = 1, "Recovery can try an unconfirmed lower rendition instead of blocking it")
+    check(playbackBandwidthIndex(variants,0,4000000,{"0":true},capabilities) = 2, "Bandwidth adaptation can select a fitting bitrate despite negative decoder hints")
     missingRate = parsePlaybackMaster("#EXT-X-STREAM-INF:" + codec + "RESOLUTION=1280x720" + Chr(10) + "unknown.m3u8", "https://cdn/master.m3u8")
     check(missingRate.Count() = 1 and missingRate[0].frameRate = 0, "An absent manifest FPS is preserved as unknown")
-    print "PASS exact HLS metadata, native capability probes, resolution-first Auto, strict ceilings and measured bandwidth downshift"
+    print "PASS all video renditions, advisory device probes, unverified fallback, manual choices and bandwidth ranking"
 end sub

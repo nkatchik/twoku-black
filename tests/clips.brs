@@ -65,7 +65,11 @@ sub main()
     check(Abs(variants[0].frameRate - 59.94) < 0.001 and variants[0].name = "1080p60", "Clip eligibility preserves fractional FPS while rounding only the display label")
     m.response = {error: "", body: FormatJSON({data: {clip: clip}})}
     result = requestClipPlayback("Slug")
-    check(result.initialIndex = -1 and result.url = "" and result.error <> "", "Unsupported-only clips return an error without starting the source")
+    check(result.initialIndex = 0 and result.url <> "" and result.capabilities.allowUnverified, "An unconfirmed clip decoder hint permits a native playback attempt")
+    clip.videoQualities[0].quality = "2160"
+    m.response = {error: "", body: FormatJSON({data: {clip: clip}})}
+    result = requestClipPlayback("Slug")
+    check(result.initialIndex = 0 and result.url <> "" and result.error = "", "Auto can attempt an available clip above the reported output hint")
     m.response = {error: "offline", body: ""}
     result = requestClipPlayback("Slug")
     check(result.url = "" and result.error <> "", "Failed clip request provides a retryable error")

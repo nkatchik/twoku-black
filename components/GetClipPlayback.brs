@@ -48,7 +48,7 @@ function requestClipPlayback(slug as String) as Object
     result.capabilities = capabilities
     result.initialIndex = selected
     if selected < 0
-        result.error = "No clip quality fits this device's video limits."
+        result.error = "No video quality is available for this clip."
         return result
     end if
     result.url = variants[selected].url

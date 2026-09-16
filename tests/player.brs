@@ -119,27 +119,58 @@ sub main()
 
     resetPlayer()
     m.global.preferredQuality = "1080p60 (source)"
+    m.capabilities.maxWidth = 1280
+    m.capabilities.maxHeight = 720
     m.capabilities.maxFrameRate = 30
-    m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities, initialIndex: 1}
+    m.capabilities.supported = {}
+    m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities, initialIndex: 0}
     onPlaybackInfo()
-    check(m.preference = "Auto" and m.playingIndex = 1, "unsupported saved quality uses capability-checked Auto")
-    check(m.global.preferredQuality = "1080p60 (source)", "effective Auto preserves the user's saved choice for capable devices")
+    check(m.preference = "1080p60 (source)" and m.playingIndex = 0 and m.qualityIndex = 1, "saved manual source and resolver selection survive advisory capability rejection")
+    check(m.tried.DoesExist("0"), "manual startup tracks the resolver's selected source")
+    m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities}
+    onPlaybackInfo()
+    check(m.playingIndex = 0, "saved manual source remains selectable without a resolver index")
+
+    resetPlayer()
+    m.capabilities.maxWidth = 1280
+    m.capabilities.maxHeight = 720
+    m.capabilities.maxFrameRate = 30
+    m.capabilities.supported = {}
     showQuality()
     m.qualityIndex = 1
     applyQuality()
-    check(m.playingIndex = 1 and m.qualityPanel.visible and m.playbackActive, "unsupported manual quality is disabled without interrupting playback")
-    check(Instr(1, m.top.findNode("qualityHint").text, "Unavailable") > 0, "quality picker explains an unsupported choice")
+    check(m.playingIndex = 0 and not m.qualityPanel.visible and m.playbackActive, "manual source selection bypasses advisory decoder and output limits")
+    check(m.preference = "1080p60 (source)" and m.global.preferredQuality = m.preference and m.top.qualityPreference = m.preference, "explicit quality remains the saved manual preference")
+    check(m.pendingContent.url = "https://example/source" and m.top.playbackError = "", "manual selection queues the requested source without a false capability error")
+    check(Instr(1, m.top.findNode("qualityHint").text, "OK to apply") > 0, "quality picker keeps manual application available")
 
     resetPlayer()
+    m.capabilities.supported = {}
+    m.capabilities.maxFrameRate = 30
     m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities, initialIndex: 2}
     onPlaybackInfo()
-    check(m.playingIndex = 2 and m.tried.DoesExist("2"), "player tracks the exact variant URL selected by the resolver")
+    check(m.playingIndex = 2 and m.tried.DoesExist("2"), "Auto tracks the exact variant selected by the resolver despite unconfirmed decoder support")
+
+    resetPlayer()
+    m.capabilities.supported = {}
+    m.capabilities.maxWidth = 1280
+    m.capabilities.maxHeight = 720
+    m.capabilities.maxFrameRate = 30
+    switchVariant(0)
+    check(m.preference = "Auto" and m.playingIndex = 0 and m.pendingContent.url = "https://example/source", "Auto can attempt a rendition despite negative capability hints")
+    check(m.top.playbackError = "" and m.playbackActive, "capability hints never block a playback attempt")
 
     resetPlayer()
     m.capabilities.supported = {}
     showQuality()
     applyQuality()
-    check(m.top.playbackError <> "" and not m.playbackActive, "Auto reports when no rendition fits device capabilities")
+    check(m.preference = "Auto" and m.playingIndex = 0 and m.top.playbackError = "", "Auto picker remains available when no rendition has confirmed decoder support")
+
+    resetPlayer()
+    m.variants = []
+    showQuality()
+    applyQuality()
+    check(m.top.playbackError = "No stream quality is available." and not m.playbackActive, "empty quality list reports unavailable content rather than unsupported hardware")
     m.top.control = "play"
     onRequestedControl()
     check(m.video.control <> "play", "a later play command cannot revive a rejected content request")

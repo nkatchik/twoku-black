@@ -57,7 +57,7 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     end if
     variants = parsePlaybackMaster(response.body, masterUrl)
     if variants.Count() = 0
-        result.error = "No compatible video quality is available for this stream."
+        result.error = "No video quality is available for this stream."
         return result
     end if
     preference = "Auto"
@@ -69,7 +69,7 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     result.capabilities = capabilities
     result.initialIndex = selected
     if selected < 0
-        result.error = "No available quality fits this device's video limits."
+        result.error = "No video quality is available for this stream."
         return result
     end if
     result.url = variants[selected].url

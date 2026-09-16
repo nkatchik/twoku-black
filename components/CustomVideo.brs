@@ -131,7 +131,7 @@ sub onPlaybackInfo()
     m.qualityIndex = 0
     if m.preference <> "Auto"
         for index = 0 to m.variants.Count() - 1
-            if m.variants[index].name = m.preference and playbackVariantSupported(m.variants[index], m.capabilities) then m.qualityIndex = index + 1
+            if m.variants[index].name = m.preference then m.qualityIndex = index + 1
         end for
     end if
     if m.qualityIndex = 0 then m.preference = "Auto"
@@ -139,7 +139,7 @@ sub onPlaybackInfo()
     if type(info) = "roAssociativeArray" and info.initialIndex <> invalid
         index = info.initialIndex
         if index >= 0 and index < m.variants.Count()
-            if playbackVariantSupported(m.variants[index], m.capabilities) then m.playingIndex = index
+            m.playingIndex = index
         end if
     end if
     m.tried = {}
@@ -163,7 +163,7 @@ sub onRequestedContent()
     end if
     if m.pendingContent = invalid then return
     if m.variants.Count() > 0 and m.playingIndex < 0
-        showPlaybackError("No stream quality fits the device playback capabilities.")
+        showPlaybackError("No stream quality is available.")
         return
     end if
     m.playbackActive = true
@@ -434,10 +434,6 @@ end sub
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
     selected = m.variants[index]
-    if not playbackVariantSupported(selected, m.capabilities)
-        showPlaybackError("This quality exceeds the device playback capabilities.")
-        return
-    end if
     showPlayerBusy()
     nextContent = CreateObject("roSGNode", "ContentNode")
     nextContent.url = selected.url
@@ -574,11 +570,7 @@ sub renderQuality()
     label = "Auto"
     if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count() then label = m.variants[m.qualityIndex - 1].name
     m.qualityName.text = label
-    hint = "OK to apply · Back to close"
-    if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count()
-        if not playbackVariantSupported(m.variants[m.qualityIndex - 1], m.capabilities) then hint = "Unavailable on this device · Back"
-    end if
-    m.top.findNode("qualityHint").text = hint
+    m.top.findNode("qualityHint").text = "OK to apply · Back to close"
 end sub
 
 sub showQuality()
@@ -601,15 +593,11 @@ sub applyQuality()
     preference = "Auto"
     if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count()
         index = m.qualityIndex - 1
-        if not playbackVariantSupported(m.variants[index], m.capabilities)
-            renderQuality()
-            return
-        end if
         preference = m.variants[index].name
     end if
     if index < 0
         m.qualityPanel.visible = false
-        showPlaybackError("No stream quality fits the device playback capabilities.")
+        showPlaybackError("No stream quality is available.")
         return
     end if
     m.preference = preference
