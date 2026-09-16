@@ -115,8 +115,8 @@ sub onChatVisibilityChange()
         m.video.translation = [0, 0]
     end if
     m.top.findNode("scrim").width = surfaceWidth
-    m.top.findNode("channelLabel").width = surfaceWidth - 176
-    m.top.findNode("titleLabel").width = surfaceWidth - 176
+    m.top.findNode("channelLabel").width = surfaceWidth - 204
+    m.top.findNode("titleLabel").width = surfaceWidth - 204
     m.progressTrack.width = surfaceWidth - 280
     m.seekFocus.width = surfaceWidth - 68
     m.top.findNode("durationLabel").translation = [surfaceWidth - 174, 0]
@@ -664,9 +664,7 @@ sub refreshControls()
     labels = ["Channel"]
     if m.top.contentKind = "live" and m.top.chatEnabled
         m.controlActions.Push("chat")
-        chatLabel = "Chat"
-        if m.top.chatIsVisible then chatLabel = "Chat on"
-        labels.Push(chatLabel)
+        labels.Push("Chat")
     end if
     m.controlActions.Push("quality")
     labels.Push("Quality")

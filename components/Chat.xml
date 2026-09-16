@@ -13,22 +13,22 @@
     <script type="text/brightscript" uri="pkg:/components/Chat.brs" />
     <children>
         <Rectangle color="0x08080aFF" width="360" height="720" translation="[920,0]" />
-        <Rectangle color="0x303038FF" width="336" height="92" translation="[932,12]" />
-        <Rectangle color="0xe91916FF" width="64" height="64" translation="[946,26]" />
-        <Poster id="channelAvatar" width="58" height="58" translation="[949,29]" loadDisplayMode="scaleToZoom" />
-        <Rectangle color="0xe91916FF" width="32" height="14" translation="[962,79]" />
-        <Label text="LIVE" width="32" height="14" translation="[962,79]" horizAlign="center" vertAlign="center">
+        <Rectangle color="0x303038FF" width="360" height="92" translation="[920,0]" />
+        <Rectangle color="0xe91916FF" width="64" height="64" translation="[934,14]" />
+        <Poster id="channelAvatar" width="58" height="58" translation="[937,17]" loadDisplayMode="scaleToZoom" />
+        <Rectangle color="0xe91916FF" width="32" height="14" translation="[950,67]" />
+        <Label text="LIVE" width="32" height="14" translation="[950,67]" horizAlign="center" vertAlign="center">
             <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="9" />
         </Label>
-        <Label id="channelName" width="224" height="27" translation="[1024,28]" color="0xFFFFFFFF">
+        <Label id="channelName" width="252" height="27" translation="[1012,16]" color="0xFFFFFFFF">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="21" />
         </Label>
-        <Label id="viewers" width="224" height="30" translation="[1024,57]" color="0xD9DCE4FF">
+        <Label id="viewers" width="252" height="30" translation="[1012,45]" color="0xD9DCE4FF">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="21" />
         </Label>
-        <Group id="chatPanel" translation="[932,116]" />
+        <Group id="chatPanel" translation="[932,104]" />
         <LoadingIndicator id="busy" translation="[1076,144]" size="48" />
-        <Label id="status" text="" visible="false" width="316" height="64" wrap="true" translation="[942,126]" color="0xa9a9b2FF">
+        <Label id="status" text="" visible="false" width="336" height="604" wrap="true" horizAlign="center" vertAlign="center" translation="[932,104]" color="0xa9a9b2FF">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="17" />
         </Label>
     </children>
