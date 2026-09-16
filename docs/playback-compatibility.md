@@ -112,9 +112,42 @@ that boundary, and Back or a quality change invalidates the pending start.
 A regression now makes the Task's `m.top` unavailable from readiness until the
 listener closes, so a field access anywhere in the active serving path fails the
 test. Fixed stage names and numeric diagnostics help distinguish preparation,
-serving, native startup, and cleanup without printing signed URLs. These checks
-remove the identified threading dependency; resolution of the reported Roxton
-freeze still requires trying the follow-up build on the device.
+serving, native startup, and cleanup without printing signed URLs. That change
+removed a threading hazard, but the user reported the same freeze afterward.
+
+Connecting to the device console then established the actual crash: during
+`AsyncGetToFile` startup, `roFileSystem.Stat()` returned an empty associative array.
+Comparing its missing `size` with the download limit raised a BrightScript type
+mismatch and suspended all threads in the debugger. The native filesystem contract
+only supplies [a size for file entries](https://developer.roku.com/dev/docs/iffilesystem);
+it does not guarantee `invalid` for a missing path.
+
+`compatStatSize` now validates the numeric size before either polling or completion
+logic uses it. An unknown pending size keeps waiting; an unknown size after transfer
+completion produces a handled file error. Regression tests reproduce the empty
+native result, delayed file creation, and a missing completed file.
+
+## Device verification on 2026-09-16
+
+The corrected package was installed directly on the supplied device, which reports
+model K806X and Roku OS 15.3.4. `zubarefff` entered the split compatibility path,
+completed native startup, and played across repeated live playlist refreshes without
+a new debugger error. The native player reported HLS with AAC audio and H.264 video.
+
+- At 1920×1080, playback advanced from 31,736 to 36,783 ms across a five-second check.
+- Switching to 852×480 also resumed playback; position advanced from 11,042 to
+  15,079 ms, and later segment reports confirmed the 480p video dimensions.
+- Auto was restored, and playback was reopened successfully.
+- Back changed the native player to `close` in approximately 327 ms.
+- Home reached the Roku home screen in approximately 1,023 ms from active playback.
+- Twoku was relaunched afterward, leaving the corrected build installed.
+
+Those timings include the local network command and status-query overhead.
+A single one-second `query/chanperf` sample during 1080p playback reported 2.3% user
+and 0.8% system CPU for the app process, with about 119 MB resident memory. This is
+an app-wide snapshot, not a sustained benchmark or the relay's isolated cost.
+The developer screenshot omitted the video plane, so visual motion, audible audio,
+and synchronization still need the user's confirmation.
 
 ## Verification and device acceptance
 
@@ -128,17 +161,7 @@ The recorded 1,893,048-byte Twitch 1080p60 sample passed with 94 audio and 120 v
 packets/decoded frames preserved; each view uses 21 four-byte patches. The default
 fixture is generated locally, so no downloaded stream recording is required.
 
-These checks cannot prove that Roku's native player accepts the repaired views.
-The remaining Roxton checks are:
-
-1. Open a currently live affected fMP4 stream and confirm moving video and audio,
-   including a selected 1080p60 rendition if offered. Compare a known-working
-   MPEG-TS stream such as `asmongold247` when live.
-2. Leave playback running across playlist refreshes and an ad/content transition;
-   check audio/video synchronization and remote responsiveness.
-3. Change quality repeatedly, press Back while preparing and playing, and reopen
-   another stream immediately. Home should remain prompt throughout.
-4. Exercise VOD seeking and pause through a quality switch, and play a direct MP4
-   clip. Toggle chat and confirm the hidden state remains respected.
-
-No hardware playback or CPU-utilization result is claimed by the off-device proof.
+The off-device checks are separate from the native results above. Remaining
+acceptance checks cover visible motion and audible sound, synchronization across
+an ad/content transition, sustained throughput/CPU usage, and VOD seeking/pause,
+MP4 clips, and chat behavior during compatibility playback.

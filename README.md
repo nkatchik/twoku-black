@@ -131,11 +131,13 @@ direct; unsupported preparation also falls back to the original URL.
 The Task has bounded caches and transfers. After preparing playback, it serves
 requests without accessing UI-owned fields; cancellation arrives as message-port
 events. Native startup is deferred until the Task's ready callback returns to
-avoid a circular wait between the player and its local server. No external server or configuration is
-needed. See the [delivery investigation](docs/playback-compatibility.md) for the
+avoid a circular wait between the player and its local server. No external server
+or configuration is needed. See the [delivery investigation](docs/playback-compatibility.md) for the
 implementation, media validation, and remaining native checks. Off-device tests
-verify unchanged packets and decoded frames; sustained Roxton playback, audio/video
-synchronization, and CPU usage still require device testing.
+verify unchanged packets and decoded frames. Native testing on the supplied device
+confirmed advancing 1080p/480p playback, quality switching, and responsive Back/Home
+after fixing an empty-file-status crash. Visual/audio synchronization and sustained
+performance remain separate acceptance checks.
 
 ## Supported Features
 * Live channels and games, ordered by viewers

@@ -174,6 +174,9 @@ events on Back or a quality change. Other player regressions cover split/direct 
 on Back or a new quality, late results, missing results, bounded preparation
 fallback, active relay failure, original URL preservation, and recorded resume
 position. Local segment timings must not feed Internet bandwidth adaptation.
+Filesystem doubles reproduce Roku's empty `Stat` result before a download file
+exists; tests distinguish waiting for file creation from a missing completed file
+without comparing an absent size to a number.
 
 Run the additional media proof with `brs`, FFmpeg and ffprobe installed:
 
