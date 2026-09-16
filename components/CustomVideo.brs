@@ -1,634 +1,607 @@
-function init()
-    m.progressBar = m.top.findNode("progressBar")
-    m.progressBar.visible = false
-    m.progressBarBase = m.top.findNode("progressBarBase")
-    m.progressBarProgress = m.top.findNode("progressBarProgress")
-    m.progressDot = m.top.findNode("progressDot")
-    m.timeProgress = m.top.findNode("timeProgress")
-    m.timeDuration = m.top.findNode("timeDuration")
-    'm.controlSelectRect = m.top.findNode("controlSelectRect")
-    m.controlButton = m.top.findNode("controlButton")
-    m.timeTravelButton = m.top.findNode("timeTravelButton")
-    m.messagesButton = m.top.findNode("messagesButton")
-    m.glow = m.top.findNode("bg-glow")
-    'm.backButton = m.top.findNode("backButton")
-    m.timeTravelRect = m.top.findNode("timeTravelRect")
-    m.top.observeField("position", "onVideoPositionChange")
-    m.currentProgressBarState = 0
-    m.currentPositionSeconds = 0
-    m.currentPositionUpdated = false
-    m.thumbnails = m.top.findNode("thumbnails")
-    m.thumbnailImage = m.top.findNode("thumbnailImage")
-    m.arrows = m.top.findNode("arrows")
-
-    m.videoTitle = m.top.findNode("videoTitle")
-    m.channelUsername = m.top.findNode("channelUsername")
-    m.avatar = m.top.findNode("avatar")
-
-    hour0 = m.top.findNode("hour0")
-    hour1 = m.top.findNode("hour1")
-    minute0 = m.top.findNode("minute0")
-    minute1 = m.top.findNode("minute1")
-    second0 = m.top.findNode("second0")
-    second1 = m.top.findNode("second1")
-
-    m.focusedTimeSlot = 0
-    m.timeTravelTimeSlot = [ hour0, hour1, minute0, minute1, second0, second1 ]
-
-    cancelButton = m.top.findNode("cancelButton")
-    acceptButton = m.top.findNode("acceptButton")
-
-    m.focusedTimeButton = 0
-    m.timeTravelButtons = [ cancelButton, acceptButton ]
-
-    m.progressBarFocused = false
-
-    m.loadingIndicator = m.top.findNode("loadingIndicator")
-    m.top.observeField("state", "onvideoStateChange")
-    m.top.observeField("channelAvatar", "onChannelAvatarChange")
+sub init()
+    m.top.focusable = true
+    m.video = m.top.findNode("video")
+    if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
+    m.overlay = m.top.findNode("overlay")
+    m.qualityPanel = m.top.findNode("qualityPanel")
+    m.qualityName = m.top.findNode("qualityName")
+    m.controls = m.top.findNode("controls")
+    m.progress = m.top.findNode("progress")
+    m.progressTrack = m.top.findNode("progressTrack")
+    m.progressFill = m.top.findNode("progressFill")
+    m.seekFocus = m.top.findNode("seekFocus")
+    m.statusBox = m.top.findNode("statusBox")
+    m.statusText = m.top.findNode("statusText")
+    m.pauseIndicator = m.top.findNode("pauseIndicator")
+    m.overlayTimer = m.top.findNode("overlayTimer")
+    m.watchdog = m.top.findNode("watchdog")
+    m.seekTimer = m.top.findNode("seekTimer")
+    m.video.observeField("state", "onVideoStateChange")
+    m.video.observeField("content", "onContentChange")
+    m.top.observeField("content", "onRequestedContent")
+    m.top.observeField("control", "onRequestedControl")
+    m.video.observeField("position", "onVideoPositionChange")
+    m.top.observeField("visible", "onVisible")
+    m.top.observeField("playbackInfo", "onPlaybackInfo")
     m.top.observeField("chatIsVisible", "onChatVisibilityChange")
+    m.top.observeField("chatEnabled", "refreshControls")
+    for each field in ["channelAvatar", "channelUsername", "videoTitle", "gameName", "viewerText", "contentKind"]
+        m.top.observeField(field, "onMetadataChange")
+    end for
+    m.overlayTimer.observeField("fire", "hideOverlay")
+    m.watchdog.observeField("fire", "checkPlaybackProgress")
+    m.seekTimer.observeField("fire", "commitSeek")
+    m.controlIndex = 0
+    m.overlayFocus = "buttons"
+    m.variants = []
+    m.qualityIndex = 0
+    m.playingIndex = -1
+    m.preference = "Auto"
+    m.tried = {}
+    m.pendingContent = invalid
+    m.startRequested = false
+    m.pendingSeek = invalid
+    m.resumePaused = false
+    m.switching = false
+    m.playbackActive = false
+    m.bufferTicks = 0
+    m.stalledTicks = 0
+    m.lastPosition = -1
+    m.buttonNodes = []
+    onChatVisibilityChange()
+    onMetadataChange()
+end sub
 
-    m.uiResolutionWidth = createObject("roDeviceInfo").GetUIResolution().width
-    if m.uiResolutionWidth = 1920
-        m.thumbnails.clippingRect = [0, 0, 146.66, 82.66]
+sub focusContent()
+    ' The Group owns remote input even while the native decoder is buffering/stopping.
+    m.top.setFocus(true)
+end sub
+
+sub onVisible()
+    if m.top.visible
+        focusContent()
+        showOverlay()
+    else
+        stopPlayback()
     end if
+end sub
 
-    deviceInfo = CreateObject("roDeviceInfo")
-    uiResolutionWidth = deviceInfo.GetUIResolution().width
-
-    if uiResolutionWidth = 1920
-        m.top.findNode("profileImageMask").maskSize = [75, 75]
+sub onMetadataChange()
+    m.top.findNode("avatar").uri = m.top.channelAvatar
+    m.top.findNode("channelLabel").text = m.top.channelUsername
+    title = m.top.videoTitle
+    if m.top.gameName <> "" then title = m.top.gameName + " · " + title
+    m.top.findNode("titleLabel").text = title
+    m.top.findNode("viewerLabel").text = m.top.viewerText
+    kind = "LIVE"
+    color = "0xE91916FF"
+    if m.top.contentKind = "vod"
+        kind = "VOD"
+        color = "0x68D8E8FF"
+    else if m.top.contentKind = "clip"
+        kind = "CLIP"
+        color = "0xFFCE6AFF"
     end if
-
-    m.sec = createObject("roRegistrySection", "VideoSettings")
-
-    m.buttonHoldTimer = createObject("roSGNode", "Timer")
-    m.buttonHoldTimer.observeField("fire", "onButtonHold")
-    m.buttonHoldTimer.repeat = true
-    m.buttonHoldTimer.duration = "0.070"
-    m.buttonHoldTimer.control = "stop"
-
-    m.buttonHeld = invalid
-    m.scrollInterval = 10
-    m.top.streamLayoutMode = 0
-end function
+    m.top.findNode("kindLabel").text = kind
+    m.top.findNode("kindBackground").color = color
+    refreshControls()
+end sub
 
 sub onChatVisibilityChange()
+    surfaceWidth = 1280
     if m.top.chatIsVisible
-        m.progressBarBase.width = 816
-        'm.progressBarProgress.width = 810
-        m.glow.translation = [534, 32]
-        m.timeTravelButton.translation = [390, 51]
-        m.controlButton.translation = [476, 53]
-        m.messagesButton.translation = [552, 52]
-        m.timeDuration.translation = [814, 61]
+        surfaceWidth = 920
+        m.video.width = 920
+        m.video.height = 518
+        m.video.translation = [0, 101]
     else
-        m.progressBarBase.width = 1200
-        'm.progressBarProgress.width = 1200
-        m.glow.translation = [692, 32]
-        m.timeTravelButton.translation = [548, 51]
-        m.controlButton.translation = [634, 53]
-        m.messagesButton.translation = [710, 52]
-        m.timeDuration.translation = [1198, 61]
+        m.video.width = 1280
+        m.video.height = 720
+        m.video.translation = [0, 0]
     end if
+    m.top.findNode("scrim").width = surfaceWidth
+    m.top.findNode("channelLabel").width = surfaceWidth - 176
+    m.top.findNode("titleLabel").width = surfaceWidth - 176
+    m.progressTrack.width = surfaceWidth - 280
+    m.seekFocus.width = surfaceWidth - 68
+    m.top.findNode("durationLabel").translation = [surfaceWidth - 174, 0]
+    m.statusBox.translation = [(surfaceWidth - 480) / 2, 268]
+    m.pauseIndicator.translation = [(surfaceWidth - 132) / 2, 268]
+    refreshControls()
+    onVideoPositionChange()
+end sub
+
+sub onPlaybackInfo()
+    m.variants = []
+    info = m.top.playbackInfo
+    if type(info) = "roAssociativeArray"
+        if type(info.variants) = "roArray" then m.variants = info.variants
+    end if
+    m.preference = "Auto"
+    if GetInterface(m.global.preferredQuality, "ifString") <> invalid then m.preference = m.global.preferredQuality
+    m.qualityIndex = 0
+    if m.preference <> "Auto"
+        for index = 0 to m.variants.Count() - 1
+            if m.variants[index].name = m.preference then m.qualityIndex = index + 1
+        end for
+    end if
+    if m.qualityIndex = 0 then m.preference = "Auto"
+    m.playingIndex = playbackPreferenceIndex(m.variants, m.preference)
+    m.tried = {}
+    if m.playingIndex >= 0 then m.tried[m.playingIndex.ToStr()] = true
+    m.qualityPanel.visible = false
+    m.pendingContent = invalid
+    m.switching = false
+    m.resumePaused = false
+    m.top.playbackError = ""
+    renderQuality()
+    refreshControls()
+end sub
+
+sub onRequestedContent()
+    m.pendingContent = m.top.content
+    m.startRequested = false
+    if m.pendingContent = invalid then return
+    m.playbackActive = true
+    m.switching = true
+    m.bufferTicks = 0
+    state = m.video.state
+    if state <> "none" and state <> "stopped" and state <> "finished" then m.video.control = "stop"
+end sub
+
+sub onRequestedControl()
+    command = m.top.control
+    if command = "stop"
+        stopPlayback()
+    else if command = "play"
+        m.startRequested = true
+        if m.pendingContent <> invalid
+            state = m.video.state
+            if state = "none" or state = "stopped" or state = "finished"
+                startPendingContent()
+            else
+                m.playbackActive = true
+                m.statusText.text = "Loading stream…"
+                m.statusBox.visible = true
+                m.watchdog.control = "start"
+                m.video.control = "stop"
+            end if
+        else
+            m.video.control = "play"
+        end if
+    else
+        m.video.control = command
+    end if
+end sub
+
+sub startPendingContent()
+    if m.pendingContent = invalid or not m.startRequested or not m.top.visible then return
+    nextContent = m.pendingContent
+    m.pendingContent = invalid
+    m.video.content = nextContent
+    m.video.control = "play"
+end sub
+
+sub onContentChange()
+    if m.video.content = invalid or not m.top.visible then return
+    m.playbackActive = true
+    m.bufferTicks = 0
+    m.stalledTicks = 0
+    m.lastPosition = -1
+    m.pendingSeek = invalid
+    m.seekTimer.control = "stop"
+    m.top.playbackError = ""
+    m.statusText.text = "Loading stream…"
+    m.statusBox.visible = true
+    m.watchdog.control = "start"
+    focusContent()
+    showOverlay()
 end sub
 
 sub onVideoStateChange()
-    if m.top.state = "buffering"
-        m.loadingIndicator.control = "start"
-    else
-        m.loadingIndicator.control = "stop"
+    state = m.video.state
+    if not m.playbackActive then return
+    if m.pendingContent <> invalid and state <> "stopped" and state <> "finished" then return
+    if state = "stopped" or state = "finished"
+        if m.pendingContent <> invalid
+            startPendingContent()
+        else if state = "finished"
+            m.top.back = true
+        end if
+    else if state = "playing"
+        m.bufferTicks = 0
+        m.statusBox.visible = false
+        if m.resumePaused
+            m.resumePaused = false
+            m.video.control = "pause"
+        end if
+        m.switching = false
+        m.pauseIndicator.visible = false
+    else if state = "paused"
+        m.pauseIndicator.visible = true
+        m.statusBox.visible = false
+    else if state = "buffering"
+        m.statusText.text = "Loading stream…"
+        m.statusBox.visible = true
+        m.pauseIndicator.visible = false
+    else if state = "error"
+        recoverPlayback()
     end if
 end sub
 
-sub onButtonHold()
-    if m.buttonHeld <> invalid and m.top.thumbnailInfo <> invalid
-        if m.buttonHeld = "right"
-            m.currentPositionSeconds += m.scrollInterval
-            m.progressBarProgress.width = m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration)
-            m.progressDot.translation = [m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration) + 33, 77]
-            if m.currentPositionSeconds > m.top.duration
-                m.currentPositionSeconds = m.top.duration
-            end if
-            if m.top.thumbnailInfo.width <> invalid
-                if m.progressBarProgress.width + m.top.thumbnailInfo.width / 2 <= m.progressBarBase.width
-                    if m.progressBarProgress.width - m.top.thumbnailInfo.width / 2 >= 0
-                        m.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                    else
-                        m.thumbnails.translation = [0, -150]
-                    end if
-                else
-                    m.thumbnails.translation = [m.progressBarBase.width - m.top.thumbnailInfo.width, -150]
-                end if
-            end if
-        else if m.buttonHeld = "left"
-            m.currentPositionSeconds -= m.scrollInterval
-            m.progressBarProgress.width = m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration)
-            m.progressDot.translation = [m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration) + 33, 77]
-            if m.currentPositionSeconds < 0
-                m.currentPositionSeconds = 0
-            end if
-            if m.top.thumbnailInfo.width <> invalid
-                if m.progressBarProgress.width - m.top.thumbnailInfo.width / 2 >= 0
-                    if m.progressBarProgress.width + m.top.thumbnailInfo.width / 2 <= m.progressBarBase.width
-                        m.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                    else
-                        m.thumbnails.translation = [m.progressBarBase.width - m.top.thumbnailInfo.width, -150]
-                    end if
-                else
-                    m.thumbnails.translation = [0, -150]
-                end if
+sub checkPlaybackProgress()
+    if not m.top.visible or not m.playbackActive then return
+    state = m.video.state
+    if m.pendingContent <> invalid or state = "buffering" or state = "none" or state = "stopping" or state = "stopped"
+        m.bufferTicks += 1
+        if m.bufferTicks >= 15
+            if m.pendingContent <> invalid
+                showPlaybackError("The video decoder did not stop. Press Back and reopen the stream.")
+            else
+                recoverPlayback()
             end if
         end if
-
-        m.timeProgress.text = convertToReadableTimeFormat(m.currentPositionSeconds)
-        m.timeDuration.text = convertToReadableTimeFormat(m.top.duration)
-        if m.top.thumbnailInfo.width <> invalid
-            showThumbnail()
-        end if         
-        m.scrollInterval += 10
+    else if state = "playing"
+        m.bufferTicks = 0
+        if Abs(playerSeconds(m.video.position) - m.lastPosition) < 0.1
+            m.stalledTicks += 1
+            if m.stalledTicks >= 20 then recoverPlayback()
+        else
+            m.stalledTicks = 0
+            m.lastPosition = playerSeconds(m.video.position)
+        end if
+    else if state = "paused"
+        m.stalledTicks = 0
     end if
 end sub
 
-function convertToReadableTimeFormat(time) as String
-    time = Int(time) '+ m.top.streamDurationSeconds
-    if time < 3600
-        seconds = Int((time MOD 60))
-        if seconds < 10
-            seconds = "0" + Int((time MOD 60)).ToStr()
-        else
-            seconds = seconds.ToStr() 
-        end if
-        return Int((time / 60)).ToStr() + ":" + seconds
+sub recoverPlayback()
+    if not m.playbackActive then return
+    nextIndex = -1
+    if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried)
+    if nextIndex >= 0
+        m.statusText.text = "Trying " + m.variants[nextIndex].name + "…"
+        m.statusBox.visible = true
+        switchVariant(nextIndex)
     else
-        hours = Int(time / 3600)
-        minutes = Int((time MOD 3600) / 60)
-        seconds = Int((time MOD 3600) MOD 60)
-        if seconds < 10
-            seconds = "0" + seconds.ToStr()
-        else
-            seconds = seconds.ToStr()
-        end if
-        if minutes < 10
-            minutes = "0" + minutes.ToStr()
-        else
-            minutes = minutes.ToStr()
-        end if
-        return hours.ToStr() + ":" + minutes + ":" + seconds
+        showPlaybackError("This quality could not play. Choose another quality or press Back.")
     end if
+end sub
+
+sub showPlaybackError(message as String)
+    m.pendingContent = invalid
+    m.playbackActive = false
+    m.switching = false
+    m.watchdog.control = "stop"
+    m.video.control = "stop"
+    m.top.playbackError = message
+    m.statusText.text = message
+    m.statusBox.visible = true
+    m.pauseIndicator.visible = false
+    showOverlay()
+end sub
+
+sub switchVariant(index as Integer)
+    if index < 0 or index >= m.variants.Count() then return
+    selected = m.variants[index]
+    nextContent = CreateObject("roSGNode", "ContentNode")
+    nextContent.url = selected.url
+    nextContent.streamFormat = "hls"
+    if selected.streamFormat <> invalid then nextContent.streamFormat = selected.streamFormat
+    nextContent.live = m.top.contentKind = "live"
+    if m.top.contentKind <> "live"
+        if m.pendingSeek <> invalid
+            nextContent.playStart = m.pendingSeek
+        else
+            nextContent.playStart = playerSeconds(m.video.position)
+        end if
+    end if
+    m.startRequested = true
+    m.resumePaused = m.video.state = "paused"
+    m.seekTimer.control = "stop"
+    m.pendingSeek = invalid
+    m.playingIndex = index
+    m.tried[index.ToStr()] = true
+    m.bufferTicks = 0
+    m.stalledTicks = 0
+    m.switching = true
+    m.playbackActive = true
+    m.top.playbackError = ""
+    m.watchdog.control = "start"
+    ' A second load cannot start until Roku releases the underlying media player.
+    state = m.video.state
+    if state = "stopped" or state = "none" or state = "finished"
+        m.pendingContent = invalid
+        m.video.content = nextContent
+        m.video.control = "play"
+    else
+        m.pendingContent = nextContent
+        m.video.control = "stop"
+    end if
+    renderQuality()
+end sub
+
+sub stopPlayback()
+    m.startRequested = false
+    m.playbackActive = false
+    m.pendingContent = invalid
+    m.pendingSeek = invalid
+    m.switching = false
+    m.resumePaused = false
+    m.watchdog.control = "stop"
+    m.overlayTimer.control = "stop"
+    m.seekTimer.control = "stop"
+    m.qualityPanel.visible = false
+    m.statusBox.visible = false
+    m.pauseIndicator.visible = false
+    m.overlay.visible = false
+    ' Keep the bookmark in memory. Back never waits for a registry flush.
+    if m.top.contentKind = "vod" and type(m.top.thumbnailInfo) = "roAssociativeArray"
+        id = m.top.thumbnailInfo.video_id
+        if id <> invalid and playerSeconds(m.video.position) > 0
+            bookmarks = m.top.videoBookmarks
+            if type(bookmarks) <> "roAssociativeArray" then bookmarks = {}
+            bookmarks[id.ToStr()] = Int(playerSeconds(m.video.position)).ToStr()
+            m.top.videoBookmarks = bookmarks
+        end if
+    end if
+    m.video.control = "stop"
+end sub
+
+sub showOverlay()
+    m.overlay.visible = true
+    m.overlayTimer.control = "stop"
+    if not m.qualityPanel.visible then m.overlayTimer.control = "start"
+    refreshControls()
+end sub
+
+sub hideOverlay()
+    if m.qualityPanel.visible then return
+    m.overlay.visible = false
+    m.overlayTimer.control = "stop"
+end sub
+
+function canSeek() as Boolean
+    return m.top.contentKind <> "live" and playerSeconds(m.video.duration) > 0
 end function
+
+sub refreshControls()
+    if m.buttonNodes = invalid then return
+    while m.controls.getChildCount() > 0
+        m.controls.removeChildIndex(0)
+    end while
+    m.buttonNodes = []
+    m.controlActions = ["channel"]
+    labels = ["Channel"]
+    if m.top.contentKind = "live" and m.top.chatEnabled
+        m.controlActions.Push("chat")
+        chatLabel = "Chat"
+        if m.top.chatIsVisible then chatLabel = "Chat on"
+        labels.Push(chatLabel)
+    end if
+    m.controlActions.Push("quality")
+    labels.Push("Quality")
+    if m.controlIndex >= labels.Count() then m.controlIndex = labels.Count() - 1
+    if m.controlIndex < 0 then m.controlIndex = 0
+    x = 0
+    for index = 0 to labels.Count() - 1
+        button = CreateObject("roSGNode", "Rectangle")
+        button.translation = [x, 0]
+        button.width = 132
+        button.height = 40
+        button.color = "0x323239FF"
+        label = CreateObject("roSGNode", "Label")
+        label.width = 132
+        label.height = 40
+        label.horizAlign = "center"
+        label.vertAlign = "center"
+        label.text = labels[index]
+        label.color = "0xEFF1F6FF"
+        font = CreateObject("roSGNode", "Font")
+        font.uri = "pkg:/fonts/Inter-SemiBold.ttf"
+        font.size = 17
+        label.font = font
+        if index = m.controlIndex and m.overlayFocus = "buttons"
+            button.color = "0xF4F4F7FF"
+            label.color = "0x111318FF"
+        end if
+        button.appendChild(label)
+        m.controls.appendChild(button)
+        m.buttonNodes.Push(button)
+        x += 148
+    end for
+    m.progress.visible = canSeek()
+    m.seekFocus.visible = m.overlayFocus = "seek" and canSeek()
+end sub
+
+sub renderQuality()
+    label = "Auto"
+    if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count() then label = m.variants[m.qualityIndex - 1].name
+    m.qualityName.text = label
+end sub
+
+sub showQuality()
+    m.qualityIndex = 0
+    if m.preference <> "Auto"
+        for index = 0 to m.variants.Count() - 1
+            if m.variants[index].name = m.preference then m.qualityIndex = index + 1
+        end for
+    end if
+    m.qualityPanel.visible = true
+    renderQuality()
+    showOverlay()
+end sub
+
+sub applyQuality()
+    index = playbackAutoIndex(m.variants)
+    m.preference = "Auto"
+    if m.qualityIndex > 0 and m.qualityIndex <= m.variants.Count()
+        index = m.qualityIndex - 1
+        m.preference = m.variants[index].name
+    end if
+    m.global.preferredQuality = m.preference
+    m.top.qualityPreference = m.preference
+    m.tried = {}
+    m.qualityPanel.visible = false
+    if index >= 0 then switchVariant(index)
+    showOverlay()
+end sub
+
+sub seekBy(seconds as Integer)
+    if not canSeek() then return
+    position = playerSeconds(m.video.position)
+    if m.pendingSeek <> invalid then position = m.pendingSeek
+    position += seconds
+    if position < 0 then position = 0
+    if position > playerSeconds(m.video.duration) then position = playerSeconds(m.video.duration)
+    m.pendingSeek = position
+    m.seekTimer.control = "stop"
+    m.seekTimer.control = "start"
+    onVideoPositionChange()
+end sub
+
+sub commitSeek()
+    if m.pendingSeek = invalid then return
+    m.video.seek = m.pendingSeek
+    m.pendingSeek = invalid
+    m.stalledTicks = 0
+end sub
+
+sub togglePlayback()
+    if not canSeek() then return
+    commitSeek()
+    if m.video.state = "paused"
+        m.video.control = "resume"
+    else if m.video.state = "playing"
+        m.video.control = "pause"
+    end if
+end sub
 
 sub onVideoPositionChange()
-    if m.top.duration > 0
-        m.progressBarProgress.width = m.progressBarBase.width * (m.top.position / m.top.duration)
-        m.progressDot.translation = [m.progressBarBase.width * (m.top.position / m.top.duration) + 33, 77]
-        m.timeProgress.text = convertToReadableTimeFormat(m.top.position)
-        m.timeDuration.text = convertToReadableTimeFormat(m.top.duration)
-    end if
+    if m.video = invalid then return
+    position = playerSeconds(m.video.position)
+    if m.pendingSeek <> invalid then position = m.pendingSeek
+    m.top.findNode("positionLabel").text = convertToReadableTimeFormat(position)
+    m.top.findNode("durationLabel").text = convertToReadableTimeFormat(playerSeconds(m.video.duration))
+    width = 0
+    if playerSeconds(m.video.duration) > 0 then width = m.progressTrack.width * position / playerSeconds(m.video.duration)
+    if width > m.progressTrack.width then width = m.progressTrack.width
+    if width < 0 then width = 0
+    m.progressFill.width = width
 end sub
 
-sub showThumbnail()
-    if m.top.thumbnailInfo <> invalid and m.top.thumbnailInfo.width <> invalid
-        thumbnailsPerPart = Int(m.top.thumbnailInfo.count / m.top.thumbnailInfo.thumbnail_parts.Count())
-        thumbnailPosOverall = Int(m.currentPositionSeconds / m.top.thumbnailInfo.interval)
-        thumbnailPosCurrent = thumbnailPosOverall MOD thumbnailsPerPart
-        thumbnailRow = Int(thumbnailPosCurrent / m.top.thumbnailInfo.cols)
-        thumbnailCol = Int(thumbnailPosCurrent MOD m.top.thumbnailInfo.cols)
-        if m.uiResolutionWidth = 1280
-            m.thumbnailImage.translation = [-thumbnailCol * m.top.thumbnailInfo.width, -thumbnailRow * m.top.thumbnailInfo.height]
-        else
-            m.thumbnailImage.translation = [(-thumbnailCol * m.top.thumbnailInfo.width) * 0.66, (-thumbnailRow * m.top.thumbnailInfo.height) * 0.66]
-        end if
-        '? thumbnailPosOverall " " thumbnailPosCurrent
-        '? m.currentPositionSeconds " " m.top.thumbnailInfo.interval " " m.top.thumbnailInfo.cols " " m.top.thumbnailInfo.width " " m.top.thumbnailInfo.height
-        if m.top.thumbnailInfo.info_url <> invalid and m.top.thumbnailInfo.thumbnail_parts[Int(thumbnailPosOverall / thumbnailsPerPart)] <> invalid 
-            m.thumbnailImage.uri = m.top.thumbnailInfo.info_url + m.top.thumbnailInfo.thumbnail_parts[Int(thumbnailPosOverall / thumbnailsPerPart)]
-        end if
-        m.thumbnailImage.visible = true
-    end if
-end sub
-
-function saveVideoBookmark() as Void
-    if m.top.duration >= 900
-        videoBookmarks = "{"
-        
-        tempBookmarks = m.top.videoBookmarks
-        if m.top.thumbnailInfo <> invalid and m.top.thumbnailInfo.video_id <> invalid
-            bookmarkAlreadyExists = tempBookmarks.DoesExist(m.top.thumbnailInfo.video_id)
-            tempBookmarks[m.top.thumbnailInfo.video_id] = Int(m.top.position).ToStr()
-        else
-            bookmarkAlreadyExists = false
-        end if
-
-        if tempBookmarks.Count() < 100
-            first = true
-            for each item in tempBookmarks.Items()
-                if not first
-                    videoBookmarks += ","
-                end if
-                videoBookmarks += chr(34) + item.key + chr(34) + " : " + chr(34) + item.value + chr(34)
-                first = false
-            end for
-        else
-            skip = true
-            first = true
-            for each item in tempBookmarks.Items()
-                if not skip
-                    if not first
-                        videoBookmarks += ","
-                    end if
-                    videoBookmarks += chr(34) + item.key + chr(34) + " : " + chr(34) + item.value + chr(34)
-                    first = false
-                end if
-                skip = false
-            end for
-        end if
-        
-        if m.top.thumbnailInfo <> invalid and bookmarkAlreadyExists = false
-            videoBookmarks += "," + chr(34) + m.top.thumbnailInfo.video_id.ToStr() + chr(34) + " : " + chr(34) + Int(m.top.position).ToStr() + chr(34) + "}"
-        else
-            videoBookmarks += "}"
-        end if
-
-        m.top.videoBookmarks = tempBookmarks
-
-        ? "CustomVideo >> videoBookmarks > " videoBookmarks
-
-        'sec = createObject("roRegistrySection", "VideoSettings")
-        m.sec.Write("VideoBookmarks", videoBookmarks)
-        m.sec.Flush()
-    end if
+function convertToReadableTimeFormat(value) as String
+    seconds = Int(playerSeconds(value))
+    if seconds < 0 then seconds = 0
+    minutes = Int(seconds / 60)
+    rest = (seconds MOD 60).ToStr()
+    if Len(rest) = 1 then rest = "0" + rest
+    if minutes < 60 then return minutes.ToStr() + ":" + rest
+    hours = Int(minutes / 60)
+    minuteText = (minutes MOD 60).ToStr()
+    if Len(minuteText) = 1 then minuteText = "0" + minuteText
+    return hours.ToStr() + ":" + minuteText + ":" + rest
 end function
 
-' function saveVideoBookmark() as Void
-    
-'     m.sec.Write("LoggedInUserData", videoBookmarks)
-'     m.sec.Flush()
-' end function
-
-function getTimeTravelTime()
-    hour0 = Int(Val(m.timeTravelTimeSlot[0].getChild(0).text)) * 36000
-    hour1 = Int(Val(m.timeTravelTimeSlot[1].getChild(0).text)) * 3600
-    minute0 = Int(Val(m.timeTravelTimeSlot[2].getChild(0).text)) * 600
-    minute1 = Int(Val(m.timeTravelTimeSlot[3].getChild(0).text)) * 60
-    second0 = Int(Val(m.timeTravelTimeSlot[4].getChild(0).text)) * 10
-    second1 = Int(Val(m.timeTravelTimeSlot[5].getChild(0).text))
-    return hour0 + hour1 + minute0 + minute1 + second0 + second1
-end function
-
-sub onChannelAvatarChange()
-    m.videoTitle.text = m.top.videoTitle
-    m.channelUsername.text = m.top.channelUsername
-    m.avatar.uri = m.top.channelAvatar
-end sub
-
-function onKeyEvent(key, press) as Boolean
-    handled = false
-    if press
-        if key = "up"
-            if m.currentProgressBarState = 0
-                m.currentProgressBarState = 1
-                m.progressBar.visible = true
-                w = m.controlButton.width
-                h = m.controlButton.height
-                m.glow.translation = [m.controlButton.translation[0] - 30 + w / 2, m.controlButton.translation[1] - 30 + h / 2]
-                m.controlButton.blendColor = "0xBD00FFFF"
-                'm.controlSelectRect.visible = true
-            else if m.currentProgressBarState = 1
-                ' m.currentProgressBarState = 5
-                ' m.progressBarBase.height = 2
-                ' m.progressBarProgress.height = 2
-                ' m.controlButton.blendColor = "0xFFFFFFFF"
-                ' m.backButton.blendColor = "0xBD00FFFF"
-                ' 'm.controlSelectRect.visible = false
-                ' m.thumbnailImage.visible = true
-            else if m.currentProgressBarState = 2
-                m.currentProgressBarState = 0
-                m.progressBarBase.height = 2
-                m.progressBarProgress.height = 2
-                m.progressBar.visible = false
-                m.thumbnailImage.visible = false
-            else if m.currentProgressBarState = 3
-                ' m.currentProgressBarState = 4
-                ' m.timeTravelButton.blendColor = "0xFFFFFFFF"
-                ' m.messagesButton.blendColor = "0xBD00FFFF"
-            else if m.currentProgressBarState = 6
-                number = (Int(Val(m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).text)) + 1)
-                if m.focusedTimeSlot = 2 or m.focusedTimeSlot = 4
-                    number = number Mod 6
-                else
-                    number = number Mod 10
-                end if
-                m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).text = number.ToStr()
-            end if
-            return true
-        else if key = "right"
-            if m.currentProgressBarState = 1
-                m.currentProgressBarState = 4
-                m.controlButton.blendColor = "0xFFFFFFFF"
-                w = m.messagesButton.width
-                h = m.messagesButton.height
-                m.glow.translation = [m.messagesButton.translation[0] - 30 + w / 2, m.messagesButton.translation[1] - 30 + h / 2]
-                m.messagesButton.blendColor = "0xBD00FFFF"
-            else if m.currentProgressBarState = 2
-                
-            else if m.currentProgressBarState = 3
-                m.currentProgressBarState = 1
-                m.timeTravelButton.blendColor = "0xFFFFFFFF"
-                w = m.controlButton.width
-                h = m.controlButton.height
-                m.glow.translation = [m.controlButton.translation[0] - 30 + w / 2, m.controlButton.translation[1] - 30 + h / 2]
-                m.controlButton.blendColor = "0xBD00FFFF"
-            else if m.currentProgressBarState = 6
-                if m.focusedTimeSlot <> -1 and m.focusedTimeSlot + 1 <= 5
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/unfocusedTimeSlot.png"
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0x3F3F3FFF"
-                    m.focusedTimeSlot += 1
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/focusedTimeSlot.png"
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0xDC79FFFF"
-                    m.arrows.translation = [m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[0] + 18, m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[1] - 6]
-                else if m.focusedTimeSlot = -1
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 0.5
-                    m.focusedTimeButton += 1
-                    m.focusedTimeButton = m.focusedTimeButton Mod 2
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 1
-                end if
-            else if m.currentProgressBarState = 2
-                if m.currentPositionUpdated = false
-                    m.currentPositionSeconds = m.top.position
-                    m.currentPositionUpdated = true
-                    m.top.control = "pause"
-                    m.controlButton.uri = "pkg:/images/play.png"
-                end if
-                m.currentPositionSeconds += 10
-                if m.currentPositionSeconds > m.top.duration
-                    m.currentPositionSeconds = m.top.duration
-                end if
-                m.progressBarProgress.width = m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration)
-                m.progressDot.translation = [m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration) + 33, 77]
-                if m.top.thumbnailInfo <> invalid and m.top.thumbnailInfo.width <> invalid
-                    if m.progressBarProgress.width + m.top.thumbnailInfo.width / 2 <= m.progressBarBase.width
-                        if m.progressBarProgress.width - m.top.thumbnailInfo.width / 2 >= 0
-                            m.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                        else
-                            m.thumbnails.translation = [0, -150]
-                        end if
-                    else
-                        m.thumbnails.translation = [m.progressBarBase.width - m.top.thumbnailInfo.width, -150]
-                    end if
-
-                    m.timeProgress.text = convertToReadableTimeFormat(m.currentPositionSeconds)
-                    m.timeDuration.text = convertToReadableTimeFormat(m.top.duration)
-                    if m.top.thumbnailInfo.width <> invalid
-                        showThumbnail()
-                    end if
-                end if
-                m.buttonHeld = "right"
-                m.buttonHoldTimer.control = "start"
-            end if
-            return true
-        else if key = "left"
-            if m.currentProgressBarState = 2
-               
-            else if m.currentProgressBarState = 4
-                m.currentProgressBarState = 1
-                m.messagesButton.blendColor = "0xFFFFFFFF"
-                w = m.controlButton.width
-                h = m.controlButton.height
-                m.glow.translation = [m.controlButton.translation[0] - 30 + w / 2, m.controlButton.translation[1] - 30 + h / 2]
-                m.controlButton.blendColor = "0xBD00FFFF"
-            else if m.currentProgressBarState = 1
-                m.currentProgressBarState = 3
-                m.controlButton.blendColor = "0xFFFFFFFF"
-                w = m.timeTravelButton.width
-                h = m.timeTravelButton.height
-                m.glow.translation = [m.timeTravelButton.translation[0] - 30 + w / 2, m.timeTravelButton.translation[1] - 30 + h / 2]
-                m.timeTravelButton.blendColor = "0xBD00FFFF"
-            else if m.currentProgressBarState = 6
-                if m.focusedTimeSlot <> -1 and m.focusedTimeSlot - 1 >= 0
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/unfocusedTimeSlot.png"
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0x3F3F3FFF"
-                    m.focusedTimeSlot -= 1
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/focusedTimeSlot.png"
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0xDC79FFFF"
-                    m.arrows.translation = [m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[0] + 18, m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[1] - 6]
-                else if m.focusedTimeSlot = -1
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 0.5
-                    m.focusedTimeButton -= 1
-                    if m.focusedTimeButton = -1
-                        m.focusedTimeButton = 1
-                    end if
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 1
-                end if
-            end if
-            return true
-        else if key = "down"
-            if m.currentProgressBarState = 6
-                number = (Int(Val(m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).text)) - 1)
-                if number = -1
-                    if m.focusedTimeSlot = 2 or m.focusedTimeSlot = 4
-                        number = 5
-                    else
-                        number = 9
-                    end if
-                end if
-                m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).text = number.ToStr()
-            else
-                m.controlButton.blendColor = "0xFFFFFFFF"
-                m.messagesButton.blendColor = "0xFFFFFFFF"
-                m.timeTravelButton.blendColor = "0xFFFFFFFF"
-                m.currentProgressBarState = 0
-                m.thumbnailImage.visible = false
-                m.progressBar.visible = false
-                return true
-            end if
-        else if key = "back"
-            if m.timeTravelRect.visible
-                m.timeTravelRect.visible = false
-                m.currentProgressBarState = 3
-                handled = true
-            else
-                m.currentPositionSeconds = 0
-                m.currentProgressBarState = 0
-                m.timeTravelRect.visible = false
-                m.progressBar.visible = false
-                'm.controlSelectRect.visible = false
-                m.currentPositionUpdated = false
-                m.thumbnailImage.uri = ""
-                saveVideoBookmark()
-                m.top.thumbnailInfo = invalid
-            end if
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return key <> "home"
+    if key = "back"
+        if m.qualityPanel.visible
+            m.qualityPanel.visible = false
+            showOverlay()
+        else if m.statusBox.visible or m.top.playbackError <> ""
+            stopPlayback()
+            m.top.back = true
+        else if m.overlay.visible
+            hideOverlay()
+        else if m.top.chatIsVisible
+            m.top.toggleChat = true
+        else
+            stopPlayback()
+            m.top.back = true
+        end if
+        return true
+    end if
+    if m.qualityPanel.visible
+        if key = "up" and m.qualityIndex > 0
+            m.qualityIndex -= 1
+        else if key = "down" and m.qualityIndex < m.variants.Count()
+            m.qualityIndex += 1
         else if key = "OK"
-            ? "CustomVideo >> OK"
-            if m.currentProgressBarState = 1
-                if m.top.state = "paused"
-                    m.top.control = "resume"
-                    m.controlButton.uri = "pkg:/images/pause.png"
-                    m.currentPositionUpdated = false
-                else
-                    m.top.control = "pause"
-                    m.controlButton.uri = "pkg:/images/play.png"
-                end if
-                return true
-            else if m.currentProgressBarState = 2
-                m.top.seek = m.currentPositionSeconds
-                m.controlButton.uri = "pkg:/images/pause.png"
-                m.currentPositionUpdated = false
-                m.currentProgressBarState = 1
-                'm.progressBarFocused = not m.progressBarFocused
-                return true
-            else if m.currentProgressBarState = 3
-                m.currentProgressBarState = 6
-                m.focusedTimeSlot = 0
-                m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/focusedTimeSlot.png"
-                m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0xDC79FFFF"
-                m.arrows.translation = [m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[0] + 18, m.timeTravelTimeSlot[ m.focusedTimeSlot ].translation[1] - 6]
-                m.timeTravelRect.visible = true
-                return true
-            else if m.currentProgressBarState = 4
-                ' m.top.toggleChat = true
-                m.top.streamLayoutMode = (m.top.streamLayoutMode + 1) MOD 3
-                ' if m.top.streamLayoutMode = 0 'default layout with chat on top of stream
-                '     m.top.width = 0
-                '     m.top.height = 0
-
-                ' end if
-                return true
-            else if m.currentProgressBarState = 5
-                m.currentPositionSeconds = 0
-                m.currentProgressBarState = 0
-                m.progressBar.visible = false
-                'm.controlSelectRect.visible = false
-                m.currentPositionUpdated = false
-                m.thumbnailImage.uri = ""
-                saveVideoBookmark()
-                m.top.thumbnailInfo = invalid
-                'm.backButton.blendColor = "0xFFFFFFFF"
-                m.top.back = true
-                return true
-            else if m.currentProgressBarState = 6
-                if m.focusedTimeSlot <> -1
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].uri = "pkg:/images/unfocusedTimeSlot.png"
-                    m.timeTravelTimeSlot[ m.focusedTimeSlot ].getChild(0).color = "0x3F3F3FFF"
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 1
-                    m.focusedTimeSlot = -1
-                else
-                    if m.focusedTimeButton = 1
-                        m.top.seek = getTimeTravelTime()
-                        m.controlButton.uri = "pkg:/images/pause.png"
-                        m.currentPositionUpdated = false
-                    end if
-                    for timeSlot = 0 to 5
-                        m.timeTravelTimeSlot[ timeSlot ].getChild(0).text = "0"
-                    end for 
-                    m.timeTravelButtons[ m.focusedTimeButton ].opacity = 0.5
-                    m.currentProgressBarState = 3
-                    m.timeTravelRect.visible = false
-                end if
-                return true
-            end if
-            'return true
-        else if key = "fastforward"
-            m.progressBar.visible = true
-            w = m.controlButton.width
-            h = m.controlButton.height
-            m.glow.translation = [m.controlButton.translation[0] - 30 + w / 2, m.controlButton.translation[1] - 30 + h / 2]
-            m.controlButton.blendColor = "0xBD00FFFF"
-            m.currentProgressBarState = 2
-            if m.currentPositionUpdated = false
-                m.currentPositionSeconds = m.top.position
-                m.currentPositionUpdated = true
-                m.top.control = "pause"
-                m.controlButton.uri = "pkg:/images/play.png"
-            end if
-            m.currentPositionSeconds += 10
-            if m.currentPositionSeconds > m.top.duration
-                m.currentPositionSeconds = m.top.duration
-            end if
-            m.progressBarProgress.width = m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration)
-            m.progressDot.translation = [m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration) + 33, 77]
-            if m.top.thumbnailInfo <> invalid and m.top.thumbnailInfo.width <> invalid
-                if m.progressBarProgress.width + m.top.thumbnailInfo.width / 2 <= m.progressBarBase.width
-                    if m.progressBarProgress.width - m.top.thumbnailInfo.width / 2 >= 0
-                        m.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                    else
-                        m.thumbnails.translation = [0, -150]
-                    end if
-                else
-                    m.thumbnails.translation = [m.progressBarBase.width - m.top.thumbnailInfo.width, -150]
-                end if
-
-                m.timeProgress.text = convertToReadableTimeFormat(m.currentPositionSeconds)
-                m.timeDuration.text = convertToReadableTimeFormat(m.top.duration)
-                if m.top.thumbnailInfo.width <> invalid
-                    showThumbnail()
-                end if
-            end if
-            m.buttonHeld = "right"
-            m.buttonHoldTimer.control = "start"
-        else if key = "rewind"
-            m.progressBar.visible = true
-            w = m.controlButton.width
-            h = m.controlButton.height
-            m.glow.translation = [m.controlButton.translation[0] - 30 + w / 2, m.controlButton.translation[1] - 30 + h / 2]
-            m.controlButton.blendColor = "0xBD00FFFF"
-            m.currentProgressBarState = 2
-            if m.currentPositionUpdated = false
-                m.currentPositionSeconds = m.top.position
-                m.currentPositionUpdated = true
-                m.top.control = "pause"
-                m.controlButton.uri = "pkg:/images/play.png"
-            end if
-            m.currentPositionSeconds -= 10
-            if m.currentPositionSeconds < 0
-                m.currentPositionSeconds = 0
-            end if
-            if m.top.thumbnailInfo <> invalid and m.top.thumbnailInfo.width <> invalid
-                if m.progressBarProgress.width - m.top.thumbnailInfo.width / 2 >= 0
-                    if m.progressBarProgress.width + m.top.thumbnailInfo.width / 2 <= m.progressBarBase.width
-                        m.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                    else
-                        m.thumbnails.translation = [m.progressBarBase.width - m.top.thumbnailInfo.width, -150]
-                    end if
-                else
-                    m.thumbnails.translation = [0, -150]
-                end if
-
-                m.progressBarProgress.width = m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration)
-                m.progressDot.translation = [m.progressBarBase.width * (m.currentPositionSeconds / m.top.duration) + 33, 77]
-                'm.thumbnails.translation = [m.progressBarProgress.width - m.top.thumbnailInfo.width / 2, -150]
-                m.timeProgress.text = convertToReadableTimeFormat(m.currentPositionSeconds)
-                m.timeDuration.text = convertToReadableTimeFormat(m.top.duration)
-                if m.top.thumbnailInfo.width <> invalid
-                    showThumbnail()
-                end if
-            end if
-            m.buttonHeld = "left"
-            m.buttonHoldTimer.control = "start"
-        else if key = "play"
-            if m.currentProgressBarState = 2
-                m.top.seek = m.currentPositionSeconds
-                m.controlButton.uri = "pkg:/images/pause.png"
-                m.currentPositionUpdated = false
-                m.currentProgressBarState = 1
-                'm.progressBarFocused = not m.progressBarFocused
-            else
-                if m.top.state = "paused"
-                    m.top.control = "resume"
-                    m.controlButton.uri = "pkg:/images/pause.png"
-                    m.currentPositionUpdated = false
-                else
-                    m.top.control = "pause"
-                    m.controlButton.uri = "pkg:/images/play.png"
-                end if
-            end if
+            applyQuality()
+        else if key = "left" or key = "right"
+            m.qualityPanel.visible = false
+            showOverlay()
         end if
-    else if not press
-        if key = "rewind" or key = "fastforward"
-            m.scrollInterval = 10
-            m.buttonHeld = invalid
-            m.buttonHoldTimer.control = "stop"
-        end if
+        renderQuality()
+        return true
     end if
-    return handled
+    if key = "options"
+        showQuality()
+        return true
+    end if
+    if key = "play"
+        togglePlayback()
+        return true
+    end if
+    if key = "rewind" or key = "fastforward"
+        delta = 10
+        if key = "rewind" then delta = -10
+        seekBy(delta)
+        return true
+    end if
+    if not m.overlay.visible
+        if canSeek() and (key = "left" or key = "right")
+            delta = 10
+            if key = "left" then delta = -10
+            seekBy(delta)
+        else
+            m.overlayFocus = "buttons"
+            if canSeek() then m.overlayFocus = "seek"
+            showOverlay()
+            if key = "OK" then togglePlayback()
+        end if
+        return true
+    end if
+    if key = "down" and m.overlayFocus = "buttons"
+        hideOverlay()
+        return true
+    else if (key = "up" or key = "down") and canSeek()
+        m.overlayFocus = "buttons"
+        if key = "up" then m.overlayFocus = "seek"
+    else if m.overlayFocus = "seek"
+        if key = "left"
+            seekBy(-10)
+        else if key = "right"
+            seekBy(10)
+        else if key = "OK"
+            commitSeek()
+            togglePlayback()
+        end if
+    else if key = "left"
+        if m.controlIndex > 0 then m.controlIndex -= 1
+    else if key = "right"
+        if m.controlIndex < m.controlActions.Count() - 1 then m.controlIndex += 1
+    else if key = "OK"
+        action = m.controlActions[m.controlIndex]
+        if action = "chat"
+            m.top.toggleChat = true
+        else if action = "quality"
+            showQuality()
+        else if action = "channel"
+            m.top.channelRequested = true
+        end if
+    else if key = "home"
+        return false
+    end if
+    showOverlay()
+    return true
+end function
+
+function playerSeconds(value)
+    kind = LCase(type(value))
+    if kind = "integer" or kind = "roint" or kind = "float" or kind = "rofloat" or kind = "double" or kind = "rodouble" or kind = "longinteger" or kind = "rolonginteger"
+        return value
+    end if
+    return 0
 end function

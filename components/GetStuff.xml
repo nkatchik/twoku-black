@@ -4,10 +4,16 @@
 
     <interface>
         <field id="streamerRequested" type="string" />
-        <field id="streamUrl" type="uri" />
+        <field id="streamUrl" type="uri" alwaysNotify="true" />
+        <field id="playbackInfo" type="assocarray" alwaysNotify="true" />
+        <field id="errorMessage" type="string" alwaysNotify="true" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="requestId" type="integer" value="0" />
     </interface>
     
     <script type="text/brightscript" uri="pkg:/components/GetStuff.brs" />
     <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+    <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlaybackRequest.brs" />
 
 </component>

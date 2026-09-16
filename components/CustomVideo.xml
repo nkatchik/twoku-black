@@ -1,305 +1,105 @@
 <?xml version="1.0" encoding="utf-8" ?>
-
-<component name="CustomVideo" extends="Video">
-
+<component name="CustomVideo" extends="Group">
     <interface>
+        <field id="content" type="node" alwaysNotify="true" />
+        <field id="control" type="string" alwaysNotify="true" />
+        <field id="state" type="string" alias="video.state" />
+        <field id="position" type="float" alias="video.position" />
+        <field id="duration" type="float" alias="video.duration" />
+        <field id="seek" type="float" alias="video.seek" />
+        <field id="width" type="float" alias="video.width" />
+        <field id="height" type="float" alias="video.height" />
+        <field id="videoTranslation" type="vector2d" alias="video.translation" />
+        <field id="enableUI" type="boolean" alias="video.enableUI" />
+        <field id="enableTrickPlay" type="boolean" alias="video.enableTrickPlay" />
         <field id="thumbnailInfo" type="assocarray" />
         <field id="videoBookmarks" type="assocarray" />
-        <field id="back" type="bool" value="false" />
-        <field id="toggleChat" type="bool" value="false" />
-        <field id="chatIsVisible" type="bool" />
-        <field id="streamLayoutMode" type="Integer" value="-1" />
-
+        <field id="back" type="boolean" value="false" alwaysNotify="true" />
+        <field id="toggleChat" type="boolean" value="false" alwaysNotify="true" />
+        <field id="channelRequested" type="boolean" value="false" alwaysNotify="true" />
+        <field id="chatIsVisible" type="boolean" value="false" />
+        <field id="chatEnabled" type="boolean" value="true" />
+        <field id="streamLayoutMode" type="integer" value="2" />
         <field id="channelAvatar" type="string" alwaysNotify="true" />
-        <field id="channelUsername" type="string" />
-        <field id="videoTitle" type="string" />
-        <field id="streamDurationSeconds" type="Integer" value="0" />
+        <field id="channelUsername" type="string" alwaysNotify="true" />
+        <field id="videoTitle" type="string" alwaysNotify="true" />
+        <field id="gameName" type="string" alwaysNotify="true" />
+        <field id="viewerText" type="string" alwaysNotify="true" />
+        <field id="contentKind" type="string" value="live" alwaysNotify="true" />
+        <field id="streamDurationSeconds" type="integer" value="0" />
+        <field id="playbackInfo" type="assocarray" alwaysNotify="true" />
+        <field id="playbackError" type="string" value="" />
+        <field id="qualityPreference" type="string" value="Auto" alwaysNotify="true" />
+        <function name="focusContent" />
+        <function name="stopPlayback" />
     </interface>
-    
     <script type="text/brightscript" uri="pkg:/components/CustomVideo.brs" />
-
+    <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
     <children>
-        <Poster
-            id="timeTravelRect"
-            uri="pkg:/images/timeTravelRect.png"
-            width="500"
-            height="300"
-            visible="false"
-            translation="[390,210]" >
-
-            <SimpleLabel
-                translation="[203,34]"
-                text="Timetravel"
-                color="0xFFFFFFFF"
-                fontSize="18"
-                fontUri="pkg:/fonts/Inter-Regular.ttf" />
-            <SimpleLabel
-                translation="[110,59]"
-                text="Fast forward to a select time in your video."
-                color="0xC4C4C4FF"
-                fontSize="14"
-                fontUri="pkg:/fonts/Inter-Regular.ttf" />
-            <SimpleLabel
-                translation="[120,180]"
-                text="Move with your arrows to each number, and"
-                color="0xC4C4C4FF"
-                fontSize="12"
-                fontUri="pkg:/fonts/Inter-Regular.ttf" />
-            <SimpleLabel
-                translation="[120,95]"
-                text="press up/down to change the desired time."
-                color="0xC4C4C4FF"
-                fontSize="12"
-                fontUri="pkg:/fonts/Inter-Regular.ttf" />
-
-            <Group id="arrows">
-                <Poster
-                    uri="pkg:/images/arrow-up.png"
-                    width="15.67"
-                    height="4.36"
-                    blendColor="0xDC79FFFF"
-                    translation="[-8,0]" />
-                <Poster
-                    uri="pkg:/images/arrow-down.png"
-                    width="15.67"
-                    height="4.36"
-                    blendColor="0xDC79FFFF"
-                    translation="[-8,50]" />
+        <Rectangle width="1280" height="720" color="0x000000FF" />
+        <Video id="video" enableUI="false" enableTrickPlay="false" notificationInterval="1" width="1280" height="720" />
+        <Group id="overlay">
+            <Rectangle id="scrim" translation="[0,468]" width="1280" height="252" color="0x06070AD1" />
+            <Poster id="avatar" translation="[42,481]" width="68" height="68" loadDisplayMode="scaleToFill" />
+            <Rectangle id="kindBackground" translation="[134,476]" width="48" height="22" color="0xE91916FF" />
+            <Label id="kindLabel" translation="[134,476]" width="48" height="22" horizAlign="center" vertAlign="center" text="LIVE">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="13" />
+            </Label>
+            <Label id="viewerLabel" translation="[196,476]" width="400" height="22" color="0xD9DCE4FF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="15" />
+            </Label>
+            <Label id="channelLabel" translation="[134,503]" width="1080" height="38" color="0xFFFFFFFF">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="30" />
+            </Label>
+            <Label id="titleLabel" translation="[134,543]" width="1080" height="48" wrap="true" maxLines="2" color="0xE1E4ECFF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+            </Label>
+            <Group id="progress" translation="[42,604]" visible="false">
+                <Rectangle id="seekFocus" translation="[-8,-6]" width="1212" height="36" color="0xF4F4F733" visible="false" />
+                <Label id="positionLabel" width="90" height="24">
+                    <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+                </Label>
+                <Rectangle id="progressTrack" translation="[98,8]" width="1000" height="8" color="0xFFFFFF3D" />
+                <Rectangle id="progressFill" translation="[98,8]" width="0" height="8" color="0xF4F4F7FF" />
+                <Label id="durationLabel" translation="[1106,0]" width="90" height="24" horizAlign="right">
+                    <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+                </Label>
             </Group>
-
-            <Poster
-                id="hour0"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[120,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-            <Poster
-                id="hour1"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[158,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-            <Poster
-                id="minute0"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[213,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-            <Poster
-                id="minute1"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[251,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-            <Poster
-                id="second0"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[306,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-            <Poster
-                id="second1"
-                uri="pkg:/images/unfocusedTimeSlot.png"
-                width="36"
-                height="42"
-                translation="[344,107]" >
-                <SimpleLabel
-                    translation="[8,4]"
-                    text="0"
-                    color="0x3F3F3FFF"
-                    fontSize="32"
-                    fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            </Poster>
-
-            <SimpleLabel
-                translation="[196,114]"
-                text=":"
-                color="0xFFFFFFFF"
-                fontSize="24"
-                fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-            <SimpleLabel
-                translation="[289,114]"
-                text=":"
-                color="0xFFFFFFFF"
-                fontSize="24"
-                fontUri="pkg:/fonts/JetBrainsMono-Bold.ttf" />
-
-            <Rectangle
-                id="cancelButton"
-                color="0xC4C4C4FF"
-                width="200"
-                height="42"
-                opacity="0.5"
-                translation="[45,230]" >
-                <SimpleLabel
-                    translation="[50,14]"
-                    text="CANCEL"
-                    color="0x060609FF"
-                    fontSize="12"
-                    fontUri="pkg:/fonts/Inter-Regular.ttf" />
-            </Rectangle>
-            <Rectangle
-                id="acceptButton"
-                color="0xDC79FFFF"
-                width="200"
-                height="42"
-                opacity="0.5"
-                translation="[255,230]" >
-                <SimpleLabel
-                    translation="[50,14]"
-                    text="ACCEPT"
-                    color="0x060609FF"
-                    fontSize="12"
-                    fontUri="pkg:/fonts/Inter-Regular.ttf" />
-            </Rectangle>
-        </Poster>
-
-        <Group id="progressBar" translation="[0,620]" >
-            <MaskGroup maskuri = "pkg:/images/vertical-mask-down.png" masksize = "[2,200]" translation="[0,-620]" >
-                <Rectangle width="1280" height="200" color="0x000000FF" />
-            </MaskGroup>
-            <MaskGroup maskuri = "pkg:/images/vertical-mask.png" masksize = "[2,200]" translation="[0,-100]" >
-                <Rectangle width="1280" height="200" color="0x000000FF" />
-            </MaskGroup>
-            <SimpleLabel
-                id="timeProgress"
-                fontUri="pkg:/fonts/JetBrainsMono-Regular.ttf"
-                fontSize="10"
-                translation="[40,61]" />
-             <SimpleLabel
-                id="timeDuration"
-                fontUri="pkg:/fonts/JetBrainsMono-Regular.ttf"
-                fontSize="10"
-                translation="[1198,61]" />
-            <Rectangle
-                id="progressBarBase"
-                color="0xC3C3C3FF"
-                width="1200"
-                height="2"
-                translation="[40,83]" />
-            <Rectangle
-                id="progressBarProgress"
-                color="0xBD00FFFF"
-                width="0"
-                height="2"
-                translation="[40,83]" />
-            <Poster
-                id="bg-glow"
-                uri="pkg:/images/bg-glow.png"
-                width="60"
-                height="60"
-                visible="true"
-                translation="[611,31]" />
-            <Poster
-                id="progressDot"
-                uri="pkg:/images/progressDot.png"
-                width="14"
-                height="13"
-                visible="true"
-                translation="[40,83]" />
-            <Poster
-                id="controlButton"
-                uri="pkg:/images/pause.png"
-                width="14"
-                height="16"
-                translation="[634,53]" />
-            <!--<Rectangle
-                id="controlSelectRect"
-                color="0xFFFFFF99"
-                width="50"
-                height="50"
-                translation="[60,45]" />-->
-            <Poster
-                id="timeTravelButton"
-                uri="pkg:/images/TimeTravel.png"
-                width="25"
-                height="21"
-                translation="[548,51]" />
-            <Poster
-                id="messagesButton"
-                uri="pkg:/images/messages.png"
-                width="24.84"
-                height="20.04"
-                translation="[710,52]" />
-            <!--<Poster
-                id="backButton"
-                uri="pkg:/images/back.png"
-                width="16.32"
-                height="13.32"
-                translation="[50,-605]" />-->
-
-            <MaskGroup id="profileImageMask" maskuri = "pkg:/images/profile-mask.png" masksize = "[50,50]" translation="[15,-603]" >
-                <Poster id="avatar" width="50" height="50" />
-            </MaskGroup>
-
-            <SimpleLabel
-                id="videoTitle"
-                translation="[82,-594]"
-                text="Stream Title"
-                color="0xFFFFFFFF"
-                fontSize="18"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
-            <SimpleLabel
-                id="channelUsername"
-                translation="[82,-572]"
-                text="Streamer Username"
-                color="0xFFFFFFFF"
-                fontSize="12"
-                fontUri="pkg:/fonts/Inter-Regular.ttf" />
-
-            <Group id="thumbnails" clippingRect="[0,0,220,124]" translation="[0,-150]" >
-                <Poster
-                    id="thumbnailImage" />
-            </Group>
+            <Group id="controls" translation="[42,638]" />
         </Group>
-        <LoadingIndicator 
-            id="loadingIndicator"
-            imageUri="pkg:/images/spinner.png"
-            clockwise="true"
-            spinInterval="1"
-            fadeInterval="0.2"
-            width="64"
-            height="64"
-            imageWidth="100"
-            imageHeight="98"
-            backgroundOpacity="0"
-            centered="false"
-            translation="[580,300]" />
+        <Group id="qualityPanel" translation="[42,438]" visible="false">
+            <Rectangle translation="[-4,-4]" width="326" height="192" color="0xF4F4F7F2" />
+            <Rectangle width="318" height="184" color="0x18181BFF" />
+            <Rectangle width="6" height="184" color="0xF4F4F7FF" />
+            <Label translation="[22,22]" width="274" height="24" text="QUALITY" color="0xAEB5C3FF">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="16" />
+            </Label>
+            <Rectangle translation="[22,60]" width="274" height="76" color="0x2F2F36FF" />
+            <Label translation="[28,60]" width="26" height="76" vertAlign="center" horizAlign="center" text="▲" />
+            <Label id="qualityName" translation="[58,60]" width="202" height="76" vertAlign="center" horizAlign="center">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="25" />
+            </Label>
+            <Label translation="[262,60]" width="26" height="76" vertAlign="center" horizAlign="center" text="▼" />
+            <Label id="qualityHint" translation="[22,148]" width="274" height="22" text="OK to apply · Back to close" color="0xAEB5C3FF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="13" />
+            </Label>
+        </Group>
+        <Group id="statusBox" translation="[400,268]" visible="false">
+            <Rectangle width="480" height="134" color="0x18181BF2" />
+            <Label id="statusText" translation="[22,22]" width="436" height="60" wrap="true" maxLines="2" horizAlign="center" vertAlign="center">
+                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="22" />
+            </Label>
+            <Label id="statusHint" translation="[22,92]" width="436" height="22" text="Back to return" horizAlign="center" color="0xAEB5C3FF">
+                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="15" />
+            </Label>
+        </Group>
+        <Group id="pauseIndicator" translation="[574,268]" visible="false">
+            <Rectangle width="132" height="132" color="0x18181BD1" />
+            <Rectangle translation="[34,27]" width="22" height="78" color="0xF4F4F7FF" />
+            <Rectangle translation="[76,27]" width="22" height="78" color="0xF4F4F7FF" />
+        </Group>
+        <Timer id="overlayTimer" duration="5" repeat="false" />
+        <Timer id="watchdog" duration="1" repeat="true" />
+        <Timer id="seekTimer" duration="0.35" repeat="false" />
     </children>
-
 </component>

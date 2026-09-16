@@ -6,9 +6,15 @@
         <field id="videoId" type="string" />
         <field id="streamUrl" type="uri" alwaysNotify="true" />
         <field id="thumbnailInfo" type="assocarray" />
+        <field id="playbackInfo" type="assocarray" alwaysNotify="true" />
+        <field id="errorMessage" type="string" alwaysNotify="true" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="requestId" type="integer" value="0" />
     </interface>
     
     <script type="text/brightscript" uri="pkg:/components/GetStuffVideo.brs" />
     <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+    <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
+    <script type="text/brightscript" uri="pkg:/components/PlaybackRequest.brs" />
 
 </component>
