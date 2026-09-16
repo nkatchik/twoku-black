@@ -123,6 +123,29 @@ The `brs` interpreter does not emulate the native decoder or SceneGraph event
 scheduler. It also has a nested-quote FormatJSON bug; request tests inspect the
 query structures, and live checks serialize the production query with Python.
 
+The UI follow-up on 2026-09-16 covers a late login refresh after Channels has
+loaded, results arriving before Task stop, short pages filling existing rows,
+background feed completion, and Following focus during both animation axes.
+Stream pages now request 24 items, while packing handles any returned count.
+Native screenshots confirmed that logged-in startup no longer leaves a spinner,
+and that offline Following rings remain complete and crossfade during movement.
+Focus artwork stays inside item bounds so the native row clip cannot trim it.
+
+VOD token variables use lowercase `vodid` in both the query and serialized map.
+Native BrightScript lowercases associative-array literal keys, unlike the test
+interpreter; GraphQL variable names must match exactly. See the
+[Roku explanation of literal key casing](https://forum.developer.roku.com/t/formatjson-results-in-a-lower-case-string/7753/2).
+On the device, a recording selected from the offline Asmongold profile played
+with `is_live=false`, `error=false`, and position advancing from 5,115 to 36,059 ms.
+Player screenshots confirmed the 96-pixel photo aligned with the metadata and
+image-based quality chevrons in place of missing font glyphs.
+Live playback also displayed the enlarged aligned photo and a button labeled
+`Chat` while messages were visible. The chat heading reached the top and both
+side edges of its rail, retaining its bottom gap. Empty status text uses a
+centered label spanning the chat body; no empty-chat native screenshot was taken.
+The final build passes all 34 deterministic suites (plus the rerun of the final
+focus guard); compilation retains the same twenty legacy WebSocket diagnostics.
+
 On 2026-09-16, the exact production live query and Twitch master returned HTTP
 200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
 selected 480p30. The production clip query returned four signed MP4 qualities;
