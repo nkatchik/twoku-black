@@ -165,7 +165,12 @@ and leaving a screen must stop its visible spinner. Game covers now request
 The combined runner includes production fMP4 parsing/patch decisions and media
 playlist rewriting. Relay tests cover HTTP requests, byte ranges, partial headers,
 connection limits, shared downloads, cache eviction/pinning, deadlines, and cleanup.
-Player regressions cover split/direct preparation, cancellation
+While the relay is active, its SceneGraph node is made unavailable to catch field
+access that would wait for the render thread on a device. Cancellation is delivered
+through copied node events, including events arriving around the input snapshot.
+Player tests require the ready observer to return before native content/control
+changes, reject callback shortcuts around the deferred start, and cancel late timer
+events on Back or a quality change. Other player regressions cover split/direct preparation, cancellation
 on Back or a new quality, late results, missing results, bounded preparation
 fallback, active relay failure, original URL preservation, and recorded resume
 position. Local segment timings must not feed Internet bandwidth adaptation.

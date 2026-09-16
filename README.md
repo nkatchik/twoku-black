@@ -128,8 +128,10 @@ loopback HTTP listener, changing container metadata without transcoding. Both
 views share downloaded original segments. Ordinary MPEG-TS and clips remain
 direct; unsupported preparation also falls back to the original URL.
 
-The Task has bounded caches and transfers, runs independently of the UI, and is
-cancelled on exit or quality changes. No external server or configuration is
+The Task has bounded caches and transfers. After preparing playback, it serves
+requests without accessing UI-owned fields; cancellation arrives as message-port
+events. Native startup is deferred until the Task's ready callback returns to
+avoid a circular wait between the player and its local server. No external server or configuration is
 needed. See the [delivery investigation](docs/playback-compatibility.md) for the
 implementation, media validation, and remaining native checks. Off-device tests
 verify unchanged packets and decoded frames; sustained Roxton playback, audio/video

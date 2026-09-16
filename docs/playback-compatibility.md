@@ -94,6 +94,28 @@ original URL. Manual qualities remain selectable. Native loopback download timin
 are excluded from Internet bandwidth decisions; the existing buffering and stalled
 position watchdogs remain active.
 
+## Roxton freeze follow-up
+
+The first prototype froze the app when the user opened `zubarefff` on Roxton.
+The relay was polling its Task fields and publishing statistics while serving
+localhost requests. [Roku's threading documentation](https://developer.roku.com/dev/docs/threads)
+confirms that these operations synchronously wait for the render thread, including
+access to a Task's own fields. Its ready-result observer also started Video before
+returning, leaving a circular dependency if native startup waited for that server.
+
+The follow-up build snapshots inputs once and consumes cancellation/request changes
+from message-port events. It performs no SceneGraph field access while serving.
+Sockets, transfers, and temporary files close before terminal fields are published.
+The player defers startup to a separate timer event; other callbacks cannot bypass
+that boundary, and Back or a quality change invalidates the pending start.
+
+A regression now makes the Task's `m.top` unavailable from readiness until the
+listener closes, so a field access anywhere in the active serving path fails the
+test. Fixed stage names and numeric diagnostics help distinguish preparation,
+serving, native startup, and cleanup without printing signed URLs. These checks
+remove the identified threading dependency; resolution of the reported Roxton
+freeze still requires trying the follow-up build on the device.
+
 ## Verification and device acceptance
 
 The deterministic BrightScript suites cover container bounds and offsets, HLS
