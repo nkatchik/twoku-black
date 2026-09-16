@@ -16,10 +16,10 @@ sub init()
     m.searchResultList.observeField("itemSelected", "onSearchItemSelect")
     m.resultCategoryList.observeField("itemSelected", "onSearchItemSelect")
     m.getSearch = CreateObject("roSGNode", "GetSearch")
-    m.getSearch.observeField("searchResults", "onSearchResultChange")
+    m.getSearch.observeField("searchResults", "onChannelSearchResultChange")
     m.getSearch.observeField("state", "onSearchStopped")
     m.getCategorySearch = CreateObject("roSGNode", "GetCategorySearch")
-    m.getCategorySearch.observeField("searchResults", "onSearchResultChange")
+    m.getCategorySearch.observeField("searchResults", "onCategorySearchResultChange")
     m.getCategorySearch.observeField("state", "onSearchStopped")
     m.getStuff = CreateObject("roSGNode", "GetStuff")
     m.getStuff.observeField("streamUrl", "onStreamUrlChange")
@@ -87,6 +87,14 @@ sub onSearchStopped()
     else if m.categoryLine.visible and m.getCategorySearch.state = "stop" and m.categoryQuery <> query
         onSearchTextChange()
     end if
+end sub
+
+sub onChannelSearchResultChange()
+    if m.liveLine.visible then onSearchResultChange()
+end sub
+
+sub onCategorySearchResultChange()
+    if m.categoryLine.visible then onSearchResultChange()
 end sub
 
 sub onSearchResultChange()

@@ -1,3 +1,7 @@
+function testCreateObject(kind, name)
+    return node()
+end function
+
 sub resetLoadingViews()
     m.top = node()
     m.top.visible = true
@@ -94,6 +98,15 @@ sub main()
     check(m.busy.active and m.streamQuery = "beta", "The next query keeps the spinner active when the old request stops")
     onSearchStopped()
     check(not m.busy.active, "The current search completing clears the spinner")
+    m.getSearch.state = "run"
+    m.liveLine.visible = false
+    m.categoryLine.visible = true
+    onSearchTextChange()
+    check(m.busy.active and m.categoryQuery = "beta", "Switching tabs starts the selected search")
+    onChannelSearchResultChange()
+    check(m.busy.active and m.resultCategoryList.content = invalid, "An inactive tab result cannot consume the selected tab's unfinished result")
+    onCategorySearchResultChange()
+    check(not m.busy.active and m.emptyLabel.text = "No results found", "The active tab result ends its own spinner and shows its actual empty state")
     m.keyboard.text = ""
     onSearchTextChange()
     check(not m.busy.active and m.emptyLabel.text = "Enter a channel or game name", "Clearing search leaves an instruction instead of a spinner")
