@@ -1,4 +1,14 @@
 function testCreateObject(kind, name = invalid)
+    if kind = "roDeviceInfo"
+        return {
+            GetVideoMode: function()
+                return "1080p60"
+            end function,
+            CanDecodeVideo: function(format)
+                return {result: Val(format.level) <= 4.1}
+            end function
+        }
+    end if
     return {}
 end function
 
@@ -47,7 +57,7 @@ sub main()
     check(query.variables.vodID = "12345" and Instr(1, query.query, "$vodID: ID!") > 0, "VOD query uses ID variable")
     g.responses = [
         {code: 200, body: FormatJson({data: {streamPlaybackAccessToken: {value: "{token with & symbols}", signature: "sig+value"}}}), error: ""},
-        {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30" + Chr(10) + "https://cdn.example/480.m3u8", error: ""}
+        {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + Chr(10) + "https://cdn.example/480.m3u8", error: ""}
     ]
     result = requestPlayback("demo", "", false)
     check(result.error = "" and result.url = "https://cdn.example/480.m3u8", "live resolver returns playable variant and metadata")
@@ -55,7 +65,16 @@ sub main()
     check(g.requests[0].headers["Authorization"] = invalid and g.requests[1].headers["Authorization"] = invalid, "playback requests never leak OAuth credentials")
     check(g.requests[0].timeout = 10000 and g.requests[1].timeout = 10000, "both requests have deadlines")
     check(Left(g.requests[1].uri, 8) = "https://" and Instr(1, g.requests[1].uri, "sig=sig%2Bvalue") > 0, "master uses HTTPS and component-encoded signature")
-    check(Instr(1, g.requests[1].uri, "supported_codecs=avc1") > 0, "master asks for AVC")
+    check(Instr(1, g.requests[1].uri, "supported_codecs=h264") > 0, "master uses Twitch's H.264 codec name")
+    check(result.capabilities.supported[result.url], "Resolver publishes its native decoder eligibility for the player")
+
+    resetRequests()
+    g.responses = [
+        {code: 200, body: FormatJson({data: {streamPlaybackAccessToken: {value: "token", signature: "sig"}}}), error: ""},
+        {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=1920x1080,FRAME-RATE=60,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + Chr(10) + "https://cdn.example/source.m3u8", error: ""}
+    ]
+    result = requestPlayback("demo", "", false)
+    check(result.initialIndex = -1 and result.url = "" and result.error <> "", "An entirely unsupported ladder never indexes -1 or starts an oversized quality")
 
     resetRequests()
     g.responses = [{code: 500, body: "<html>failure</html>", error: "HTTP 500"}]

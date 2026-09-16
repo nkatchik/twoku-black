@@ -1,4 +1,14 @@
-function testCreateObject(kind, name)
+function testCreateObject(kind, name = invalid)
+    if kind = "roDeviceInfo"
+        return {
+            GetVideoMode: function()
+                return "1080p60"
+            end function,
+            CanDecodeVideo: function(format)
+                return {result: Val(format.level) <= 4.1}
+            end function
+        }
+    end if
     return node()
 end function
 
@@ -34,12 +44,14 @@ sub main()
     check(variants[0].name = "1080p60" and variants[2].name = "480p", "Clip quality order uses numeric height and frame rate")
     check(variants[2].url = "https://cdn/480.mp4?existing=true&sig=sig%2B&token=token%26", "Signed clip URL preserves existing query and escapes credentials")
     check(variants[1].streamFormat = "mp4", "Quality switching retains clip MP4 format")
+    check(variants[1].metadataEstimated and variants[1].width = 1280 and variants[1].codecs = "avc1", "Clip dimensions and AVC assumption are marked explicitly")
     m.top = {cancelRequested: false, clipId: "Slug", requestId: 1, streamUrl: ""}
     m.global = {preferredQuality: "Auto"}
     m.cancelDuringRequest = false
     m.response = {error: "", body: FormatJSON({data: {clip: clip}})}
     result = requestClipPlayback("Slug")
     check(result.initialIndex = 1 and result.title = "A clip" and result.login = "streamer", "Auto chooses compatible clip quality and forwards metadata")
+    check(result.capabilities.supported[result.url], "Clip player receives the same native capability decision as its resolver")
     m.global.preferredQuality = "480p"
     result = requestClipPlayback("Slug")
     check(result.initialIndex = 2, "Saved manual clip quality is honored")
@@ -48,6 +60,12 @@ sub main()
     check(m.top.streamUrl = "", "Cancelled clip request cannot publish playback")
     m.top.cancelRequested = false
     m.cancelDuringRequest = false
+    clip.videoQualities = [{quality: "1080", frameRate: 59.94, sourceURL: "https://cdn/source.mp4"}]
+    variants = clipPlaybackVariants(clip)
+    check(Abs(variants[0].frameRate - 59.94) < 0.001 and variants[0].name = "1080p60", "Clip eligibility preserves fractional FPS while rounding only the display label")
+    m.response = {error: "", body: FormatJSON({data: {clip: clip}})}
+    result = requestClipPlayback("Slug")
+    check(result.initialIndex = -1 and result.url = "" and result.error <> "", "Unsupported-only clips return an error without starting the source")
     m.response = {error: "offline", body: ""}
     result = requestClipPlayback("Slug")
     check(result.url = "" and result.error <> "", "Failed clip request provides a retryable error")

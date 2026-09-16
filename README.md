@@ -90,9 +90,20 @@ between Channel, Chat (live only), and Quality. ***** opens Quality directly;
 The selected quality and live-chat preference persist. Chat is read-only, as
 in Twellie, and is disconnected while hidden.
 
-**Auto** starts with the highest AVC rendition at or below 720p/30fps when
-available, and steps down after prolonged buffering or stalled playback.
-Manual qualities remain explicit choices. Quality switches preserve VOD/clip
+**Auto** starts with the highest-resolution AVC rendition that fits the device's
+video output and native decoder capabilities, then prefers the highest supported
+frame rate at that resolution. This includes 60fps when supported. Renditions
+above either the resolution or frame-rate ceiling cannot be selected manually.
+Live/VOD eligibility uses playlist dimensions, frame rate, and AVC profile/level;
+clips expose less metadata, so their width and AVC profile are explicitly estimated
+from Twitch's reported rendition height and frame rate.
+
+Network adaptation is separate: three successful video-segment downloads taking
+longer than their playback duration trigger a lower-bitrate choice within 80% of
+measured throughput. Auto can also try an untried lower quality after a native
+error, prolonged buffering, or stalled playback. It stops retrying when eligible
+qualities are exhausted. Failed live streams retain the player controls instead
+of returning to the grid. Quality switches preserve VOD/clip
 position and pause state. Left/Right on the progress bar or the rewind/fast-forward
 keys seek by ten seconds. Play/Pause toggles recorded playback.
 
@@ -103,9 +114,13 @@ that provide it (OS 12.5+); older versions retain the platform's synchronous sto
 The UI keeps remote focus while the decoder loads or stops.
 
 Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
-HTTPS, with bounded requests. Source/60fps variants remain available manually.
-Off-device regressions and public Twitch endpoint checks pass; Roxton decoder
-behavior and the final TV rendering still require device testing.
+HTTPS, with bounded requests. Some current Twitch deliveries combine audio and
+video in fragmented MP4 segments, which [Roku does not support for
+CMAF](https://developer.roku.com/dev/docs/media). Lowering quality cannot correct
+that packaging; those streams need separate audio/video renditions or repackaging
+outside the Roku. No such helper is bundled. Off-device regressions and public
+Twitch endpoint checks pass; Roxton decoder behavior and the final TV rendering
+still require device testing.
 
 ## Supported Features
 * Live channels and games, ordered by viewers

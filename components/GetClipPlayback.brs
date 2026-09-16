@@ -42,9 +42,15 @@ function requestClipPlayback(slug as String) as Object
     end if
     preference = "Auto"
     if nonEmptyString(m.global.preferredQuality) then preference = m.global.preferredQuality
-    selected = playbackPreferenceIndex(variants, preference)
+    capabilities = playbackDeviceCapabilities(variants)
+    selected = playbackPreferenceIndex(variants, preference, capabilities)
     result.variants = variants
+    result.capabilities = capabilities
     result.initialIndex = selected
+    if selected < 0
+        result.error = "No clip quality fits this device's video limits."
+        return result
+    end if
     result.url = variants[selected].url
     if nonEmptyString(clip.title) then result.title = clip.title
     if type(clip.broadcaster) = "roAssociativeArray"
@@ -68,14 +74,17 @@ function clipPlaybackVariants(clip as Object) as Object
                 height = Int(Val(quality.quality))
                 if height > 0 and Left(quality.sourceURL, 8) = "https://" and not seen.DoesExist(quality.sourceURL)
                     rate = 30
-                    if quality.frameRate <> invalid then rate = Int(Val(quality.frameRate.ToStr()) + 0.5)
+                    if quality.frameRate <> invalid then rate = Val(quality.frameRate.ToStr())
                     if rate <= 0 then rate = 30
                     label = height.ToStr() + "p"
-                    if rate > 30 then label += rate.ToStr()
+                    if rate > 30 then label += Int(rate + 0.5).ToStr()
                     separator = "?"
                     if Instr(1, quality.sourceURL, "?") > 0 then separator = "&"
                     url = quality.sourceURL + separator + "sig=" + token.signature.EncodeUriComponent() + "&token=" + token.value.EncodeUriComponent()
-                    variants.Push({name: label, url: url, height: height, frameRate: rate, bandwidth: 0, group: "", streamFormat: "mp4"})
+                    ' Clips expose a rendition height/FPS, not HLS codec/dimension metadata.
+                    ' Mark the standard 16:9 AVC estimate explicitly; never borrow the UI size.
+                    width = Int(height * 16 / 9 + 0.5)
+                    variants.Push({name: label, url: url, width: width, height: height, frameRate: rate, codecs: "avc1", profile: "high", metadataEstimated: true, bandwidth: 0, group: "", streamFormat: "mp4"})
                     seen[quality.sourceURL] = true
                 end if
             end if

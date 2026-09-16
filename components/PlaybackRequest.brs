@@ -46,7 +46,7 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     end if
     path = "api/channel/hls/" + login.EncodeUriComponent()
     if isVod then path = "vod/" + videoId.EncodeUriComponent()
-    masterUrl = "https://usher.ttvnw.net/" + path + ".m3u8?allow_source=true&allow_audio_only=false&playlist_include_framerate=true&supported_codecs=avc1&player_backend=mediaplayer&sig=" + token.signature.EncodeUriComponent() + "&token=" + token.value.EncodeUriComponent()
+    masterUrl = "https://usher.ttvnw.net/" + path + ".m3u8?allow_source=true&allow_audio_only=false&playlist_include_framerate=true&supported_codecs=h264&player_backend=mediaplayer&sig=" + token.signature.EncodeUriComponent() + "&token=" + token.value.EncodeUriComponent()
     transfer = createHttpUrl()
     transfer.SetUrl(masterUrl)
     response = requestText(transfer, invalid, 10000, false)
@@ -62,10 +62,16 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     end if
     preference = "Auto"
     if nonEmptyString(m.global.preferredQuality) then preference = m.global.preferredQuality
-    selected = playbackPreferenceIndex(variants, preference)
+    capabilities = playbackDeviceCapabilities(variants)
+    selected = playbackPreferenceIndex(variants, preference, capabilities)
     result.masterUrl = masterUrl
     result.variants = variants
+    result.capabilities = capabilities
     result.initialIndex = selected
+    if selected < 0
+        result.error = "No available quality fits this device's video limits."
+        return result
+    end if
     result.url = variants[selected].url
     return result
 end function
