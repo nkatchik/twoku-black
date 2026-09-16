@@ -19,6 +19,10 @@ end function
 
 function getApiJson(url)
     g = GetGlobalAA()
+    if Instr(1, url, "/streams?") > 0
+        g.streamCalls += 1
+        return g.streamResponse
+    end if
     g.helixCalls += 1
     return {data: [{id: "123", display_name: "Fallback", description: "", profile_image_url: "avatar"}]}
 end function
@@ -32,6 +36,8 @@ sub main()
     g = GetGlobalAA()
     g.calls = 0
     g.helixCalls = 0
+    g.streamCalls = 0
+    g.streamResponse = {data: []}
     m.top = {loginRequested: "sample", includeFollowers: true}
     g.response = {code: 200, error: "", body: FormatJson({data: {user: {id: "123", displayName: "Sample", description: "Description", profileImageURL: "avatar", followers: {totalCount: 1234567}}}})}
     profile = getSearchResults()
@@ -49,10 +55,17 @@ sub main()
     g.response = {code: 503, error: "Unavailable", body: ""}
     profile = getSearchResults()
     check(profile.display_name = "Fallback" and profile.followers = invalid, "Public outage falls back to profile with unknown count")
+    g.streamResponse = {data: [{type: "live", title: "Current stream", user_login: "sample"}]}
+    profile = getSearchResults()
+    check(profile.live_stream.title = "Current stream", "Profile receives current live stream metadata")
+    g.streamResponse = invalid
+    profile = getSearchResults()
+    check(profile.id = "123" and profile.live_stream = invalid, "Failed live lookup preserves the profile without inventing a live card")
     g.calls = 0
     g.helixCalls = 0
+    g.streamCalls = 0
     m.top.includeFollowers = false
     profile = getSearchResults()
-    check(g.calls = 0 and g.helixCalls = 1, "Player avatar path adds no follower request or latency")
+    check(g.calls = 0 and g.helixCalls = 1 and g.streamCalls = 0, "Player avatar path adds no follower request or latency")
     print "PASS channel follower totals, anonymous bounded query, unknown count and lightweight player profile"
 end sub
