@@ -575,7 +575,7 @@ sub updateHeaderFocus()
         m.headerCursor.width = label.localBoundingRect().width
     end if
     color = "0x323239FF"
-    m.loggedUserName.color = "0xEFEFF1FF"
+    m.loggedUserName.color = "0xFFFFFFFF"
     if accountFocused
         color = "0xF4F4F7FF"
         m.loggedUserName.color = "0x111318FF"
@@ -687,11 +687,10 @@ sub layoutAccount()
     avatar = m.profileImage.uri <> ""
     m.profileImage.visible = avatar
     m.profileCover.visible = avatar
-    textX = 20
-    if avatar then textX = 50
+    textX = 4
+    if avatar then textX = 42
     m.loggedUserName.translation = [textX,0]
-    rightPadding = 20
-    if avatar then rightPadding = 12
+    rightPadding = 4
     chipWidth = textX + width + rightPadding
     m.accountBackground.width = chipWidth
     m.loggedUserGroup.translation = [1237 - chipWidth,43]

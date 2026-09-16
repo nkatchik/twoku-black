@@ -103,13 +103,13 @@ sub main()
     layoutHeader()
     check(m.liveLine.width = 61.125 and m.categoryButton.translation[0] = 95 + 61.125 + 24, "Font metrics changes update underline and neighboring position together")
     check(m.loggedUserGroup.translation[0] + m.accountBackground.width = 1237, "Account chip remains flush with the right page edge")
-    check(m.accountBackground.width = m.loggedUserName.localBoundingRect().width + 40, "Short Login chip has only measured text and balanced padding")
+    check(m.accountBackground.width = m.loggedUserName.localBoundingRect().width + 8, "Short Login chip has only measured text and balanced padding")
     m.profileImage.uri = "avatar"
     m.loggedUserName.measuredWidth = 400
     layoutAccount()
-    check(m.loggedUserName.width = 180 and m.accountBackground.width = 242, "Long account names truncate within a compact chip")
-    check((12 + m.loggedUserName.translation[0] + m.loggedUserName.width) / 2 = m.accountBackground.width / 2, "Avatar and name content midpoint equals chip midpoint")
-    check(m.profileImage.visible and m.profileCover.visible and m.loggedUserName.translation[0] = 50, "Avatar and name share one vertically centered chip")
+    check(m.loggedUserName.width = 180 and m.accountBackground.width = 226, "Long account names truncate within a compact chip")
+    check((4 + m.loggedUserName.translation[0] + m.loggedUserName.width) / 2 = m.accountBackground.width / 2, "Avatar and name content midpoint equals chip midpoint")
+    check(m.profileImage.visible and m.profileCover.visible and m.loggedUserName.translation[0] = 42, "Avatar and name share one vertically centered chip")
 
     onHomeLoad()
     check(m.getStreams.control = "" and m.top.retryAuthentication, "No feed request before authentication")

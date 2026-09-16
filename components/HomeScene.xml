@@ -57,9 +57,9 @@
                 <Rectangle id="followingLine" height="3" color="0xF4F4F788" visible="false" />
                 <Group id="loggedUserGroup" translation="[1120,43]">
                     <Rectangle id="accountBackground" width="117" height="36" color="0x323239FF" />
-                    <Poster id="profileImage" translation="[12,4]" width="28" height="28" loadDisplayMode="scaleToFill" visible="false" />
-                    <Poster id="profileCover" translation="[12,4]" width="28" height="28" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x323239FF" visible="false" />
-                    <Label id="loggedUserName" translation="[20,0]" height="36" text="Login" color="0xEFEFF1FF" vertAlign="center">
+                    <Poster id="profileImage" translation="[4,4]" width="28" height="28" loadDisplayMode="scaleToFill" visible="false" />
+                    <Poster id="profileCover" translation="[4,4]" width="28" height="28" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x323239FF" visible="false" />
+                    <Label id="loggedUserName" translation="[4,0]" height="36" text="Login" color="0xFFFFFFFF" vertAlign="center">
                         <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
                     </Label>
                 </Group>
