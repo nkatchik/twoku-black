@@ -2,8 +2,10 @@ function playbackTokenPayload(login as String, videoId as String, isVod as Boole
     q = Chr(34)
     params = "params: {platform: " + q + "web" + q + ", playerBackend: " + q + "mediaplayer" + q + ", playerType: " + q + "site" + q + "}"
     if isVod
-        query = "query PlaybackAccessToken($vodID: ID!) { videoPlaybackAccessToken(id: $vodID, " + params + ") { value signature } }"
-        variables = {vodID: videoId}
+        ' Unquoted BrightScript AA keys serialize in lowercase. GraphQL variables
+        ' are case-sensitive, so use the same lowercase spelling in both places.
+        query = "query PlaybackAccessToken($vodid: ID!) { videoPlaybackAccessToken(id: $vodid, " + params + ") { value signature } }"
+        variables = {vodid: videoId}
     else
         query = "query PlaybackAccessToken($login: String!) { streamPlaybackAccessToken(channelName: $login, " + params + ") { value signature } }"
         variables = {login: login}
@@ -38,6 +40,7 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     end if
     if type(token) <> "roAssociativeArray"
         result.error = "This stream is offline or unavailable."
+        if isVod then result.error = "This recording is unavailable or restricted."
         return result
     end if
     if not nonEmptyString(token.value) or not nonEmptyString(token.signature)
@@ -53,6 +56,7 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     if m.top.cancelRequested then return result
     if response.error <> ""
         result.error = "The stream could not be loaded. It may be offline or restricted."
+        if isVod then result.error = "This recording could not be loaded. It may be unavailable or restricted."
         return result
     end if
     variants = parsePlaybackMaster(response.body, masterUrl)

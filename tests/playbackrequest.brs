@@ -55,7 +55,16 @@ sub main()
     check(query.variables.login = "name" + q + "break", "channel passed as GraphQL variable")
     check(Instr(1, query.query, "streamPlaybackAccessToken") > 0 and Instr(1, query.query, "name") = 0, "raw query avoids hash drift and unsafe interpolation")
     query = playbackTokenPayload("", "12345", true)
-    check(query.variables.vodID = "12345" and Instr(1, query.query, "$vodID: ID!") > 0, "VOD query uses ID variable")
+    check(query.variables.vodid = "12345" and Instr(1, query.query, "$vodid: ID!") > 0, "VOD query matches native lowercase JSON variable keys")
+    check(Instr(1, FormatJson(query.variables), "vodid") > 0, "Serialized VOD variable retains the GraphQL spelling")
+    g.responses = [
+        {code:200,body:FormatJson({data:{videoPlaybackAccessToken:{value:"vod-token",signature:"vod-sig"}}}),error:""},
+        {code:200,body:"#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30" + Chr(10) + "https://cdn.example/vod.m3u8",error:""}
+    ]
+    result = requestPlayback("", "12345", true)
+    check(result.error = "" and result.url = "https://cdn.example/vod.m3u8" and not result.isLive, "Recording playback resolves without a live channel")
+    check(Instr(1,g.requests[1].uri,"/vod/12345.m3u8?") > 0, "Recording uses the VOD master endpoint")
+    resetRequests()
     g.responses = [
         {code: 200, body: FormatJson({data: {streamPlaybackAccessToken: {value: "{token with & symbols}", signature: "sig+value"}}}), error: ""},
         {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + Chr(10) + "https://cdn.example/480.m3u8", error: ""}
