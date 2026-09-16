@@ -2,6 +2,8 @@ sub init()
     m.top.focusable = true
     m.video = m.top.findNode("video")
     if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
+    m.decoderInUse = false
+    m.decoderStopPending = false
     m.compatibility = m.top.findNode("compatibility")
     m.compatibility.observeField("result", "onCompatibilityResult")
     m.compatibility.observeField("state", "onCompatibilityState")
@@ -178,9 +180,7 @@ sub onRequestedContent()
     m.playbackActive = true
     m.switching = true
     m.bufferTicks = 0
-    state = m.video.state
-    if not playerDecoderIdle(state) and state <> "stopping" then m.video.control = "stop"
-    if state = "error" then m.video.control = "stop"
+    requestDecoderStop()
 end sub
 
 sub onRequestedControl()
@@ -199,13 +199,13 @@ sub onRequestedControl()
                 m.playbackActive = true
                 showPlayerBusy()
                 m.watchdog.control = "start"
-                if state <> "stopping" then m.video.control = "stop"
+                requestDecoderStop()
             end if
         else
-            m.video.control = "play"
+            if not m.decoderStopPending and m.video.state <> "stopping" then m.video.control = "play"
         end if
     else
-        m.video.control = command
+        if not m.decoderStopPending and m.video.state <> "stopping" then m.video.control = command
     end if
 end sub
 
@@ -243,6 +243,10 @@ sub startPendingContent()
     if m.top.contentKind <> "live" then m.completedPosition = playerSeconds(nextContent.playStart)
     m.playbackActive = true
     if m.compatMode = "split" then recordPlaybackDiagnostic("compatibility-native-start")
+    ' Claim the decoder before play: native state can still describe the old load
+    ' until buffering arrives, including during a very fast Back/reopen.
+    m.decoderInUse = true
+    print "Playback decoder start request="; m.compatRequestId
     m.video.content = nextContent
     m.video.control = "play"
     if m.compatMode = "split" then recordPlaybackDiagnostic("compatibility-play-requested")
@@ -322,7 +326,17 @@ end sub
 
 sub onVideoStateChange()
     state = m.video.state
+    ' Shutdown completion must be consumed even after Back hides this component.
+    if m.decoderStopPending and state = "stopped"
+        m.decoderStopPending = false
+        m.decoderInUse = false
+        if m.pendingContent <> invalid then deferPendingPlayback()
+        m.video.content = invalid
+        print "Playback decoder stopped"
+        return
+    end if
     if not m.playbackActive or not m.top.visible then return
+    if m.decoderStopPending then return
     if m.pendingContent <> invalid
         if playerDecoderIdle(state) then startPendingContent()
         return
@@ -416,8 +430,23 @@ sub resetPlaybackAttempt()
 end sub
 
 function playerDecoderIdle(state as String) as Boolean
-    return state = "none" or state = "stopped" or state = "finished" or state = "error"
+    return not m.decoderStopPending and not m.decoderInUse and (state = "none" or state = "stopped")
 end function
+
+sub requestDecoderStop()
+    ' Back, visibility and scene cleanup can all close the same stream. Never
+    ' issue another stop while the first still owns the native media player.
+    if m.decoderStopPending then return
+    state = m.video.state
+    if playerDecoderIdle(state)
+        if m.video.content <> invalid then m.video.content = invalid
+        return
+    end if
+    m.decoderStopPending = true
+    if state = "stopping" then return
+    print "Playback decoder stop state="; state
+    m.video.control = "stop"
+end sub
 
 sub rememberPlaybackPosition()
     position = playerSeconds(m.video.position)
@@ -530,7 +559,7 @@ sub showPlaybackError(message as String)
     m.playbackActive = false
     m.switching = false
     m.watchdog.control = "stop"
-    m.video.control = "stop"
+    requestDecoderStop()
     m.top.playbackError = message
     m.statusText.text = message
     m.statusBox.visible = true
@@ -568,10 +597,9 @@ sub switchVariant(index as Integer)
     m.top.playbackError = ""
     m.watchdog.control = "start"
     ' A second load cannot start until Roku releases the underlying media player.
-    state = m.video.state
     cancelCompatibility()
     m.pendingContent = nextContent
-    if state = "error" or (not playerDecoderIdle(state) and state <> "stopping") then m.video.control = "stop"
+    requestDecoderStop()
     if playerDecoderIdle(m.video.state) then startPendingContent()
     renderQuality()
 end sub
@@ -602,7 +630,7 @@ sub stopPlayback()
             m.top.videoBookmarks = bookmarks
         end if
     end if
-    m.video.control = "stop"
+    requestDecoderStop()
 end sub
 
 sub showOverlay()
@@ -622,7 +650,7 @@ sub hideOverlay()
 end sub
 
 function canSeek() as Boolean
-    if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid or m.video.state = "stopping" then return false
+    if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid or m.decoderStopPending or m.video.state = "stopping" then return false
     return m.top.contentKind <> "live" and playerSeconds(m.video.duration) > 0
 end function
 

@@ -43,6 +43,8 @@ sub resetPlayer()
     m.video = playerNode()
     m.video.state = "buffering"
     m.video.content = {}
+    m.decoderInUse = true
+    m.decoderStopPending = false
     m.overlay = playerNode()
     m.qualityPanel = playerNode()
     m.qualityName = playerNode()
@@ -113,6 +115,8 @@ sub main()
     check(m.video.content.url = invalid and m.pendingContent.url = "https://example/new", "fast reopen does not replace content before stop")
     m.video.state = "stopped"
     onVideoStateChange()
+    check(m.video.content = invalid and m.pendingContent <> invalid, "stop callback releases old content before a deferred restart")
+    onDeferredPlaybackStart()
     check(m.video.content.url = "https://example/new" and m.video.control = "play", "reopen starts after old decoder releases")
 
     resetPlayer()
@@ -192,9 +196,11 @@ sub main()
     check(m.attemptPlayed and m.top.back <> true, "new attempt can start after a stale finished event")
     m.video.state = "finished"
     onVideoStateChange()
-    check(m.playingIndex = 2 and m.video.content.url = "https://example/480", "live finished retries inside the player")
+    check(m.playingIndex = 2 and m.pendingContent.url = "https://example/480", "live finished queues a retry inside the player")
     check(m.top.back <> true and m.playbackActive, "live completion never navigates automatically")
     for attempt = 1 to 6
+        finishDecoderStop()
+        m.video.state = "finished"
         checkPlaybackProgress()
     end for
     check(m.top.back <> true and not m.playbackActive and m.statusBox.visible, "repeated instant live finishes end in a finite visible error")
@@ -214,7 +220,9 @@ sub main()
     showQuality()
     m.qualityIndex = 3
     applyQuality()
-    check(m.pendingContent = invalid and m.video.content.url = "https://example/480" and m.video.control = "play", "terminal error can retry even when native stop emits no stopped event")
+    check(m.pendingContent.url = "https://example/480" and m.video.control = "stop", "terminal error cannot reuse the decoder before stop completes")
+    finishDecoderStop()
+    check(m.pendingContent = invalid and m.video.content.url = "https://example/480" and m.video.control = "play", "terminal error retries after the native stopped event")
     onVideoStateChange()
     check(m.playbackActive and m.top.playbackError = "", "old error state has a startup grace after retry")
 
@@ -318,6 +326,7 @@ sub main()
     check(m.pendingContent.live = true, "quality switch preserves live content metadata")
     m.video.state = "stopped"
     onVideoStateChange()
+    onDeferredPlaybackStart()
     check(m.video.content.url = "https://example/480" and m.video.control = "play", "stopped event commits pending quality")
     check(m.preference = "Auto", "automatic recovery preserves preference")
     m.video.state = "playing"
@@ -327,6 +336,7 @@ sub main()
     check(m.playingIndex = 3, "nonadvancing playing state also falls back")
     m.video.state = "stopped"
     onVideoStateChange()
+    onDeferredPlaybackStart()
     m.video.state = "error"
     onVideoStateChange()
     checkPlaybackProgress()
@@ -380,6 +390,8 @@ sub main()
         m.video.position = invalid
         m.video.state = terminalState
         onVideoStateChange()
+        check(m.pendingContent.playStart = 120, "terminal recorded fallback queues the last valid position before shutdown")
+        finishDecoderStop()
         check(m.video.content.playStart = 120 and m.completedPosition = 120, "terminal recorded fallback retains the last valid position")
         checkPlaybackProgress()
         checkPlaybackProgress()
@@ -420,7 +432,15 @@ sub main()
     showPlaybackError("Decoder failed")
     check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Decoder failed", "Errors replace the spinner with actionable text")
     testCompatibilityRouting()
+    testDecoderLifecycle()
     print "PASS player completion guards, compatibility cancellation and fallback, bandwidth, quality, remote input and VOD seek"
+end sub
+
+sub finishDecoderStop()
+    if not m.decoderStopPending then return
+    m.video.state = "stopped"
+    onVideoStateChange()
+    onDeferredPlaybackStart()
 end sub
 
 
@@ -428,6 +448,7 @@ sub prepareCompatibilityPlayer()
     resetPlayer()
     m.compatibility = {state: "init", cancelRequested: true, result: invalid}
     m.video.state = "stopped"
+    m.decoderInUse = false
     content = playerNode()
     content.url = "https://example/new.m3u8"
     content.streamFormat = "hls"
@@ -456,12 +477,12 @@ sub testCompatibilityRouting()
     m.top.contentKind = "vod"
     m.compatibility.result = {requestId: requestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
     onCompatibilityResult()
-    check(m.video.control <> "play" and m.video.content.url = invalid and m.pendingContent <> invalid, "ready observer returns without starting native playback inside the Task rendezvous")
+    check(m.video.control <> "play" and m.video.content = invalid and m.pendingContent <> invalid, "ready observer returns without starting native playback inside the Task rendezvous")
     check(m.playbackStartTimer.control = "start", "ready result schedules a separate render turn")
     checkPlaybackProgress()
     onVideoStateChange()
     onRequestedControl()
-    check(m.video.control <> "play" and m.video.content.url = invalid, "watchdog and state/control callbacks cannot bypass the deferred startup boundary")
+    check(m.video.control <> "play" and m.video.content = invalid, "watchdog and state/control callbacks cannot bypass the deferred startup boundary")
     onDeferredPlaybackStart()
     check(m.video.content.url = "http://127.0.0.1/new" and m.video.content.playStart = 120 and m.completedPosition = 120, "split route retains recorded resume position")
     check(m.top.content.url = "https://example/new.m3u8" and m.compatMode = "split", "split route leaves original source content untouched")
@@ -543,7 +564,7 @@ sub testCompatibilityRouting()
     stopPlayback()
     check(m.playbackStartTimer.control = "stop" and m.deferredRequestId = invalid, "Back cancels the deferred start before any native URL is assigned")
     onDeferredPlaybackStart()
-    check(m.video.control = "stop" and m.video.content.url = invalid, "late timer event cannot revive the exited stream")
+    check(m.video.control <> "play" and m.video.content = invalid, "late timer event cannot revive the exited stream")
 
     prepareCompatibilityPlayer()
     m.compatibility.state = "run"
@@ -560,14 +581,74 @@ sub testCompatibilityRouting()
     m.compatibility.state = "stop"
     onCompatibilityState()
     onDeferredPlaybackStart()
-    check(m.video.control = "stop" and m.statusBox.visible and m.pendingContent = invalid, "relay stopping before deferred play reports failure without loading a dead local URL")
+    check(m.video.control <> "play" and m.statusBox.visible and m.pendingContent = invalid, "relay stopping before deferred play reports failure without loading a dead local URL")
 
     resetPlayer()
     m.compatibility = {state: "init", cancelRequested: true}
     m.video.state = "stopped"
+    m.decoderInUse = false
     m.top.content = {url: "https://example/clip.mp4", streamFormat: "mp4"}
     onRequestedContent()
     m.top.control = "play"
     onRequestedControl()
     check(m.video.content.url = m.top.content.url and m.compatibility.control = invalid, "MP4 clips bypass HLS preparation")
+end sub
+
+sub testDecoderLifecycle()
+    resetPlayer()
+    m.video.state = "playing"
+    stopPlayback()
+    check(m.decoderStopPending and m.video.control = "stop", "first close requests asynchronous decoder shutdown")
+    m.video.control = "observed-stop"
+    stopPlayback()
+    m.top.visible = false
+    onVisible()
+    stopPlayback()
+    check(m.video.control = "observed-stop", "Back, visibility and scene cleanup issue only one native stop even before state changes")
+    m.video.state = "stopped"
+    onVideoStateChange()
+    check(not m.decoderStopPending and not m.decoderInUse and m.video.content = invalid, "hidden player consumes shutdown completion and releases content")
+    stopPlayback()
+    check(m.video.control = "observed-stop", "closing an already released decoder does not send another stop")
+
+    resetPlayer()
+    m.video.state = "stopped"
+    m.decoderInUse = false
+    for cycle = 1 to 20
+        m.top.visible = true
+        m.top.content = {url: "https://example/cycle-" + cycle.ToStr(), streamFormat: "mp4"}
+        onRequestedContent()
+        m.top.control = "play"
+        onRequestedControl()
+        check(m.decoderInUse and m.video.control = "play", "repeated open claims the decoder before its first buffering event")
+        ' The native state is deliberately still stopped from the previous load.
+        stopPlayback()
+        check(m.decoderStopPending and m.video.control = "stop", "Back before buffering still stops the newly requested native load")
+        m.top.visible = false
+        m.video.state = "stopping"
+        onVideoStateChange()
+        check(m.decoderStopPending, "stopping is not a release acknowledgement")
+        m.video.state = "stopped"
+        onVideoStateChange()
+        check(not m.decoderInUse and m.video.content = invalid, "each hidden completion releases the previous load")
+    end for
+
+    for each terminal in ["error", "finished"]
+        resetPlayer()
+        m.video.state = terminal
+        switchVariant(2)
+        check(m.decoderStopPending and m.pendingContent <> invalid and m.video.control = "stop", "terminal state alone cannot authorize a new decoder")
+        m.top.control = "play"
+        onRequestedControl()
+        startPendingContent()
+        check(m.video.control = "stop", "queued play cannot bypass an outstanding stop")
+        m.video.state = "stopped"
+        onVideoStateChange()
+        check(m.pendingContent <> invalid and m.video.content = invalid and m.playbackStartTimer.control = "start", "stopped callback queues playback outside native teardown")
+        startPendingContent()
+        check(m.video.control = "stop", "a second callback cannot bypass deferred native restart")
+        stopPlayback()
+        onDeferredPlaybackStart()
+        check(m.video.control = "stop" and m.video.content = invalid, "Back between shutdown and restart cancels the queued load")
+    end for
 end sub
