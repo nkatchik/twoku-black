@@ -3,6 +3,7 @@
     <interface>
         <field id="itemContent" type="node" onChange="showContent" />
         <field id="itemHasFocus" type="boolean" onChange="onItemHasFocus" />
+        <field id="focusOpacity" type="float" value="0" onChange="onItemHasFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/BrowseOfflineChannelItem.brs" />
     <children>

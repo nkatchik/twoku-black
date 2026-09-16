@@ -45,6 +45,7 @@ suites = {
     'categories': functions('GetCategories.brs', ['getSearchResults']),
     'home': (ROOT / 'components/HomeScene.brs').read_text(),
     'followingview': (ROOT / 'components/FollowingView.brs').read_text(),
+    'followingitem': (ROOT / 'components/FollowingItem.brs').read_text(),
     'sidebar': functions('FollowedStreamsBar.brs', ['updateEmptyState', 'onKeyEvent']),
     'entry': (ROOT / 'source/main.brs').read_text(),
     'videofeed': functions('GetVideos.brs', ['getSearchResults']),

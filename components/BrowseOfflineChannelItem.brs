@@ -5,8 +5,11 @@ sub init()
 end sub
 
 sub onItemHasFocus()
-    m.focusRing.visible = m.top.itemHasFocus
-    if m.top.itemHasFocus
+    opacity = m.top.focusOpacity
+    if m.top.itemHasFocus then opacity = 1.0
+    m.focusRing.opacity = opacity
+    m.focusRing.visible = opacity > 0
+    if opacity > 0
         m.itemStreamer.color = "0xFFFFFFFF"
     else
         m.itemStreamer.color = "0xDEDEE3FF"
