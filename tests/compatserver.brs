@@ -3,7 +3,13 @@
 function testCreateObject(kind, ignored = invalid, flags = invalid)
     g = getGlobalAA()
     if kind = "roByteArray" then return []
-    if kind = "roMessagePort" then return {}
+    if kind = "roMessagePort"
+        return {GetMessage: function()
+            g = getGlobalAA()
+            if not g.deliverEvents or g.events.Count() = 0 then return invalid
+            return g.events.Shift()
+        end function}
+    end if
     if kind = "roRegex" then return CreateObject(kind, ignored, flags)
     if kind = "roTimespan"
         return {at: g.now, Mark: sub()
@@ -95,8 +101,16 @@ function testWait(delay, port)
     g = getGlobalAA()
     check(delay = 50, "Each transport poll yields with a bounded cancellation interval")
     g.now += delay
-    if g.cancelAt > 0 and g.now >= g.cancelAt then g.top.cancelRequested = true
-    if g.staleAt > 0 and g.now >= g.staleAt then g.top.requestId += 1
+    if g.cancelAt > 0 and g.now >= g.cancelAt and not g.cancelDelivered
+        g.savedTop.cancelRequested = true
+        g.events.Push(testNodeEvent("cancelRequested",true))
+        g.cancelDelivered = true
+    end if
+    if g.staleAt > 0 and g.now >= g.staleAt and not g.staleDelivered
+        g.savedTop.requestId += 1
+        g.events.Push(testNodeEvent("requestId",g.savedTop.requestId))
+        g.staleDelivered = true
+    end if
     if g.injectClient and g.sockets.Count() > 0
         socket = testSocket()
         socket.input = "GET /opaque-session/resource/4 HTTP/1.1" + Chr(13)+Chr(10) + "Host: 127.0.0.1:34567" + Chr(13)+Chr(10)+Chr(13)+Chr(10)
@@ -105,6 +119,15 @@ function testWait(delay, port)
     end if
     if not g.deliverEvents or g.events.Count() = 0 then return invalid
     return g.events.Shift()
+end function
+
+function testNodeEvent(field, value)
+    return {eventType:"roSGNodeEvent",field:field,value:value,
+        GetField:function()
+            return m.field
+        end function,GetData:function()
+            return m.value
+        end function}
 end function
 
 function testType(value)
@@ -139,6 +162,7 @@ function testSocket()
         end sub, NotifyException: sub(value)
             check(not value, "Polling sockets do not accumulate notifications")
         end sub, SetAddress: function(address)
+            m.isListener = true
             check(m.assignedPort and address.value = "127.0.0.1:0", "Server binds loopback on an ephemeral port with nonblocking IO")
             return true
         end function, Listen: function(backlog)
@@ -174,6 +198,14 @@ function testSocket()
             return 0
         end function, Close: sub()
             m.closed = true
+            g = getGlobalAA()
+            if m.isListener = true
+                ' Simulate the render thread being unavailable throughout native
+                ' playback startup. Any Task field access before closing the
+                ' listener would dereference invalid and fail this test.
+                g.owner.top = g.savedTop
+                g.active = false
+            end if
         end sub}
 end function
 
@@ -182,6 +214,13 @@ sub testReset()
     g.now = 0
     g.cancelAt = 0
     g.staleAt = 0
+    g.cancelDelivered = false
+    g.staleDelivered = false
+    g.active = false
+    g.snapshots = 0
+    g.readyCount = 0
+    g.finalWrites = 0
+    g.owner = m
     g.deliverEvents = true
     g.startOk = true
     g.injectClient = false
@@ -192,7 +231,44 @@ sub testReset()
     g.responses = {}
     g.responses.SetModeCaseSensitive()
     m.top = {sourceUrl: "https://video.ttvnw.net/path/index.m3u8", requestId: 9, cancelRequested: false, variant: {width: 1920,height: 1080,frameRate: 60,bandwidth: 8000000}, result: invalid}
-    g.top = m.top
+    g.savedTop = m.top
+    m.top.observers = {}
+    m.top.ObserveField = function(field, port)
+        check(not getGlobalAA().active,"Observers are installed before local playback starts")
+        m.observers[field] = port
+        return true
+    end function
+    m.top.GetFields = function()
+        g = getGlobalAA()
+        check(not g.active,"No render-owned input snapshot occurs while serving Video")
+        check(m.observers.cancelRequested <> invalid and m.observers.requestId <> invalid,"Cancellation and request version are observed before startup input is copied")
+        g.snapshots += 1
+        return {sourceUrl:m.sourceUrl,requestId:m.requestId,cancelRequested:m.cancelRequested,variant:m.variant}
+    end function
+    m.top.UnobserveField = function(field)
+        check(not getGlobalAA().active,"Field observers are removed only after listener cleanup")
+        m.observers.Delete(field)
+        return true
+    end function
+    m.top.SetField = function(field, value)
+        g = getGlobalAA()
+        check(not g.active,"No SceneGraph result or stats writes occur during active loopback serving")
+        m[field] = value
+        ready = false
+        if field = "result" then ready = value.mode = "split" and value.url <> ""
+        if ready
+            g.active = true
+            g.readyCount += 1
+            g.owner.top = invalid
+        else
+            for each socket in g.sockets
+                check(socket.closed,"Every local socket closes before terminal SceneGraph publication")
+            end for
+            check(g.files.Count() = 0,"All temporary files are removed before terminal SceneGraph publication")
+            g.finalWrites += 1
+        end if
+        return true
+    end function
     nl = Chr(10)
     g.leaf = "#EXTM3U" + nl + "#EXT-X-TARGETDURATION:2" + nl + "#EXT-X-MEDIA-SEQUENCE:100" + nl + "#EXT-X-MAP:URI=" + Chr(34) + "init.mp4" + Chr(34) + nl + "#EXTINF:2," + nl + "one.m4s" + nl
     g.responses[m.top.sourceUrl] = {body: g.leaf, code: 200, headers: []}
@@ -348,12 +424,20 @@ sub main()
     transfers = [session.jobs[0].transfer,session.jobs[1].transfer]
     compatCleanupServer(session)
     check(transfers[0].cancelled and transfers[1].cancelled and session.listener.closed,"Cleanup cancels every active transfer and closes the listener")
-    check(g.files.Count() = 0 and session.cacheBytes = 0 and m.top.stats.clients = 0,"Cleanup removes temporary media files and cached originals")
+    check(g.files.Count() = 0 and session.cacheBytes = 0 and compatServerStats(session).clients = 0,"Cleanup removes temporary media files and cached originals")
     testReset()
     g.cancelAt = 200
     serveCompatibility()
     check(m.top.result.mode = "split" and m.top.result.requestId = 9,"Successful split session publishes the initiating request ID")
     check(g.sockets[0].closed and m.top.stats.cacheBytes = 0,"Canceling an active session returns promptly and frees its listener/cache")
+    check(g.snapshots = 1 and g.readyCount = 1 and g.finalWrites = 1 and m.top.observers.Count() = 0,"Active relay survives render-field isolation and unregisters its per-run message port")
+    ' The same Task may run again; the previous noncopyable port is never reused.
+    previousTransfers = g.transfers.Count()
+    m.top.cancelRequested = false
+    g.cancelDelivered = false
+    g.cancelAt = g.now + 200
+    serveCompatibility()
+    check(g.transfers.Count() = previousTransfers + 2 and g.readyCount = 2 and m.top.observers.Count() = 0,"A restarted Task creates fresh event observers and fetches its own session")
     testReset()
     g.cancelAt = 50
     serveCompatibility()
@@ -448,5 +532,20 @@ sub main()
     compatTickClients(session)
     check(socket.closed and session.clients.Count() = 0,"Slow header input has an absolute deadline independent of recent bytes")
     compatCleanupServer(session)
+    session = compatServerSession(m.top.sourceUrl,m.top.requestId)
+    compatHandleEvent(session,testNodeEvent("cancelRequested",true))
+    compatHandleEvent(session,testNodeEvent("cancelRequested",false))
+    check(session.cancelled,"Queued cancellation remains sticky even if a newer launch resets the field")
+    session.cancelled = false
+    compatHandleEvent(session,testNodeEvent("requestId",session.requestId+1))
+    compatHandleEvent(session,testNodeEvent("requestId",session.requestId))
+    check(session.cancelled,"A stale request stays canceled even if another event repeats its old version")
+    session.cancelled = false
+    for index = 1 to 3
+        g.events.Push(testNodeEvent("cancelRequested",false))
+    end for
+    g.events.Push(testNodeEvent("cancelRequested",true))
+    compatDrainEvents(session)
+    check(session.cancelled and g.events.Count() = 0,"Already-queued cancellation is drained before the next socket tick")
     print "PASS loopback lifecycle, coalesced CDN fetches, shared originals, sparse HTTP views, bounded queues, cancellation and direct fallback"
 end sub

@@ -6,6 +6,7 @@
         <field id="requestId" type="integer" value="0" />
         <field id="cancelRequested" type="boolean" value="false" />
         <field id="result" type="assocarray" alwaysNotify="true" />
+        <!-- Final counters are published only after the loopback service stops. -->
         <field id="stats" type="assocarray" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/PlaybackCompatibility.brs" />

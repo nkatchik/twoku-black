@@ -5,27 +5,59 @@ end sub
 ' Only this Task owns sockets, CDN requests and original fragment bytes. Nothing
 ' large crosses a SceneGraph field or is copied into a separate audio/video body.
 sub serveCompatibility()
-    session = compatServerSession(m.top.sourceUrl, m.top.requestId)
-    ready = compatPrepareServer(session, m.top.variant)
-    if not m.top.cancelRequested and m.top.requestId = session.requestId
+    ' Subscribe before copying inputs so an immediate Back/request change cannot
+    ' disappear between the initial snapshot and the first transport wait.
+    port = CreateObject("roMessagePort")
+    m.top.ObserveField("cancelRequested", port)
+    m.top.ObserveField("requestId", port)
+    inputs = m.top.GetFields()
+    session = compatServerSession(inputs.sourceUrl, inputs.requestId)
+    session.port = port
+    session.cancelled = inputs.cancelRequested
+    ready = compatPrepareServer(session, inputs.variant)
+    compatDrainEvents(session)
+    result = invalid
+    if not session.cancelled
         if ready
-            m.top.result = {requestId: session.requestId, url: session.baseUrl + "/master.m3u8", mode: "split", error: ""}
-            while not m.top.cancelRequested and m.top.requestId = session.requestId and session.error = ""
-                compatAcceptClients(session)
-                compatTickClients(session)
-                compatTickTransfers(session)
-                compatServerStats(session)
-                compatServerWait(session)
-            end while
-            if session.error <> "" and not m.top.cancelRequested and m.top.requestId = session.requestId
-                m.top.result = {requestId: session.requestId, url: "", mode: "split", error: "The stream compatibility session could not continue."}
+            compatTrace(session, "prepared-split")
+            ' The render observer must return before starting Video. Once this
+            ' rendezvous returns, the relay never touches a SceneGraph node until
+            ' all local sockets and upstream transfers have been closed.
+            m.top.SetField("result", {requestId: session.requestId, url: session.baseUrl + "/master.m3u8", mode: "split", error: ""})
+            compatTrace(session, "serving")
+            compatRunServer(session)
+            if session.error <> "" and not session.cancelled
+                result = {requestId: session.requestId, url: "", mode: "split", error: "The stream compatibility session could not continue."}
             end if
         else
-            ' Unsupported input is left to the native player, not partially rewritten.
-            m.top.result = {requestId: session.requestId, url: session.sourceUrl, mode: "direct", error: ""}
+            compatTrace(session, "direct")
+            result = {requestId: session.requestId, url: session.sourceUrl, mode: "direct", error: ""}
         end if
     end if
+    ' Cleanup must precede every terminal rendezvous: Video may be blocked on a
+    ' localhost response while the render thread is unable to serve field access.
     compatCleanupServer(session)
+    if session.cancelled
+        compatTrace(session, "cancelled")
+    else if session.error <> ""
+        compatTrace(session, "terminal-error")
+    end if
+    m.top.UnobserveField("cancelRequested")
+    m.top.UnobserveField("requestId")
+    compatDrainEvents(session)
+    if not session.cancelled and result <> invalid then m.top.SetField("result", result)
+    m.top.SetField("stats", compatServerStats(session))
+end sub
+
+sub compatRunServer(session)
+    while not session.cancelled and session.error = ""
+        compatDrainEvents(session)
+        if session.cancelled or session.error <> "" then exit while
+        compatAcceptClients(session)
+        compatTickClients(session)
+        compatTickTransfers(session)
+        compatServerWait(session)
+    end while
 end sub
 
 function compatServerSession(sourceUrl as String, requestId as Integer) as Object
@@ -38,21 +70,44 @@ function compatServerSession(sourceUrl as String, requestId as Integer) as Objec
         port: CreateObject("roMessagePort"), socketPort: CreateObject("roMessagePort"), fs: CreateObject("roFileSystem"),
         listener: invalid, clients: [], jobs: [], cache: cache, cacheBytes: 0, cacheHits: 0,
         downloads: 0, servedBytes: 0.0, files: {}, serial: 0, error: "", baseUrl: "", pathPrefix: "/" + token,
-        rawPlaylist: "", parsed: invalid, playlistExpires: 0, playlistVersion: 0, statsAt: 0,
-        registry: invalid, master: "", views: {}, viewVersion: -1, maxBytes: 12582912, maxBody: 4194304, maxInit: 524288}
+        rawPlaylist: "", parsed: invalid, playlistExpires: 0, playlistVersion: 0,
+        registry: invalid, master: "", views: {}, viewVersion: -1, cancelled: false, maxBytes: 12582912, maxBody: 4194304, maxInit: 524288}
 end function
 
 function compatServerCancelled(session) as Boolean
-    return m.top.cancelRequested or m.top.requestId <> session.requestId
+    return session.cancelled
 end function
 
 sub compatServerWait(session)
     event = wait(50, session.port)
-    if type(event) = "roUrlEvent" then compatCompleteTransfer(session, event)
+    compatHandleEvent(session, event)
+    compatDrainEvents(session)
+end sub
+
+sub compatDrainEvents(session)
+    for attempt = 1 to 64
+        event = session.port.GetMessage()
+        if event = invalid then return
+        compatHandleEvent(session, event)
+    end for
+end sub
+
+sub compatHandleEvent(session, event)
+    kind = type(event)
+    if kind = "roSGNodeEvent"
+        field = event.GetField()
+        value = event.GetData()
+        if field = "cancelRequested" and value = true then session.cancelled = true
+        if field = "requestId" and value <> session.requestId then session.cancelled = true
+    else if kind = "roUrlEvent" and not session.cancelled
+        compatCompleteTransfer(session, event)
+    end if
 end sub
 
 function compatAwaitResource(session, url as String, kind as String)
     while not compatServerCancelled(session) and session.error = ""
+        compatDrainEvents(session)
+        if session.cancelled or session.error <> "" then exit while
         resource = compatNeedResource(session, url, kind)
         if resource <> invalid then return resource
         compatTickTransfers(session)
@@ -495,13 +550,10 @@ sub compatCloseClient(session, client)
     client.cacheKey = ""
 end sub
 
-sub compatServerStats(session)
-    now = session.clock.TotalMilliseconds()
-    if now < session.statsAt then return
-    session.statsAt = now + 1000
-    m.top.stats = {downloads: session.downloads, cacheHits: session.cacheHits, cacheBytes: session.cacheBytes,
+function compatServerStats(session) as Object
+    return {downloads: session.downloads, cacheHits: session.cacheHits, cacheBytes: session.cacheBytes,
         clients: session.clients.Count(), servedBytes: session.servedBytes}
-end sub
+end function
 
 sub compatCleanupServer(session)
     for each job in session.jobs
@@ -519,8 +571,7 @@ sub compatCleanupServer(session)
     session.cache = {}
     session.cacheBytes = 0
     session.files = {}
-    session.statsAt = 0
-    compatServerStats(session)
+
 end sub
 
 ' Native GET may follow redirects before reporting response headers. This Task
@@ -637,4 +688,9 @@ sub compatPruneRegistry(registry, keep)
         registry.idmap.Delete(resource.registryKey)
         registry.resources.Delete(id)
     end for
+end sub
+
+' Fixed stage/error codes and numeric counters only; never print signed URLs.
+sub compatTrace(session, stage as String)
+    print "Playback compatibility "; stage; " request="; session.requestId; " error="; session.error; " downloads="; session.downloads; " bytes="; session.servedBytes
 end sub
