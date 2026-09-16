@@ -8,7 +8,7 @@ function onSearchTextChange()
 end function
 
 function getSearchResults() as Object
-    link = "https://api.twitch.tv/helix/streams?first=21"
+    link = "https://api.twitch.tv/helix/streams?first=24"
     if m.top.gameRequested <> ""
         link += "&game_id=" + m.top.gameRequested.EncodeUriComponent()
     end if

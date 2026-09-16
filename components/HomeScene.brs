@@ -46,6 +46,8 @@ sub init()
     m.append = false
     m.offsetCategory = 0
     m.appendCategory = false
+    m.channelsPending = false
+    m.categoriesPending = false
     m.appLaunchComplete = false
     m.currentlySelectedButton = 1
     m.currentlyFocusedButton = 1
@@ -83,7 +85,11 @@ end sub
 sub onStartupError()
     message = m.top.startupError
     if message = ""
-        showBusy()
+        if m.top.apiReady
+            showActiveSurface()
+        else
+            showBusy()
+        end if
     else
         showLoadStatus(message + " Select Channels or Games to retry.")
         finishLaunch()
@@ -203,9 +209,10 @@ sub onHomeLoad()
         return
     end if
     if m.getStreams.state = "run"
-        showBusy()
+        showActiveSurface()
         return
     end if
+    m.channelsPending = true
     showBusy()
     m.append = false
     m.getStreams.gameRequested = ""
@@ -216,6 +223,7 @@ sub onHomeLoad()
 end sub
 
 sub onSearchResultChange()
+    m.channelsPending = false
     if m.getStreams.errorMessage <> ""
         if m.browseList.visible
             showLoadStatus(m.getStreams.errorMessage + " Select Channels to retry.")
@@ -225,22 +233,20 @@ sub onSearchResultChange()
         finishLaunch()
         return
     end if
-    lastFocusedRow = 0
-    if m.browseList.rowItemFocused[0] <> invalid
-        lastFocusedRow = m.browseList.rowItemFocused[0]
-    end if
+    position = m.browseList.rowItemFocused
     if m.append = true
         content = m.browseList.content
     else if m.append = false
         content = createObject("roSGNode", "ContentNode")
     end if 
     if m.getStreams.searchResults <> invalid
-        row = createObject("RoSGNode", "ContentNode")
-        rowItem = invalid
-        alreadyAppended = false
-        cnt = 0
+        row = invalid
+        if content.getChildCount() > 0 then row = content.getChild(content.getChildCount() - 1)
         for each stream in m.getStreams.searchResults
-            alreadyAppended = false
+            if row = invalid or row.getChildCount() >= 4
+                row = createObject("RoSGNode", "ContentNode")
+                content.appendChild(row)
+            end if
             rowItem = createObject("RoSGNode", "ContentNode")
             rowItem.Title = stream.title
             rowItem.Description = stream.display_name
@@ -249,26 +255,17 @@ sub onSearchResultChange()
             rowItem.ShortDescriptionLine1 = stream.name
             rowItem.ShortDescriptionLine2 = numberToText(stream.viewers)
             row.appendChild(rowItem)
-            cnt += 1
-            if cnt <> 0 and cnt MOD 4 = 0
-                content.appendChild(row)
-                row = createObject("RoSGNode", "ContentNode")
-                alreadyAppended = true
-            end if
         end for
-        if rowItem <> invalid and cnt <> 0 and alreadyAppended = false
-            content.appendChild(row)
-        end if
     end if
+    m.browseList.content = content
     if m.browseList.visible = true
-        m.browseList.content = content
         if hasRows(m.browseList)
             showLoadStatus("")
         else
             showLoadStatus("No live channels found. Select Channels to retry.")
         end if
     end if
-    m.browseList.jumpToItem = lastFocusedRow
+    m.browseList.jumpToRowItem = position
     m.append = false
     finishLaunch()
 end sub
@@ -289,6 +286,7 @@ sub numberToText(number) as Object
 end sub
 
 sub onCategoryResultChange()
+    m.categoriesPending = false
     if m.getCategories.errorMessage <> ""
         if m.browseCategoryList.visible
             showLoadStatus(m.getCategories.errorMessage + " Select Games to retry.")
@@ -298,38 +296,27 @@ sub onCategoryResultChange()
         finishLaunch()
         return
     end if
-    lastFocusedRow = 0
-    if m.browseCategoryList.rowItemFocused[0] <> invalid
-        lastFocusedRow = m.browseCategoryList.rowItemFocused[0]
-    end if
+    position = m.browseCategoryList.rowItemFocused
     if m.appendCategory = true
         content = m.browseCategoryList.content
     else if m.appendCategory = false
         content = createObject("roSGNode", "ContentNode")
     end if 
     if m.getCategories.searchResults <> invalid
-        row = createObject("RoSGNode", "ContentNode")
-        rowItem = invalid
-        alreadyAppended = false
-        cnt = 0
+        row = invalid
+        if content.getChildCount() > 0 then row = content.getChild(content.getChildCount() - 1)
         for each stream in m.getCategories.searchResults
-            alreadyAppended = false
+            if row = invalid or row.getChildCount() >= 4
+                row = createObject("RoSGNode", "ContentNode")
+                content.appendChild(row)
+            end if
             rowItem = createObject("RoSGNode", "ContentNode")
             rowItem.Title = stream.name
             rowItem.Description = numberToText(stream.viewers)
             rowItem.ShortDescriptionLine1 = stream.id
             rowItem.HDPosterUrl = stream.logo
             row.appendChild(rowItem)
-            cnt += 1
-            if cnt <> 0 and cnt MOD 4 = 0 and content <> invalid
-                content.appendChild(row)
-                row = createObject("RoSGNode", "ContentNode")
-                alreadyAppended = true
-            end if
         end for
-        if rowItem <> invalid and alreadyAppended = false
-            content.appendChild(row)
-        end if
     end if
     m.browseCategoryList.content = content
     if m.browseCategoryList.visible
@@ -339,7 +326,7 @@ sub onCategoryResultChange()
             showLoadStatus("No categories found. Select Games to retry.")
         end if
     end if
-    m.browseCategoryList.jumpToItem = lastFocusedRow
+    m.browseCategoryList.jumpToRowItem = position
     m.appendCategory = false
     finishLaunch()
 end sub
@@ -355,9 +342,10 @@ sub onCategorySelect()
         return
     end if
     if m.getCategories.state = "run"
-        showBusy()
+        showActiveSurface()
         return
     end if
+    m.categoriesPending = true
     showBusy()
     m.appendCategory = false
     m.getCategories.pagination = ""
@@ -380,6 +368,7 @@ sub getMoreChannels()
     if m.getStreams.pagination = "" then return
     m.offset += 25
     m.append = true
+    m.channelsPending = true
     m.getStreams.gameRequested = ""
     m.getStreams.offset = m.offset.ToStr()
     m.getStreams.control = "RUN"
@@ -394,6 +383,7 @@ sub getMoreCategories()
         m.offsetCategory += 24
     end if
     m.appendCategory = true
+    m.categoriesPending = true
     m.getCategories.offset = m.offsetCategory.ToStr()
     m.getCategories.control = "RUN"
 end sub
@@ -660,10 +650,14 @@ sub showActiveSurface()
     m.followingView.visible = m.currentlySelectedButton = 2
     if m.currentlySelectedButton = 2
         updateFollowingLayout()
-    else if m.currentlySelectedButton = 1 and m.getStreams.state = "run"
+    else if m.playbackPending
         showBusy()
-    else if m.currentlySelectedButton = 0 and m.getCategories.state = "run"
+    else if m.currentlySelectedButton = 1 and m.channelsPending
         showBusy()
+    else if m.currentlySelectedButton = 0 and m.categoriesPending
+        showBusy()
+    else
+        m.busy.active = false
     end if
 end sub
 

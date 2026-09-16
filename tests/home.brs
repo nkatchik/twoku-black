@@ -80,6 +80,8 @@ sub setup()
     m.appLaunchComplete = false
     m.append = false
     m.appendCategory = false
+    m.channelsPending = false
+    m.categoriesPending = false
 end sub
 
 sub main()
@@ -128,6 +130,12 @@ sub main()
     onSearchResultChange()
     check(m.browseList.content.getChildCount() = 1 and m.browseList.content.children[0].getChildCount() = 1, "Partial browse row contains every result exactly once")
     check(not m.busy.active and not m.loadStatus.visible and m.appLaunchComplete, "Success stops spinner and completes launch")
+    m.getStreams.state = "run"
+    m.top.startupError = ""
+    onStartupError()
+    showActiveSurface()
+    check(not m.busy.active, "Late login success and feed focus cannot restart the spinner after results arrive before Task stop")
+    m.getStreams.state = "stop"
     focusActiveGrid()
     check(m.browseList.hasFocus(), "Populated browse grid receives focus")
     check(onKeyEvent("up",true) and m.browseButtons.hasFocus(), "Boundary Up returns to tabs")
@@ -215,5 +223,31 @@ sub main()
     clearAccount()
     check(m.currentlySelectedButton = 1 and not m.followingView.visible, "Logout clears account cache and returns to Channels")
     check(m.followingView.liveStreams.Count() = 0 and m.followingView.offlineChannels.Count() = 0, "Logout cannot show previous account follows")
-    print "PASS measured header, compact account, feed focus, spinner lifecycle, unified Following return, logout"
+    testFeedPacking()
+    print "PASS measured header, compact account, feed packing, spinner lifecycle, unified Following return, logout"
+end sub
+
+sub testFeedPacking()
+    setup()
+    m.getStreams.searchResults = []
+    for index = 0 to 16
+        m.getStreams.searchResults.Push({title: index.ToStr(),display_name: "A",game: "G",thumbnail: "x",name: index.ToStr(),viewers: 1})
+    end for
+    onSearchResultChange()
+    m.browseList.rowItemFocused = [4,0]
+    m.append = true
+    m.getStreams.searchResults = [{title:"next",display_name:"B",game:"G",thumbnail:"x",name:"next",viewers:1}]
+    onSearchResultChange()
+    check(m.browseList.content.getChildCount() = 5 and m.browseList.content.getChild(4).getChildCount() = 2, "A short Channels page fills the previous partial row")
+    check(m.browseList.content.getChild(4).getChild(1).Title = "next" and m.browseList.jumpToRowItem[0] = 4, "Pagination preserves card order and focused row/column")
+    m.browseList.visible = false
+    m.append = false
+    onSearchResultChange()
+    check(m.browseList.content.getChildCount() = 1, "A feed completing in another tab still caches its content")
+    m.getCategories.searchResults = [{name:"a",id:"a",logo:"x",viewers:0}]
+    onCategoryResultChange()
+    m.appendCategory = true
+    m.getCategories.searchResults = [{name:"b",id:"b",logo:"x",viewers:0}]
+    onCategoryResultChange()
+    check(m.browseCategoryList.content.getChildCount() = 1 and m.browseCategoryList.content.getChild(0).getChildCount() = 2, "Games also fills a partial row between short pages")
 end sub

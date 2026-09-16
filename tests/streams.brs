@@ -20,5 +20,6 @@ sub main()
     check(results[0].thumbnail = "https://example.invalid/320x180.jpg", "Thumbnail dimensions replaced")
     check(m.top.pagination = "&after=next", "Cursor preserved")
     check(instr(1, m.link, "game_id=123") > 0, "Category filter preserved")
+    check(instr(1, m.link, "first=24") > 0, "Shared stream feed requests complete four-column pages")
     print "PASS stream errors, empty results, direct metadata, thumbnails, pagination"
 end sub
