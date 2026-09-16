@@ -88,7 +88,9 @@ During playback, **OK** or an arrow reveals the controls. **Left/Right** moves
 between Channel, Chat (live only), and Quality. ***** opens Quality directly;
 **Up/Down** chooses a rendition, **OK** applies it, and **Back** dismisses it.
 The selected quality and live-chat preference persist. Chat is read-only, as
-in Twellie, and is disconnected while hidden.
+in Twellie, and is disconnected while hidden. The connection spinner clears when
+Twitch confirms the channel; a failed connection or handshake times out and
+retries after five seconds.
 
 **Auto** prefers the highest-resolution rendition matching the device's reported
 video output and decoder capabilities, then the highest frame rate at that
@@ -105,11 +107,15 @@ from Twitch's reported rendition height and frame rate.
 Network adaptation is separate: three successful video-segment downloads taking
 longer than their playback duration trigger a lower-bitrate choice within 80% of
 measured throughput on direct playback. Repaired fMP4 uses a local relay, so its
-native download timings are excluded from this calculation; buffering and progress
-watchdogs still apply. Auto can also try an untried lower quality after a native
+native download timings are excluded from this calculation. That path currently
+reacts to failures and stalls rather than measuring Internet throughput. Auto
+steps down after 15 seconds buffering or 20 seconds without playback advancing;
+an upstream relay download also has a 10-second deadline. Auto can also try an
+untried lower quality after a native
 error, prolonged buffering, or stalled playback. It stops retrying when eligible
 qualities are exhausted. Failed live streams retain the player controls instead
-of returning to the grid. Quality switches preserve VOD/clip
+of returning to the grid. There is currently no automatic quality increase or
+same-quality retry; manual quality remains fixed. Quality switches preserve VOD/clip
 position and pause state. Left/Right on the progress bar or the rewind/fast-forward
 keys seek by ten seconds. Play/Pause toggles recorded playback.
 

@@ -101,6 +101,19 @@ Clip checks cover slugs, actual signed MP4 qualities, query escaping, the exact
 seven-day period, cancellation, and exhausted pagination. Chat checks cover
 partial IRC lines, message floods, bounded rendering and queue lengths, hidden
 startup, cooperative cancellation, and delayed restart after a fast toggle.
+They also reproduce a native socket that remains `IsConnected=false` with status
+115 (`EINPROGRESS`) after becoming writable. Connection refusal, DNS failure,
+failed/partial/stalled sends, missing or split channel acknowledgements, handshake
+deadlines, and retry backoff are covered without sending account tokens or chat
+messages.
+
+On 2026-09-16, the supplied K806X device reproduced the stale connection flag:
+`Connect()` returned true and `IsWritable()` was true after ten seconds, while
+`IsConnected()` remained false with status 115. Using writable readiness allowed
+the anonymous IRC handshake to complete. The corrected build displayed live chat
+messages for `eliasn97` during native playback; hiding and reopening chat also
+restored messages without an endless spinner. Developer screenshots confirmed
+the chat UI, and the native player continued reporting advancing playback.
 
 The `brs` interpreter does not emulate the native decoder or SceneGraph event
 scheduler. It also has a nested-quote FormatJSON bug; request tests inspect the
