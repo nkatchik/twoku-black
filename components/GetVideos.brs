@@ -118,6 +118,8 @@ function getSearchResults() as Object
         if thumbnail = invalid then thumbnail = ""
         thumbnail = thumbnail.Replace("%{width}", "320").Replace("%{height}", "180")
         thumbnail = thumbnail.Replace("{width}", "320").Replace("{height}", "180")
+        ' Twitch serves a question-mark image while the newest archive is processing.
+        if Instr(1, thumbnail, "/_404/") > 0 then thumbnail = ""
         result.push({
             id: video.id,
             user_name: video.user_name,

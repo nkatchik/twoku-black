@@ -136,6 +136,7 @@ sub onGetVideos()
                 item.ReleaseDate = video.published_at
                 item.Rating = video.id
                 item.HDPosterUrl = video.thumbnail_url
+                item.addFields({channelAvatar: m.avatar.uri})
                 item.ShortDescriptionLine1 = m.top.streamerSelectedName
                 item.ShortDescriptionLine2 = video.viewer_count
                 m.videoItems.push(item)

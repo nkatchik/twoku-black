@@ -1,5 +1,8 @@
 sub init()
     m.itemThumbnail = m.top.findNode("itemThumbnail")
+    m.thumbnailFallback = m.top.findNode("thumbnailFallback")
+    m.fallbackAvatar = m.top.findNode("fallbackAvatar")
+    m.itemThumbnail.observeField("loadStatus", "onThumbnailState")
     m.itemTitle = m.top.findNode("itemTitle")
     m.itemStreamer = m.top.findNode("itemStreamer")
     m.itemDuration = m.top.findNode("itemDuration")
@@ -18,10 +21,19 @@ sub showContent()
     content = m.top.itemContent
     if content = invalid then return
     m.itemThumbnail.uri = content.HDPosterUrl
+    onThumbnailState()
     m.itemTitle.text = content.Title
     m.itemStreamer.text = content.Description
     m.itemDuration.text = itemCategoryText(content.Categories)
     m.itemPosted.text = content.ReleaseDate
+end sub
+
+sub onThumbnailState()
+    if m.top.itemContent = invalid then return
+    ready = m.itemThumbnail.uri <> "" and m.itemThumbnail.loadStatus = "ready"
+    m.itemThumbnail.visible = ready
+    m.thumbnailFallback.visible = not ready
+    if not ready then m.fallbackAvatar.uri = m.top.itemContent.channelAvatar
 end sub
 
 function itemCategoryText(value) as String

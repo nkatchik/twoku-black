@@ -3,6 +3,11 @@ function testCreateObject(kind, name)
     result.getChild = function(index)
         return m.children[index]
     end function
+    result.addFields = function(fields)
+        for each key in fields
+            m[key] = fields[key]
+        end for
+    end function
     return result
 end function
 
@@ -11,6 +16,7 @@ sub main()
     m.top.visible = true
     m.top.parentVisible = true
     m.busy = node()
+    m.avatar = {uri: "avatar"}
     m.channelLoading = false
     m.top.streamerSelectedName = "channel"
     m.pastBroadcastsList = node()

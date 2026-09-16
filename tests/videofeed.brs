@@ -21,6 +21,9 @@ sub main()
     getGlobalAA().response.pagination = {cursor: "a+b="}
     getSearchResults()
     check(m.top.pagination = "&after=a%2Bb%3D", "Next VOD cursor is encoded exactly once")
+    getGlobalAA().response.data[0].thumbnail_url = "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png"
+    result = getSearchResults()
+    check(result[0].thumbnail_url = "", "Processing thumbnails use channel artwork instead of Twitch question marks")
     getGlobalAA().response = invalid
     check(getSearchResults().count() = 0 and m.top.errorMessage <> "", "Failed VOD query reports failure instead of a false empty library")
     print "PASS VOD metadata, thumbnails, terminal pagination, encoded cursors, failure state"
