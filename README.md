@@ -38,6 +38,29 @@ Twoku Public (should be available for users in Mexico and Brazil): C6ZVZD (https
 5. Press Install
 6. Twoku should now be installed on your Roku. You should see it at the end of your channel list
 
+## Twitch login
+
+Select **Login** in the header, then open [twitch.tv/activate](https://www.twitch.tv/activate)
+on your phone or computer and enter the code shown on the TV. Approve access;
+the app returns to Home and loads your username and followed channels. **Back**
+cancels the attempt; **OK** requests a new code after an error or expiration.
+
+Login uses Twitch's official device-code flow, based on
+[nkatchik/smarttv-twitch](https://github.com/nkatchik/smarttv-twitch/blob/main/src/core/twitch/auth.js).
+It shares that project's registered public **Twellie** client, so Twitch's consent
+page uses that application name. The requested permissions are followed-channel
+access (`user:read:follows`) and IRC chat (`chat:read`, `chat:edit`). No password
+or client secret is entered on the TV. Access and refresh tokens stay in the Roku
+registry; validation and refresh go directly to Twitch. The retired Heroku login
+service is no longer used.
+
+The public login client ID is configured in `components/UrlFunctions.brs`.
+User tokens use that client ID for Helix; anonymous Helix and GraphQL requests
+retain their separate matching client IDs. Saved sessions are validated at launch
+and during the five-minute followed-channel refresh. `GetUser` is the sole owner
+of refresh-token rotation. Followed channels use Twitch's current
+`streams/followed` and `channels/followed` endpoints.
+
 ## Supported Features
 * Browsing live channels and categories by viewer count (press down to load more)
 * Search (with buggy auto-complete)

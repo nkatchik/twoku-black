@@ -63,6 +63,7 @@ sub init()
 
     m.getOfflineFollowed = createObject("roSGNode", "GetOfflineFollowedChannels")
     m.getOfflineFollowed.observeField("offlineFollowedUsers", "onGetOfflineFollowed")
+    m.getOfflineFollowed.observeField("state", "onOfflineStopped")
 
     m.top.observeField("visible", "onGetFocus")
     m.top.observeField("currentlyLiveStreamerIds", "onGetFollowedStreams")
@@ -450,6 +451,7 @@ sub onFollowingSelect()
         end if
         m.browseButtons.setFocus(true)
     end if
+    onFollowingError()
 end sub
 
 sub getMoreChannels()
@@ -475,22 +477,32 @@ sub getMoreCategories()
     m.getCategories.control = "RUN"
 end sub
 
+sub requestOfflineFollowing()
+    if m.top.followingError <> "" or m.top.loggedInSessionVersion <> m.global.sessionVersion then return
+    if m.getOfflineFollowed.state <> "run"
+        m.getOfflineFollowed.userId = m.top.loggedInUserId
+        m.getOfflineFollowed.sessionVersion = m.global.sessionVersion
+        m.getOfflineFollowed.currentlyLiveStreamerIds = m.top.currentlyLiveStreamerIds
+        m.getOfflineFollowed.control = "RUN"
+    end if
+end sub
+
+sub onOfflineStopped()
+    if m.getOfflineFollowed.state = "stop" and m.getOfflineFollowed.sessionVersion <> m.global.sessionVersion
+        requestOfflineFollowing()
+    end if
+end sub
+
 sub onGetFollowedStreams()
-    m.getOfflineFollowed.loginRequested = m.top.loggedInUserName
-    m.getOfflineFollowed.currentlyLiveStreamerIds = m.top.currentlyLiveStreamerIds
-    '? "currentlyLiveStreamerIds homescene " m.getOfflineFollowed.currentlyLiveStreamerIds
-    m.getOfflineFollowed.control = "RUN"
+    requestOfflineFollowing()
+    wasFocused = m.browseFollowingList.hasFocus()
 
     m.numRowsInFollowingList = 0
     lastFocusedRow = 0
     if m.browseFollowingList.rowItemFocused[0] <> invalid
         lastFocusedRow = m.browseFollowingList.rowItemFocused[0]
     end if
-    if m.append = true
-        content = m.browseFollowingList.content
-    else if m.append = false
-        content = createObject("roSGNode", "ContentNode")
-    end if 
+    content = createObject("roSGNode", "ContentNode")
     if m.top.followedStreams <> invalid
         row = createObject("RoSGNode", "ContentNode")
         rowItem = invalid
@@ -514,15 +526,16 @@ sub onGetFollowedStreams()
                 alreadyAppended = true
             end if
         end for
-        if row <> invalid and alreadyAppended = false
+        if cnt > 0 and alreadyAppended = false
             content.appendChild(row)
             m.numRowsInFollowingList += 1
         end if
     end if
     m.browseFollowingList.content = content
     m.browseFollowingList.jumpToItem = lastFocusedRow
-    m.append = false
     m.numRowsInFollowingList -= 1
+    if wasFocused and not hasRows(m.browseFollowingList) then m.browseButtons.setFocus(true)
+    if m.browseFollowingList.visible then onFollowingError()
 end sub
 
 sub onBrowseFollowing()
@@ -538,16 +551,14 @@ sub onBrowseFollowing()
 end sub
 
 sub onGetOfflineFollowed()
+    if m.getOfflineFollowed.sessionVersion <> m.global.sessionVersion then return
+    if m.getOfflineFollowed.offlineFollowedUsers = invalid then return
     m.offlineChannelList.offlineChannels = m.getOfflineFollowed.offlineFollowedUsers
     lastFocusedRow = 0
     if m.browseOfflineFollowingList.rowItemFocused[0] <> invalid
         lastFocusedRow = m.browseOfflineFollowingList.rowItemFocused[0]
     end if
-    if m.append = true
-        content = m.browseOfflineFollowingList.content
-    else if m.append = false
-        content = createObject("roSGNode", "ContentNode")
-    end if 
+    content = createObject("roSGNode", "ContentNode")
     if m.getOfflineFollowed.offlineFollowedUsers <> invalid
         row = createObject("RoSGNode", "ContentNode")
         rowItem = invalid
@@ -567,13 +578,12 @@ sub onGetOfflineFollowed()
                 alreadyAppended = true
             end if
         end for
-        if row <> invalid and alreadyAppended = false
+        if cnt > 0 and alreadyAppended = false
             content.appendChild(row)
         end if
     end if
     m.browseOfflineFollowingList.content = content
     m.browseOfflineFollowingList.jumpToItem = lastFocusedRow
-    m.append = false
 end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
@@ -872,3 +882,15 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     end if
     return handled
 end function
+
+sub onFollowingError()
+    if m.browseFollowingList.visible and m.top.followingError <> ""
+        showLoadStatus(m.top.followingError)
+    else if m.browseFollowingList.visible
+        if hasRows(m.browseFollowingList)
+            showLoadStatus("")
+        else if m.followBar.loggedIn
+            showLoadStatus("No followed live channels to show.")
+        end if
+    end if
+end sub

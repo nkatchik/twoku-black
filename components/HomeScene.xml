@@ -15,10 +15,13 @@
         <field id="categorySelected" type="string" alwaysNotify="true" />
         <field id="followedStreams" type="array" alias="followBar.followedStreams"/>
         <field id="followBarFocused" type="bool" alias="followBar.focused"/>
+        <field id="loggedInSessionVersion" type="integer" />
+        <field id="loggedInUserId" type="string" />
+        <field id="followingError" type="string" onChange="onFollowingError" />
         <field id="loggedInUserName" type="string" />
-        <field id="loggedInUserProfileImage" type="uri" onChange="onNewUser" />
+        <field id="loggedInUserProfileImage" type="uri" alwaysNotify="true" onChange="onNewUser" />
         <field id="buttonPressed" type="string" alwaysNotify="true" value="" />
-        <field id="currentlyLiveStreamerIds" type="assocarray" />
+        <field id="currentlyLiveStreamerIds" type="assocarray" alwaysNotify="true" />
         <field id="recentStreamers" type="array" alias="recentsBar.followedStreams" />
 
         <field id="lastScene" type="string" value="" />

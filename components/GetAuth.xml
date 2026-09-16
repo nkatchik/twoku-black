@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
-
 <component name="GetAuth" extends="Task">
-
     <interface>
         <field id="code" type="string" />
-        <field id="finished" type="bool" value="false" />
+        <field id="verificationUri" type="string" />
+        <field id="statusMessage" type="string" />
+        <field id="errorMessage" type="string" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="finished" type="boolean" value="false" />
     </interface>
-    
     <script type="text/brightscript" uri="pkg:/components/GetAuth.brs" />
-
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
 </component>

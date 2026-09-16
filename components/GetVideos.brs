@@ -105,24 +105,13 @@ end function
 function getSearchResults() as Object
     search_results_url = "https://api.twitch.tv/helix/videos?user_id=" + m.top.userId
 
-    url = createUrl()
-    
-    'url.SetUrl(search_results_url.EncodeUri() + m.top.gameRequested.EncodeUriComponent())
 
     if m.top.pagination <> ""
         search_results_url = search_results_url + m.top.pagination
     end if
 
-    url.SetUrl(search_results_url.EncodeUri())
-
-    response_string = url.GetToString()
-    search = ParseJson(response_string)
-
-    if search.status <> invalid and search.status = 401
-        ? "401"
-        refreshToken()
-        return getSearchResults()
-    end if
+    search = getApiJson(search_results_url.EncodeUri())
+    if search = invalid then return []
 
     result = []
     if search <> invalid and search.data <> invalid

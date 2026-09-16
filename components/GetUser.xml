@@ -3,8 +3,10 @@
 <component name="GetUser" extends="Task">
 
     <interface>
+        <field id="sessionVersion" type="integer" />
+        <field id="errorMessage" type="string" />
         <field id="loginRequested" type="string" />
-        <field id="searchResults" type="assocarray" />
+        <field id="searchResults" type="assocarray" alwaysNotify="true" />
         <field id="currentlyLiveStreamerIds" type="assocarray" />
     </interface>
     

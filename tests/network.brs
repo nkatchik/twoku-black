@@ -78,6 +78,7 @@ sub main()
     check(not url.headers.DoesExist("Authorization"), "No-token URL creation must return immediately")
     m.global.userToken = "saved"
     check(createUrl().headers.Authorization = "Bearer saved", "User credential takes precedence")
+    check(createUrl().headers["Client-ID"] = twitchClientId(), "User token uses its issuing public client ID")
     m.global.appBearerToken = "Bearer app"
     g.started = false
     result = requestText(url)
@@ -97,9 +98,20 @@ sub main()
     check(result.data.count() = 0, "Expired user token falls back to app token")
     check(m.global.userToken = "", "Rejected saved token is cleared in memory")
     check(g.transfers.peek().headers.Authorization = "Bearer app", "Retry uses app credential")
+    check(g.transfers.peek().headers["Client-ID"] = "w9msa6phhl3u8s2jyjcmshrfjczj2y", "Anonymous token keeps its original client ID")
+    check(m.global.sessionRefreshRequested, "Rejected user token requests the retained refresh task")
+    m.global.userToken = "expired"
+    g.responses = [event(401, "{}") ]
+    result = getApiJson("https://example.invalid/follows", true)
+    check(result = invalid and g.responses.count() = 0, "Protected API never retries with an app token")
     g.responses = [event(401, "{}"), event(401, "{}")]
     before = g.waits
     check(getApiJson("https://example.invalid") = invalid, "Repeated 401 terminates")
     check(g.waits - before = 2, "At most two API requests")
+    m.global.userToken = "user-secret"
+    g.responses = [event(200, "{}")]
+    metadata = GETJSON("https://api.betterttv.net/3/cached/emotes/global")
+    check(not g.transfers.peek().headers.DoesExist("Authorization"), "External emote requests cannot receive a Twitch user token")
+    check(not g.transfers.peek().headers.DoesExist("Client-ID"), "External providers receive no Twitch authentication headers")
     print "PASS failed start, timeout, HTTP errors, malformed JSON, token fallback, bounded retries"
 end sub

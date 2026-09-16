@@ -7,6 +7,11 @@ sub setup()
     m.top.visible = true
     m.top.setFocus(true)
     m.top.apiReady = false
+    m.top.followingError = ""
+    m.top.loggedInUserId = "123"
+    m.top.loggedInSessionVersion = 1
+    m.global = {sessionVersion: 1}
+    m.getOfflineFollowed = node()
     m.top.retryAuthentication = false
     m.loadStatus = node()
     m.browseButtons = node()
@@ -120,5 +125,28 @@ sub main()
     check(m.browseButtons.hasFocus(), "Returning to empty Following tab restores header focus")
     onFollowBarLogin()
     check(m.top.buttonPressed = "login" and not m.followBar.focused, "Sidebar Login routes to login page")
+    setup()
+    m.append = true
+    m.top.followedStreams = []
+    m.top.currentlyLiveStreamerIds = {}
+    onGetFollowedStreams()
+    check(not hasRows(m.browseFollowingList) and m.append, "Empty follows makes no empty row and preserves browse pagination state")
+    check(m.getOfflineFollowed.userId = "123" and m.getOfflineFollowed.control = "RUN", "Offline task receives authenticated user ID")
+    m.top.followedStreams = [{title: "Live", user_name: "Streamer", game_id: "Game", thumbnail: "image", login: "streamer", viewer_count: 10}]
+    onGetFollowedStreams()
+    onGetFollowedStreams()
+    check(m.browseFollowingList.content.getChildCount() = 1 and m.browseFollowingList.content.children[0].getChildCount() = 1, "Follow refresh replaces content without duplicates")
+    m.browseFollowingList.setFocus(true)
+    m.top.followedStreams = []
+    onGetFollowedStreams()
+    check(m.browseButtons.hasFocus(), "An emptied followed grid returns focus to the header")
+    m.getOfflineFollowed.offlineFollowedUsers = []
+    m.getOfflineFollowed.sessionVersion = 1
+    onGetOfflineFollowed()
+    check(not hasRows(m.browseOfflineFollowingList), "Empty offline follows makes no empty row")
+    m.browseFollowingList.visible = true
+    m.top.followingError = "Follow request failed"
+    onFollowingError()
+    check(m.loadStatus.text = "Follow request failed", "Follow errors are visible")
     print "PASS parent focus, empty-grid input, auth gating, retry, partial rows, error recovery, pagination"
 end sub

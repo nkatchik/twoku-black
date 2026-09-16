@@ -3,9 +3,11 @@
 <component name="GetOfflineFollowedChannels" extends="Task">
 
     <interface>
-        <field id="loginRequested" type="string" />
+        <field id="sessionVersion" type="integer" />
+        <field id="errorMessage" type="string" />
+        <field id="userId" type="string" />
         <field id="currentlyLiveStreamerIds" type="assocarray" />
-        <field id="offlineFollowedUsers" type="array" />
+        <field id="offlineFollowedUsers" type="array" alwaysNotify="true" />
     </interface>
     
     <script type="text/brightscript" uri="pkg:/components/GetOfflineFollowedChannels.brs" />

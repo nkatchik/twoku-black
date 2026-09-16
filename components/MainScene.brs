@@ -62,11 +62,14 @@ function init()
     m.getToken = createObject("roSGNode", "GetToken")
     m.getToken.observeField("state", "onTokenStateChanged")
     m.homeScene.observeField("retryAuthentication", "startAuthentication")
-    m.global.addFields({appBearerToken: "", userToken: ""})
+    m.global.addFields({appBearerToken: "", userToken: "", sessionVersion: 0})
+    m.global.addField("sessionRefreshRequested", "boolean", true)
+    m.global.observeField("sessionRefreshRequested", "onSessionRefreshRequested")
 
     m.login = ""
     m.getUser = createObject("roSGNode", "GetUser")
     m.getUser.observeField("searchResults", "onUserLogin")
+    m.getUser.observeField("state", "onUserStopped")
 
     m.testtimer = m.top.findNode("testTimer")
     m.testtimer.control = "start"
@@ -116,13 +119,7 @@ function init()
         m.global.addFields({chatOption: false})
     end if
 
-    ' userToken = checkUserToken()
-    userToken = checkRegistrySection("LoggedInUserData", "UserToken")
-    if userToken <> invalid and userToken <> ""
-        m.global.userToken = userToken
-    else
-        m.global.userToken = ""
-    end if
+    ' GetUser validates saved credentials before publishing a user token.
 
     ' videoBookmarks = checkVideoBookmarks()
     videoBookmarks = checkRegistrySection("VideoSettings", "VideoBookmarks")
@@ -160,6 +157,7 @@ function init()
     m.top.appendChild(m.options)
 
     startAuthentication()
+    refreshFollows()
 end function
 
 sub onScreenShown()
@@ -184,11 +182,12 @@ sub onLoginFinish()
         ' loggedInUser = checkIfLoggedIn()
         loggedInUser = checkRegistrySection("LoggedInUserData", "LoggedInUser")
         if loggedInUser <> invalid and loggedInUser <> ""
-            m.getUser.loginRequested = loggedInUser
-            m.getUser.control = "RUN"
             m.login = loggedInUser
         end if
         m.loginPage.visible = false
+        m.homeScene.startupError = ""
+        m.homeScene.apiReady = true
+        refreshFollows()
         m.homeScene.visible = false
         m.homeScene.visible = true
         focusHome()
@@ -207,6 +206,11 @@ sub onTokenStateChanged()
     if m.getToken.state <> "stop" then return
     token = m.getToken.appBearerToken
     if token = ""
+        if m.global.userToken <> ""
+            m.homeScene.startupError = ""
+            m.homeScene.apiReady = true
+            return
+        end if
         message = m.getToken.errorMessage
         if message = "" then message = "Could not connect to Twitch. Try again."
         print "Startup authentication failed: "; message
@@ -340,6 +344,7 @@ function onHeaderButtonPress()
         'm.top.dialog = createObject("RoSGNode", "LoginPrompt")
         'm.top.dialog.observeField("buttonSelected", "onLogin")
         m.homeScene.visible = false
+        m.global.sessionVersion += 1
         m.loginPage.visible = true
         m.loginPage.setFocus(true)
     else if m.homeScene.buttonPressed = "options"
@@ -350,16 +355,30 @@ function onHeaderButtonPress()
 end function
 
 sub onUserLogin()
+    if m.getUser.sessionVersion <> m.global.sessionVersion then return
+    m.homeScene.followingError = m.getUser.errorMessage
     if type(m.getUser.searchResults) <> "roAssociativeArray" then return
     if m.getUser.searchResults.display_name = invalid then return
+    if m.global.userToken <> ""
+        m.homeScene.startupError = ""
+        m.homeScene.apiReady = true
+    end if
+    changedUser = m.homeScene.loggedInUserId <> m.getUser.searchResults.id
+    m.homeScene.loggedInSessionVersion = m.global.sessionVersion
+    m.homeScene.loggedInUserId = m.getUser.searchResults.id
     m.homeScene.loggedInUserName = m.getUser.searchResults.display_name
     m.homeScene.loggedInUserProfileImage = m.getUser.searchResults.profile_image_url
     m.chat.loggedInUsername = m.getUser.searchResults.login
-    m.homeScene.followedStreams = m.getUser.searchResults.followed_users
-    m.homeScene.currentlyLiveStreamerIds = m.getUser.currentlyLiveStreamerIds
+    if m.getUser.errorMessage = ""
+        m.homeScene.followedStreams = m.getUser.searchResults.followed_users
+        m.homeScene.currentlyLiveStreamerIds = m.getUser.currentlyLiveStreamerIds
+    else if changedUser
+        m.homeScene.followedStreams = []
+        m.homeScene.currentlyLiveStreamerIds = {}
+    end if
     '? "currentlyLiveStreamerIds mainscene " m.getUser.currentlyLiveStreamerIds
     ' saveLogin()
-    setRegistrySection("LoggedInUserData", "LoggedInUser", m.homeScene.loggedInUserName)
+    setRegistrySection("LoggedInUserData", "LoggedInUser", m.getUser.searchResults.login)
 end sub
 
 function onCategoryItemSelectFromSearch()
@@ -431,12 +450,26 @@ function onStreamChange()
     m.videoPlayer.control = "play"
 end function
 
-function refreshFollows()
-    if m.login <> "" and m.homeScene.apiReady and m.getUser.state <> "run"
+sub refreshFollows()
+    if m.loginPage.visible then return
+    if m.login <> "" and m.getUser.state <> "run"
+        m.getUser.sessionVersion = m.global.sessionVersion
         m.getUser.loginRequested = m.login
         m.getUser.control = "RUN"
     end if
-end function
+end sub
+
+sub onSessionRefreshRequested()
+    if not m.global.sessionRefreshRequested then return
+    m.global.sessionRefreshRequested = false
+    refreshFollows()
+end sub
+
+sub onUserStopped()
+    if m.getUser.state = "stop" and m.getUser.sessionVersion <> m.global.sessionVersion
+        refreshFollows()
+    end if
+end sub
 
 function onLogin()
     m.login = m.top.dialog.text
