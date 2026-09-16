@@ -23,6 +23,7 @@ end function
 sub resetPlayer()
     m.compatibility = invalid
     m.compatRequestId = 0
+    m.playbackStartTimer = playerNode()
     cancelCompatibility()
     m.top = playerNode()
     m.top.contentKind = "live"
@@ -455,6 +456,13 @@ sub testCompatibilityRouting()
     m.top.contentKind = "vod"
     m.compatibility.result = {requestId: requestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
     onCompatibilityResult()
+    check(m.video.control <> "play" and m.video.content.url = invalid and m.pendingContent <> invalid, "ready observer returns without starting native playback inside the Task rendezvous")
+    check(m.playbackStartTimer.control = "start", "ready result schedules a separate render turn")
+    checkPlaybackProgress()
+    onVideoStateChange()
+    onRequestedControl()
+    check(m.video.control <> "play" and m.video.content.url = invalid, "watchdog and state/control callbacks cannot bypass the deferred startup boundary")
+    onDeferredPlaybackStart()
     check(m.video.content.url = "http://127.0.0.1/new" and m.video.content.playStart = 120 and m.completedPosition = 120, "split route retains recorded resume position")
     check(m.top.content.url = "https://example/new.m3u8" and m.compatMode = "split", "split route leaves original source content untouched")
     m.video.state = "playing"
@@ -470,6 +478,8 @@ sub testCompatibilityRouting()
     prepareCompatibilityPlayer()
     m.compatibility.result = {requestId: m.compatRequestId, mode: "direct", url: m.pendingContent.url, error: "unsupported-layout"}
     onCompatibilityResult()
+    check(m.video.control <> "play", "direct fallback also returns from the publishing Task before native startup")
+    onDeferredPlaybackStart()
     check(m.video.content.url = m.top.content.url and m.video.control = "play" and m.compatMode = "direct", "unsupported preparation retains direct playback without rejecting quality")
 
     prepareCompatibilityPlayer()
@@ -482,6 +492,8 @@ sub testCompatibilityRouting()
     check(m.video.control <> "play", "late old quality preparation cannot start playback")
     m.compatibility.state = "stop"
     onCompatibilityState()
+    check(not m.compatPreparing and m.playbackStartTimer.control = "start", "Task stop observer defers the next preparation to a separate turn")
+    onDeferredPlaybackStart()
     check(m.compatPreparing and not m.compatibility.cancelRequested and m.compatibility.sourceUrl = m.variants[2].url, "Task stop dispatches the latest quality exactly once")
     newId = m.compatRequestId
     onCompatibilityState()
@@ -511,6 +523,7 @@ sub testCompatibilityRouting()
         m.compatibility.state = "run"
         m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
         onCompatibilityResult()
+        onDeferredPlaybackStart()
         m.video.state = "playing"
         m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "", error: "relay failed"}
         onCompatibilityResult()
@@ -521,6 +534,33 @@ sub testCompatibilityRouting()
             check(m.pendingContent = invalid and m.statusBox.visible and m.top.playbackError <> "", "manual relay failure retains quality controls and actionable error")
         end if
     end for
+
+    prepareCompatibilityPlayer()
+    m.compatibility.state = "run"
+    m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
+    onCompatibilityResult()
+    check(m.playbackStartTimer.control = "start", "ready split start is pending")
+    stopPlayback()
+    check(m.playbackStartTimer.control = "stop" and m.deferredRequestId = invalid, "Back cancels the deferred start before any native URL is assigned")
+    onDeferredPlaybackStart()
+    check(m.video.control = "stop" and m.video.content.url = invalid, "late timer event cannot revive the exited stream")
+
+    prepareCompatibilityPlayer()
+    m.compatibility.state = "run"
+    m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "http://127.0.0.1/old", error: ""}
+    onCompatibilityResult()
+    switchVariant(2)
+    onDeferredPlaybackStart()
+    check(m.video.control <> "play" and m.pendingContent.url = m.variants[2].url, "quality change invalidates a ready-but-deferred old localhost URL")
+
+    prepareCompatibilityPlayer()
+    m.preference = "720p"
+    m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "http://127.0.0.1/dead", error: ""}
+    onCompatibilityResult()
+    m.compatibility.state = "stop"
+    onCompatibilityState()
+    onDeferredPlaybackStart()
+    check(m.video.control = "stop" and m.statusBox.visible and m.pendingContent = invalid, "relay stopping before deferred play reports failure without loading a dead local URL")
 
     resetPlayer()
     m.compatibility = {state: "init", cancelRequested: true}

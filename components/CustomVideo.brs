@@ -5,6 +5,8 @@ sub init()
     m.compatibility = m.top.findNode("compatibility")
     m.compatibility.observeField("result", "onCompatibilityResult")
     m.compatibility.observeField("state", "onCompatibilityState")
+    m.playbackStartTimer = m.top.findNode("playbackStartTimer")
+    m.playbackStartTimer.observeField("fire", "onDeferredPlaybackStart")
     m.compatRequestId = 0
     cancelCompatibility()
     m.overlay = m.top.findNode("overlay")
@@ -209,6 +211,7 @@ end sub
 
 sub startPendingContent()
     if m.pendingContent = invalid or not m.startRequested or not m.top.visible then return
+    if m.deferredRequestId <> invalid then return
     if not playerDecoderIdle(m.video.state) then return
     nextContent = m.pendingContent
     if m.compatibility <> invalid and nextContent.streamFormat = "hls" and not m.compatPrepared
@@ -233,17 +236,23 @@ sub startPendingContent()
         nextContent = nextContent.clone(false)
         nextContent.url = m.compatUrl
     end if
+    m.playbackStartTimer.control = "stop"
+    m.deferredRequestId = invalid
     m.pendingContent = invalid
     resetPlaybackAttempt()
     if m.top.contentKind <> "live" then m.completedPosition = playerSeconds(nextContent.playStart)
     m.playbackActive = true
+    if m.compatMode = "split" then recordPlaybackDiagnostic("compatibility-native-start")
     m.video.content = nextContent
     m.video.control = "play"
+    if m.compatMode = "split" then recordPlaybackDiagnostic("compatibility-play-requested")
 end sub
 
 sub cancelCompatibility()
     if m.compatRequestId = invalid then m.compatRequestId = 0
     m.compatRequestId += 1
+    m.deferredRequestId = invalid
+    if m.playbackStartTimer <> invalid then m.playbackStartTimer.control = "stop"
     m.compatPreparing = false
     m.compatPrepared = false
     m.compatTicks = 0
@@ -272,17 +281,32 @@ sub onCompatibilityResult()
         m.compatUrl = result.url
         recordPlaybackDiagnostic("compatibility-split")
     end if
-    startPendingContent()
+    deferPendingPlayback()
 end sub
 
 sub onCompatibilityState()
     if m.compatibility = invalid or not m.top.visible or not m.playbackActive then return
     if m.compatibility.state <> "stop" then return
-    if m.pendingContent <> invalid
-        startPendingContent()
-    else if m.compatMode = "split" and not m.compatibility.cancelRequested
+    if m.compatMode = "split" and not m.compatibility.cancelRequested
         recoverPlayback("compatibility-stopped")
+    else if m.pendingContent <> invalid
+        deferPendingPlayback()
     end if
+end sub
+
+sub deferPendingPlayback()
+    if m.pendingContent = invalid or not m.startRequested or not m.top.visible then return
+    ' Task field observers run inside its synchronous rendezvous. Return before
+    ' Video can request the localhost URL that the publishing Task must serve.
+    m.deferredRequestId = m.compatRequestId
+    m.playbackStartTimer.control = "start"
+end sub
+
+sub onDeferredPlaybackStart()
+    m.playbackStartTimer.control = "stop"
+    if m.deferredRequestId = invalid or m.deferredRequestId <> m.compatRequestId then return
+    m.deferredRequestId = invalid
+    startPendingContent()
 end sub
 
 sub onContentChange()
