@@ -49,6 +49,9 @@ suites = {
     'entry': (ROOT / 'source/main.brs').read_text(),
     'videofeed': functions('GetVideos.brs', ['getSearchResults']),
     'playback': (ROOT / 'components/Playback.brs').read_text(),
+    'fmp4compat': (ROOT / 'components/Fmp4Compat.brs').read_text(),
+    'compathls': (ROOT / 'components/CompatHls.brs').read_text(),
+    'compatserver': '\n\n'.join((ROOT / 'components' / name).read_text() for name in ['PlaybackCompatibility.brs', 'CompatHls.brs', 'Fmp4Compat.brs']) + '\n\n' + functions('UrlFunctions.brs', ['createHttpUrl']),
     'player': (ROOT / 'components/Playback.brs').read_text() + '\n\n' + (ROOT / 'components/CustomVideo.brs').read_text(),
     'playbackrequest': (ROOT / 'components/Playback.brs').read_text() + '\n\n' + (ROOT / 'components/PlaybackRequest.brs').read_text(),
     'clipfeed': functions('GetClips.brs', ['getStartDate', 'getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
@@ -63,9 +66,13 @@ with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
     for name, source in suites.items():
         # Replace only platform primitives unavailable in the off-device interpreter.
         source = re.sub(r'(?i)\bCreateObject\(', 'testCreateObject(', source)
-        if name in ['network', 'entry', 'auth']:
+        if name in ['network', 'entry', 'auth', 'compatserver']:
             source = re.sub(r'(?i)\bwait\(', 'testWait(', source)
             source = re.sub(r'(?i)\btype\(', 'testType(', source)
+        if name == 'compatserver':
+            # brs lacks native byte-array storage; keep all relay decisions intact.
+            source = source.replace('bytes.FromAsciiString(text)', 'testBytesFromAsciiString(bytes, text)')
+            source = source.replace('bytes.ReadFile(job.filename)', 'testReadBytes(bytes, job.filename)')
         test = (ROOT / f'tests/{name}.brs').read_text()
         path = Path(directory) / f'{name}.brs'
         support = shared

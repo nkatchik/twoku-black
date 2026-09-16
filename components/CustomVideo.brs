@@ -2,6 +2,11 @@ sub init()
     m.top.focusable = true
     m.video = m.top.findNode("video")
     if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
+    m.compatibility = m.top.findNode("compatibility")
+    m.compatibility.observeField("result", "onCompatibilityResult")
+    m.compatibility.observeField("state", "onCompatibilityState")
+    m.compatRequestId = 0
+    cancelCompatibility()
     m.overlay = m.top.findNode("overlay")
     m.qualityPanel = m.top.findNode("qualityPanel")
     m.qualityName = m.top.findNode("qualityName")
@@ -119,6 +124,7 @@ sub onChatVisibilityChange()
 end sub
 
 sub onPlaybackInfo()
+    cancelCompatibility()
     m.variants = []
     m.capabilities = invalid
     info = m.top.playbackInfo
@@ -155,6 +161,7 @@ sub onPlaybackInfo()
 end sub
 
 sub onRequestedContent()
+    cancelCompatibility()
     m.pendingContent = m.top.content
     m.startRequested = false
     if not m.top.visible
@@ -204,12 +211,78 @@ sub startPendingContent()
     if m.pendingContent = invalid or not m.startRequested or not m.top.visible then return
     if not playerDecoderIdle(m.video.state) then return
     nextContent = m.pendingContent
+    if m.compatibility <> invalid and nextContent.streamFormat = "hls" and not m.compatPrepared
+        showPlayerBusy()
+        m.watchdog.control = "start"
+        if m.compatPreparing then return
+        ' Reuse the Task only after its sockets and pending transfers have closed.
+        state = m.compatibility.state
+        if state <> "stop" and state <> "init" then return
+        m.compatRequestId += 1
+        m.compatPreparing = true
+        m.compatibility.sourceUrl = nextContent.url
+        variant = {}
+        if m.playingIndex >= 0 and m.playingIndex < m.variants.Count() then variant = m.variants[m.playingIndex]
+        m.compatibility.variant = variant
+        m.compatibility.requestId = m.compatRequestId
+        m.compatibility.cancelRequested = false
+        m.compatibility.control = "RUN"
+        return
+    end if
+    if m.compatMode = "split"
+        nextContent = nextContent.clone(false)
+        nextContent.url = m.compatUrl
+    end if
     m.pendingContent = invalid
     resetPlaybackAttempt()
     if m.top.contentKind <> "live" then m.completedPosition = playerSeconds(nextContent.playStart)
     m.playbackActive = true
     m.video.content = nextContent
     m.video.control = "play"
+end sub
+
+sub cancelCompatibility()
+    if m.compatRequestId = invalid then m.compatRequestId = 0
+    m.compatRequestId += 1
+    m.compatPreparing = false
+    m.compatPrepared = false
+    m.compatTicks = 0
+    m.compatMode = "direct"
+    m.compatUrl = ""
+    if m.compatibility <> invalid then m.compatibility.cancelRequested = true
+end sub
+
+sub onCompatibilityResult()
+    if m.compatibility = invalid or not m.top.visible or not m.playbackActive then return
+    result = m.compatibility.result
+    if type(result) <> "roAssociativeArray" then return
+    if result.requestId <> m.compatRequestId then return
+    if not m.compatPreparing
+        if m.compatMode = "split" and result.error <> invalid and result.error <> ""
+            recoverPlayback("compatibility-failed")
+        end if
+        return
+    end if
+    m.compatPreparing = false
+    m.compatPrepared = true
+    m.compatMode = "direct"
+    ' A failed or unsupported preparation always leaves the original URL playable.
+    if result.mode = "split" and result.url <> invalid and result.url <> "" and result.error = ""
+        m.compatMode = "split"
+        m.compatUrl = result.url
+        recordPlaybackDiagnostic("compatibility-split")
+    end if
+    startPendingContent()
+end sub
+
+sub onCompatibilityState()
+    if m.compatibility = invalid or not m.top.visible or not m.playbackActive then return
+    if m.compatibility.state <> "stop" then return
+    if m.pendingContent <> invalid
+        startPendingContent()
+    else if m.compatMode = "split" and not m.compatibility.cancelRequested
+        recoverPlayback("compatibility-stopped")
+    end if
 end sub
 
 sub onContentChange()
@@ -265,6 +338,13 @@ sub checkPlaybackProgress()
     if not m.top.visible or not m.playbackActive then return
     state = m.video.state
     if m.pendingContent <> invalid and playerDecoderIdle(state)
+        m.compatTicks += 1
+        if m.compatTicks >= 15 and m.compatibility <> invalid and not m.compatPrepared
+            ' Even failed Task cleanup cannot hold the UI or block a direct attempt.
+            cancelCompatibility()
+            m.compatPrepared = true
+            recordPlaybackDiagnostic("compatibility-timeout")
+        end if
         startPendingContent()
         return
     end if
@@ -362,7 +442,7 @@ end sub
 
 sub recordPlaybackDiagnostic(reason as String, measuredBps = 0)
     ' Never copy error strings or entire native AAs: they can contain signed URLs.
-    diagnostic = {reason: reason, qualityIndex: m.playingIndex, measuredBps: measuredBps}
+    diagnostic = {reason: reason, qualityIndex: m.playingIndex, measuredBps: measuredBps, delivery: m.compatMode}
     if reason = "native-error"
         diagnostic.errorCode = playerSeconds(m.video.errorCode)
         info = m.video.errorInfo
@@ -378,6 +458,8 @@ sub recordPlaybackDiagnostic(reason as String, measuredBps = 0)
 end sub
 
 sub onDownloadedSegment()
+    ' Loopback throughput measures local delivery, not the upstream connection.
+    if m.compatMode = "split" then return
     if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid then return
     if m.video.state <> "playing" and m.video.state <> "buffering" then return
     if m.playingIndex < 0 or m.playingIndex >= m.variants.Count() then return
@@ -417,6 +499,7 @@ sub onDownloadedSegment()
 end sub
 
 sub showPlaybackError(message as String)
+    cancelCompatibility()
     m.busy.active = false
     m.pendingContent = invalid
     m.startRequested = false
@@ -462,6 +545,7 @@ sub switchVariant(index as Integer)
     m.watchdog.control = "start"
     ' A second load cannot start until Roku releases the underlying media player.
     state = m.video.state
+    cancelCompatibility()
     m.pendingContent = nextContent
     if state = "error" or (not playerDecoderIdle(state) and state <> "stopping") then m.video.control = "stop"
     if playerDecoderIdle(m.video.state) then startPendingContent()
@@ -469,6 +553,7 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    cancelCompatibility()
     m.startRequested = false
     m.playbackActive = false
     m.pendingContent = invalid

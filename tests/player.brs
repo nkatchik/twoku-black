@@ -21,6 +21,9 @@ function playerNode()
 end function
 
 sub resetPlayer()
+    m.compatibility = invalid
+    m.compatRequestId = 0
+    cancelCompatibility()
     m.top = playerNode()
     m.top.contentKind = "live"
     m.top.chatEnabled = true
@@ -415,5 +418,116 @@ sub main()
     check(m.busy.active and not m.statusBox.visible, "Rebuffering shows a spinner without a text box")
     showPlaybackError("Decoder failed")
     check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Decoder failed", "Errors replace the spinner with actionable text")
-    print "PASS player completion guards, terminal retries, measured bandwidth, device quality, remote input and VOD seek"
+    testCompatibilityRouting()
+    print "PASS player completion guards, compatibility cancellation and fallback, bandwidth, quality, remote input and VOD seek"
+end sub
+
+
+sub prepareCompatibilityPlayer()
+    resetPlayer()
+    m.compatibility = {state: "init", cancelRequested: true, result: invalid}
+    m.video.state = "stopped"
+    content = playerNode()
+    content.url = "https://example/new.m3u8"
+    content.streamFormat = "hls"
+    content.live = true
+    content.playStart = 120
+    content.clone = function(deep)
+        copied = {}
+        copied.Append(m)
+        return copied
+    end function
+    m.top.content = content
+    onRequestedContent()
+    m.top.control = "play"
+    onRequestedControl()
+end sub
+
+sub testCompatibilityRouting()
+    prepareCompatibilityPlayer()
+    check(m.compatPreparing and m.compatibility.control = "RUN" and m.video.control <> "play", "HLS preparation starts asynchronously before the decoder")
+    check(m.compatibility.sourceUrl = m.pendingContent.url and m.busy.active, "preparation receives original leaf URL and shows a spinner")
+    requestId = m.compatRequestId
+    m.compatibility.state = "run"
+    m.compatibility.result = {requestId: requestId - 1, mode: "split", url: "http://127.0.0.1/old", error: ""}
+    onCompatibilityResult()
+    check(m.pendingContent <> invalid and m.video.control <> "play", "stale preparation result cannot start a newer request")
+    m.top.contentKind = "vod"
+    m.compatibility.result = {requestId: requestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
+    onCompatibilityResult()
+    check(m.video.content.url = "http://127.0.0.1/new" and m.video.content.playStart = 120 and m.completedPosition = 120, "split route retains recorded resume position")
+    check(m.top.content.url = "https://example/new.m3u8" and m.compatMode = "split", "split route leaves original source content untouched")
+    m.video.state = "playing"
+    m.video.downloadedSegment = {Status: 0, SegType: 2, SegSequence: 1, SegStart: 0, SegSize: 100, DownloadDuration: 5000, SegDuration: "2000", Height: 720}
+    onDownloadedSegment()
+    check(m.downloadSamples.Count() = 0, "local relay transfers never count as Internet throughput samples")
+    m.busy.active = true
+    check(onKeyEvent("back", true), "Back is handled while split playback is busy")
+    check(m.compatibility.cancelRequested and m.video.control = "stop" and m.top.back, "Back cancels the relay and exits without waiting for Task cleanup")
+    onCompatibilityResult()
+    check(m.video.control = "stop", "late split result cannot restart an exited player")
+
+    prepareCompatibilityPlayer()
+    m.compatibility.result = {requestId: m.compatRequestId, mode: "direct", url: m.pendingContent.url, error: "unsupported-layout"}
+    onCompatibilityResult()
+    check(m.video.content.url = m.top.content.url and m.video.control = "play" and m.compatMode = "direct", "unsupported preparation retains direct playback without rejecting quality")
+
+    prepareCompatibilityPlayer()
+    m.compatibility.state = "run"
+    oldId = m.compatRequestId
+    switchVariant(2)
+    check(m.compatibility.cancelRequested and not m.compatPreparing and m.pendingContent.url = m.variants[2].url, "quality switch cancels old preparation and waits for its cleanup")
+    m.compatibility.result = {requestId: oldId, mode: "split", url: "http://127.0.0.1/old", error: ""}
+    onCompatibilityResult()
+    check(m.video.control <> "play", "late old quality preparation cannot start playback")
+    m.compatibility.state = "stop"
+    onCompatibilityState()
+    check(m.compatPreparing and not m.compatibility.cancelRequested and m.compatibility.sourceUrl = m.variants[2].url, "Task stop dispatches the latest quality exactly once")
+    newId = m.compatRequestId
+    onCompatibilityState()
+    check(m.compatRequestId = newId, "repeated state notifications do not restart an in-flight request")
+
+    prepareCompatibilityPlayer()
+    m.compatibility.state = "run"
+    oldId = m.compatRequestId
+    for tick = 1 to 15
+        checkPlaybackProgress()
+    end for
+    check(m.compatibility.cancelRequested and m.video.control = "play" and m.video.content.url = m.top.content.url, "preparation timeout cancels relay and attempts the original quality")
+    check(m.compatRequestId <> oldId and m.compatMode = "direct", "timeout invalidates any delayed localhost result")
+
+    prepareCompatibilityPlayer()
+    m.compatibility.state = "stop"
+    onCompatibilityState()
+    check(m.compatPreparing and m.video.control <> "play", "Task stopping without a result does not repeatedly relaunch preparation")
+    for tick = 1 to 15
+        checkPlaybackProgress()
+    end for
+    check(m.video.content.url = m.top.content.url and m.video.control = "play", "missing Task result reaches bounded direct fallback")
+
+    for each preference in ["Auto", "720p"]
+        prepareCompatibilityPlayer()
+        m.preference = preference
+        m.compatibility.state = "run"
+        m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "http://127.0.0.1/new", error: ""}
+        onCompatibilityResult()
+        m.video.state = "playing"
+        m.compatibility.result = {requestId: m.compatRequestId, mode: "split", url: "", error: "relay failed"}
+        onCompatibilityResult()
+        check(m.compatibility.cancelRequested and m.video.control = "stop", "active relay failure stops both relay and native decoder")
+        if preference = "Auto"
+            check(m.playingIndex = 2 and m.pendingContent.url = m.variants[2].url, "active relay failure uses finite Auto recovery")
+        else
+            check(m.pendingContent = invalid and m.statusBox.visible and m.top.playbackError <> "", "manual relay failure retains quality controls and actionable error")
+        end if
+    end for
+
+    resetPlayer()
+    m.compatibility = {state: "init", cancelRequested: true}
+    m.video.state = "stopped"
+    m.top.content = {url: "https://example/clip.mp4", streamFormat: "mp4"}
+    onRequestedContent()
+    m.top.control = "play"
+    onRequestedControl()
+    check(m.video.content.url = m.top.content.url and m.compatibility.control = invalid, "MP4 clips bypass HLS preparation")
 end sub

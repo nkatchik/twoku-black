@@ -37,6 +37,7 @@
     <script type="text/brightscript" uri="pkg:/components/CustomVideo.brs" />
     <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
     <children>
+        <PlaybackCompatibility id="compatibility" />
         <Rectangle width="1280" height="720" color="0x000000FF" />
         <Video id="video" enableUI="false" enableTrickPlay="false" notificationInterval="1" width="1280" height="720" />
         <Group id="overlay">
