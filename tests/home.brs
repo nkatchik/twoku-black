@@ -1,5 +1,19 @@
 function testCreateObject(kind, name)
-    return node()
+    result = node()
+    result.getChild = function(index)
+        return m.children[index]
+    end function
+    return result
+end function
+
+function measuredLabel(width)
+    result = node()
+    result.measuredWidth = width
+    result.translation = [0,0]
+    result.localBoundingRect = function()
+        return {x: 0,y: -12,width: m.measuredWidth,height: 24}
+    end function
+    return result
 end function
 
 sub setup()
@@ -9,50 +23,60 @@ sub setup()
     m.top.apiReady = false
     m.top.followingError = ""
     m.top.loggedInUserId = "123"
+    m.top.loggedInUserName = ""
+    m.top.loggedInUserProfileImage = ""
     m.top.loggedInSessionVersion = 1
     m.global = {sessionVersion: 1}
-    m.getOfflineFollowed = node()
     m.top.retryAuthentication = false
     m.loadStatus = node()
+    m.busy = node()
     m.browseButtons = node()
     m.browseList = node()
     m.browseList.visible = true
     m.browseCategoryList = node()
-    m.browseFollowingList = node()
-    m.browseOfflineFollowingList = node()
-    m.offlineChannelList = node()
-    m.offlineChannelList.callFunc = function(name)
+    m.followingView = node()
+    m.followingView.hasItems = false
+    m.followingView.callFunc = function(name)
         if name = "focusContent" then m.setFocus(true)
     end function
-    m.offlineChannelsLabel = node()
-    m.followBar = node()
-    m.followBar.loggedIn = false
-    m.recentsBar = node()
+    m.followBar = {loggedIn: false,focused: false}
     m.channelPage = node()
+    m.channelPage.callFunc = function(name)
+        if name = "focusContent" then m.setFocus(true)
+    end function
     m.getStreams = node()
     m.getCategories = node()
+    m.getOfflineFollowed = node()
+    m.getStuff = node()
     m.currentlySelectedButton = 1
     m.currentlyFocusedButton = 1
-    m.actualBrowseButtons = [node(), node(), node(), node(), node(), node()]
+    m.actualBrowseButtons = [measuredLabel(58.5), measuredLabel(84.75), measuredLabel(88.25), measuredLabel(63.5), measuredLabel(46.25)]
     m.browseMain = node()
+    m.browseMain.visible = true
     m.top.appendChild(m.browseMain)
-    for each child in [m.browseButtons, m.browseList, m.browseCategoryList, m.browseFollowingList, m.browseOfflineFollowingList]
+    for each child in [m.browseButtons,m.browseList,m.browseCategoryList,m.followingView]
         m.browseMain.appendChild(child)
     end for
-    for each child in [m.followBar, m.recentsBar, m.channelPage, m.offlineChannelList]
-        m.top.appendChild(child)
-    end for
+    m.top.appendChild(m.channelPage)
     m.categoryButton = m.actualBrowseButtons[0]
     m.liveButton = m.actualBrowseButtons[1]
     m.followingButton = m.actualBrowseButtons[2]
     m.searchLabel = m.actualBrowseButtons[3]
     m.loggedUserName = m.actualBrowseButtons[4]
+    m.loggedUserGroup = node()
+    m.profileImage = node()
+    m.profileImage.uri = ""
+    m.profileCover = node()
+    m.accountBackground = node()
     m.headerCursor = node()
-    m.followingLiveLabel = node()
     m.categoryLine = node()
     m.liveLine = node()
     m.followingLine = node()
     m.playbackPending = false
+    m.playbackRequestId = 0
+    m.offlinePending = false
+    m.offlineError = ""
+    m.offlineLoaded = false
     m.appLaunchComplete = false
     m.append = false
     m.appendCategory = false
@@ -61,113 +85,120 @@ end sub
 sub main()
     setup()
     focusContent()
-    check(m.browseButtons.hasFocus(), "Parent focus routes to usable header on empty home")
-    check(onKeyEvent("down", true), "Down on empty grid is handled")
-    check(not m.browseList.hasFocus(), "Empty grid cannot take focus from header")
-    check(not m.top.hasFocus() and m.top.isInFocusChain(), "Only the leaf owns focus; Home remains its ancestor")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 0, "Right moves to Games")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 2, "Right moves to Following")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 3, "Right moves to Search")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 4, "Right moves directly to Login without Settings")
-    check(onKeyEvent("right", true) and m.currentlyFocusedButton = 4, "Login is the final header item")
-    check(onKeyEvent("OK", true) and m.top.buttonPressed = "login", "Login is reachable before content loads")
+    check(m.browseButtons.hasFocus(), "Empty Home gives focus to usable header")
+    check(onKeyEvent("down",true) and not m.browseList.hasFocus(), "Empty grid cannot steal focus")
+    check(onKeyEvent("right",true) and m.currentlyFocusedButton = 0, "Channels moves to Games")
+    check(onKeyEvent("right",true) and m.currentlyFocusedButton = 2, "Games moves to Following")
+    check(onKeyEvent("right",true) and m.currentlyFocusedButton = 3, "Following moves to Search")
+    check(onKeyEvent("right",true) and m.currentlyFocusedButton = 4, "Account follows Search without settings")
+    check(onKeyEvent("OK",true) and m.top.buttonPressed = "login", "Account click keeps the MainScene account action")
+    check(m.accountBackground.color = "0xF4F4F7FF" and not m.headerCursor.visible, "Focused account uses its chip instead of a long underline")
+    layoutHeader()
+    check(m.liveLine.width = m.liveButton.localBoundingRect().width, "Channels underline matches rendered glyph extent")
+    check(m.categoryLine.width = m.categoryButton.localBoundingRect().width, "Games underline uses its own rendered extent")
+    check(m.categoryButton.translation[0] = m.liveButton.translation[0] + m.liveButton.localBoundingRect().width + 24, "Tab spacing follows rendered width")
+    m.liveButton.measuredWidth = 61.125
+    layoutHeader()
+    check(m.liveLine.width = 61.125 and m.categoryButton.translation[0] = 95 + 61.125 + 24, "Font metrics changes update underline and neighboring position together")
+    check(m.loggedUserGroup.translation[0] + m.accountBackground.width = 1237, "Account chip remains flush with the right page edge")
+    check(m.accountBackground.width = m.loggedUserName.localBoundingRect().width + 40, "Short Login chip has only measured text and balanced padding")
+    m.profileImage.uri = "avatar"
+    m.loggedUserName.measuredWidth = 400
+    layoutAccount()
+    check(m.loggedUserName.width = 180 and m.accountBackground.width = 242, "Long account names truncate within a compact chip")
+    check((12 + m.loggedUserName.translation[0] + m.loggedUserName.width) / 2 = m.accountBackground.width / 2, "Avatar and name content midpoint equals chip midpoint")
+    check(m.profileImage.visible and m.profileCover.visible and m.loggedUserName.translation[0] = 50, "Avatar and name share one vertically centered chip")
+
     onHomeLoad()
-    check(m.getStreams.control = "", "No content task before authentication")
-    check(m.top.retryAuthentication, "Live selection requests authentication retry")
+    check(m.getStreams.control = "" and m.top.retryAuthentication, "No feed request before authentication")
     m.top.apiReady = true
     onApiReady()
-    check(m.getStreams.control = "RUN", "Authentication starts content task")
-    m.getStreams.searchResults = [{title: "A", display_name: "A", game: "G", thumbnail: "x", name: "a", viewers: 1}]
+    check(m.getStreams.control = "RUN" and m.busy.active and not m.loadStatus.visible, "Content request displays spinner without loading text")
+    m.getStreams.searchResults = [{title: "A",display_name: "A",game: "G",thumbnail: "x",name: "a",viewers: 1}]
     onSearchResultChange()
-    check(m.browseList.content.getChildCount() = 1, "Single result renders a partial row")
-    check(m.browseList.content.children[0].getChildCount() = 1, "Partial row contains no duplicated item")
-    check(not m.loadStatus.visible and m.appLaunchComplete, "Success clears loading and completes launch")
-    check(onKeyEvent("down", true), "Down enters populated grid")
-    check(m.browseList.hasFocus() and not m.browseButtons.hasFocus(), "Header gives up focus to grid")
-    check(onKeyEvent("up", true), "Up at grid boundary returns to header")
-    check(m.browseButtons.hasFocus() and not m.browseList.hasFocus(), "Grid gives up focus to header")
-    m.top.setFocus(true)
-    focusContent()
-    check(m.browseList.hasFocus(), "Returning to populated Home explicitly targets grid")
+    check(m.browseList.content.getChildCount() = 1 and m.browseList.content.children[0].getChildCount() = 1, "Partial browse row contains every result exactly once")
+    check(not m.busy.active and not m.loadStatus.visible and m.appLaunchComplete, "Success stops spinner and completes launch")
+    focusActiveGrid()
+    check(m.browseList.hasFocus(), "Populated browse grid receives focus")
+    check(onKeyEvent("up",true) and m.browseButtons.hasFocus(), "Boundary Up returns to tabs")
     m.getStreams.errorMessage = "offline"
     m.append = true
     onSearchResultChange()
-    check(m.browseList.content.getChildCount() = 1 and m.browseList.content.children[0].children[0].title = "A", "Failed pagination preserves existing content")
-    check(m.loadStatus.visible and not m.append, "Failure exposes retry and resets append")
+    check(hasRows(m.browseList) and m.loadStatus.visible and not m.busy.active, "Failed pagination keeps cards and replaces spinner with error")
     m.getStreams.errorMessage = ""
+    m.append = false
     m.getStreams.searchResults = []
     onSearchResultChange()
-    check(not hasRows(m.browseList) and m.loadStatus.visible, "Empty success has visible status")
+    check(not hasRows(m.browseList) and m.loadStatus.visible, "Empty successful response has an explicit empty state")
     m.getStreams.control = ""
     m.getStreams.pagination = ""
     getMoreChannels()
     check(m.getStreams.control = "", "Exhausted pagination makes no request")
-    m.getStreams.pagination = "&after=next"
+    m.getStreams.pagination = "next"
     m.getStreams.state = "run"
     getMoreChannels()
-    check(m.getStreams.control = "", "Repeated down cannot start concurrent request")
+    check(m.getStreams.control = "", "Scrolling cannot start concurrent requests")
 
     setup()
     m.currentlySelectedButton = 0
     m.top.apiReady = true
     onApiReady()
-    check(m.getCategories.control = "RUN", "Category chosen during auth loads when ready")
-    m.getCategories.searchResults = [{id: "1", name: "Game", logo: "x", viewers: 0}]
+    check(m.getCategories.control = "RUN" and m.busy.active, "Selected Games loads after authentication")
+    m.getCategories.searchResults = [{id: "1",name: "Game",logo: "x",viewers: 0}]
     onCategoryResultChange()
-    check(m.browseCategoryList.content.getChildCount() = 1, "Category partial row renders without stream results")
-    check(not m.loadStatus.visible, "Category success clears loading")
+    check(hasRows(m.browseCategoryList) and not m.busy.active, "Category completion stops the spinner")
     m.top.startupError = "offline"
     onStartupError()
-    check(m.loadStatus.visible and m.appLaunchComplete, "Auth failure shows error and completes launch")
-    setup()
-    focusContent()
-    m.currentlyFocusedButton = 2
-    check(onKeyEvent("OK", true), "Following tab can be selected while signed out")
-    check(m.browseButtons.hasFocus() and not m.browseFollowingList.hasFocus(), "Empty Following tab keeps header focus")
-    check(m.loadStatus.visible, "Signed-out Following tab explains the empty state")
-    check(onKeyEvent("down", true) and m.browseButtons.hasFocus(), "Down cannot enter empty Following list")
-    m.top.setFocus(true)
-    focusContent()
-    check(m.browseButtons.hasFocus(), "Returning to empty Following tab restores header focus")
-    onFollowBarLogin()
-    check(m.top.buttonPressed = "login" and not m.followBar.focused, "Sidebar Login routes to login page")
-    setup()
-    m.append = true
-    m.top.followedStreams = []
-    m.top.currentlyLiveStreamerIds = {}
-    onGetFollowedStreams()
-    check(not hasRows(m.browseFollowingList) and m.append, "Empty follows makes no empty row and preserves browse pagination state")
-    check(m.getOfflineFollowed.userId = "123" and m.getOfflineFollowed.control = "RUN", "Offline task receives authenticated user ID")
-    m.top.followedStreams = [{title: "Live", user_name: "Streamer", game_id: "Game", thumbnail: "image", login: "streamer", viewer_count: 10}]
-    onGetFollowedStreams()
-    onGetFollowedStreams()
-    check(m.browseFollowingList.content.getChildCount() = 1 and m.browseFollowingList.content.children[0].getChildCount() = 1, "Follow refresh replaces content without duplicates")
-    m.browseFollowingList.setFocus(true)
-    m.top.followedStreams = []
-    onGetFollowedStreams()
-    check(m.browseButtons.hasFocus(), "An emptied followed grid returns focus to the header")
-    m.getOfflineFollowed.offlineFollowedUsers = []
-    m.getOfflineFollowed.sessionVersion = 1
-    onGetOfflineFollowed()
-    check(not hasRows(m.browseOfflineFollowingList), "Empty offline follows makes no empty row")
-    m.browseFollowingList.visible = true
-    m.top.followingError = "Follow request failed"
-    onFollowingError()
-    check(m.loadStatus.text = "Follow request failed", "Follow errors are visible")
+    check(m.loadStatus.visible and not m.busy.active and m.appLaunchComplete, "Authentication failure has a finite error state")
+
     setup()
     m.currentlySelectedButton = 2
-    m.offlineChannelList.offlineChannels = [{login: "offline", display_name: "Offline"}]
-    m.browseFollowingList.visible = true
+    onFollowingSelect()
     focusActiveGrid()
-    check(m.offlineChannelList.hasFocus(), "Following with only offline channels remains navigable")
-    check(onKeyEvent("up", true) and m.browseButtons.hasFocus(), "Offline-only Following can return to tabs")
-    setup()
-    m.top.apiReady = true
-    m.getStreams.searchResults = []
-    for i = 1 to 5
-        m.getStreams.searchResults.Push({title: "A", display_name: "A", game: "G", thumbnail: "x", name: "a", viewers: 1})
-    end for
+    check(m.followingView.visible and m.browseButtons.hasFocus() and m.loadStatus.visible, "Signed-out Following stays navigable at the header")
+    m.followBar.loggedIn = true
+    m.top.followedStreams = []
+    m.top.currentlyLiveStreamerIds = {}
+    m.append = true
+    onGetFollowedStreams()
+    check(m.append and m.followingView.liveStreams.Count() = 0, "Follow replacement does not corrupt public pagination state")
+    check(m.offlinePending and m.getOfflineFollowed.control = "RUN" and m.busy.active, "Empty live result waits for offline follow data with spinner")
+    m.getOfflineFollowed.sessionVersion = 1
+    m.getOfflineFollowed.errorMessage = "Offline follow request failed"
+    m.getOfflineFollowed.offlineFollowedUsers = invalid
+    onGetOfflineFollowed()
+    check(not m.offlinePending and not m.busy.active and m.loadStatus.text = "Offline follow request failed", "Offline failure cannot leave spinner running or claim no follows")
+    m.getOfflineFollowed.errorMessage = ""
+    m.offlinePending = true
+    m.getOfflineFollowed.state = "stop"
+    onOfflineStopped()
+    check(not m.offlinePending and not m.busy.active and m.offlineError <> "", "Unexpected task stop ends pending state with retry guidance")
+    m.followingView.hasItems = true
+    m.followingView.offlineChannels = [{login: "offline"}]
+    m.followingView.savedSelection = [3,4]
+    m.followingView.setFocus(true)
+    m.top.streamerSelectedName = "offline"
+    m.top.streamerSelectedThumbnail = "avatar"
+    onStreamerSelected()
+    check(not m.browseMain.visible and m.followingView.visible, "Channel page hides parent without clearing Following child visibility")
+    m.channelPage.setFocus(true)
+    check(onKeyEvent("back",true), "Back closes channel page")
+    check(m.browseMain.visible and m.followingView.visible and m.followingView.hasFocus(), "Back restores the same unified Following surface and focus")
+    check(m.followingView.savedSelection[0] = 3 and m.followingView.savedSelection[1] = 4, "Channel Back leaves cached row and item unchanged")
+    m.top.visible = false
+    onGetFocus()
+    check(not m.channelPage.parentVisible and not m.busy.enabled, "Ancestor hide disables child loading animation")
+    m.top.visible = true
+    m.top.loggedInUserId = ""
+    m.top.loggedInUserName = ""
+    m.top.loggedInUserProfileImage = ""
+    m.followingView.hasItems = false
+    m.append = false
+    m.getStreams.searchResults = [{title: "A",display_name: "A",game: "G",thumbnail: "x",name: "a",viewers: 1}]
+    m.browseList.visible = true
     onSearchResultChange()
-    check(m.browseList.content.getChildCount() = 2 and m.browseList.content.children[0].children.Count() = 4, "Twellie channels use four columns with a short final row")
-    print "PASS parent focus, empty-grid input, auth gating, retry, partial rows, error recovery, pagination"
+    clearAccount()
+    check(m.currentlySelectedButton = 1 and not m.followingView.visible, "Logout clears account cache and returns to Channels")
+    check(m.followingView.liveStreams.Count() = 0 and m.followingView.offlineChannels.Count() = 0, "Logout cannot show previous account follows")
+    print "PASS measured header, compact account, feed focus, spinner lifecycle, unified Following return, logout"
 end sub

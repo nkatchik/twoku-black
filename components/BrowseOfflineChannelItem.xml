@@ -6,11 +6,10 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/BrowseOfflineChannelItem.brs" />
     <children>
+        <Rectangle translation="[47,0]" width="96" height="96" color="0x18181BFF" />
+        <Poster id="itemThumbnail" translation="[47,0]" width="96" height="96" loadWidth="96" loadHeight="96" loadDisplayMode="scaleToFill" />
+        <Poster translation="[47,0]" width="96" height="96" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x08080AFF" />
         <Poster id="focusRing" translation="[41,-6]" width="108" height="108" uri="pkg:/images/twellie-avatar-focus.png" visible="false" />
-        <MaskGroup id="avatarMask" translation="[47,0]" maskUri="pkg:/images/twellie-avatar-mask.png" maskSize="[96,96]">
-            <Rectangle width="96" height="96" color="0x18181BFF" />
-            <Poster id="itemThumbnail" width="96" height="96" loadWidth="96" loadHeight="96" loadDisplayMode="scaleToFill" />
-        </MaskGroup>
         <Label id="itemStreamer" translation="[0,106]" width="190" height="28" color="0xDEDEE3FF" horizAlign="center"><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" /></Label>
     </children>
 </component>

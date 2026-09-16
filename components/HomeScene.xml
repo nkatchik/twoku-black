@@ -2,6 +2,7 @@
 <component name="HomeScene" extends="Group">
     <interface>
         <function name="focusContent" />
+        <function name="clearAccount" />
         <field id="apiReady" type="boolean" value="false" onChange="onApiReady" />
         <field id="startupError" type="string" alwaysNotify="true" onChange="onStartupError" />
         <field id="retryAuthentication" type="boolean" alwaysNotify="true" />
@@ -25,7 +26,7 @@
         <field id="loggedInSessionVersion" type="integer" />
         <field id="loggedInUserId" type="string" />
         <field id="followingError" type="string" onChange="onFollowingError" />
-        <field id="loggedInUserName" type="string" />
+        <field id="loggedInUserName" type="string" onChange="onNewUser" />
         <field id="loggedInUserProfileImage" type="uri" alwaysNotify="true" onChange="onNewUser" />
         <field id="buttonPressed" type="string" alwaysNotify="true" value="" />
         <field id="currentlyLiveStreamerIds" type="assocarray" alwaysNotify="true" />
@@ -46,27 +47,23 @@
         <Rectangle width="1280" height="720" color="0x08080AFF" />
         <Group id="browseMain">
             <Group id="browseButtons" focusable="true">
-                <Poster translation="[43,43]" uri="pkg:/images/twellie-logo.png" width="36" height="36" loadWidth="72" loadHeight="72" loadDisplayMode="scaleToFit" />
-                <SimpleLabel id="liveButton" translation="[95,45]" text="Channels" color="0xF4F4F7FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf">
-                    <Rectangle id="liveLine" translation="[0,30]" width="93" height="3" color="0xF4F4F788" />
-                </SimpleLabel>
-                <SimpleLabel id="categoryButton" translation="[212,45]" text="Games" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf">
-                    <Rectangle id="categoryLine" translation="[0,30]" width="69" height="3" color="0xF4F4F788" visible="false" />
-                </SimpleLabel>
-                <SimpleLabel id="followingButton" translation="[305,45]" text="Following" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf">
-                    <Rectangle id="followingLine" translation="[0,30]" width="95" height="3" color="0xF4F4F788" visible="false" />
-                </SimpleLabel>
-                <SimpleLabel id="searchLabel" translation="[424,45]" text="Search" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
-                <Group id="loggedUserGroup" translation="[1027,39]">
-                    <Rectangle id="accountBackground" width="210" height="42" color="0x222228FF" />
-                    <MaskGroup id="profileImageMask" maskuri="pkg:/images/profile-mask.png" masksize="[30,30]" translation="[8,6]">
-                        <Poster id="profileImage" width="30" height="30" />
-                    </MaskGroup>
-                    <Label id="loggedUserName" translation="[12,7]" width="184" height="28" text="Login" color="0xEFEFF1FF">
+                <Poster translation="[43,43]" uri="pkg:/images/twellie-logo.png" width="36" height="36" loadDisplayMode="scaleToFit" />
+                <SimpleLabel id="liveButton" translation="[95,61]" text="Channels" vertOrigin="center" color="0xF4F4F7FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+                <SimpleLabel id="categoryButton" text="Games" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+                <SimpleLabel id="followingButton" text="Following" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+                <SimpleLabel id="searchLabel" text="Search" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+                <Rectangle id="liveLine" height="3" color="0xF4F4F788" />
+                <Rectangle id="categoryLine" height="3" color="0xF4F4F788" visible="false" />
+                <Rectangle id="followingLine" height="3" color="0xF4F4F788" visible="false" />
+                <Group id="loggedUserGroup" translation="[1120,43]">
+                    <Rectangle id="accountBackground" width="117" height="36" color="0x323239FF" />
+                    <Poster id="profileImage" translation="[12,4]" width="28" height="28" loadDisplayMode="scaleToFill" visible="false" />
+                    <Poster id="profileCover" translation="[12,4]" width="28" height="28" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x323239FF" visible="false" />
+                    <Label id="loggedUserName" translation="[20,0]" height="36" text="Login" color="0xEFEFF1FF" vertAlign="center">
                         <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
                     </Label>
                 </Group>
-                <Rectangle id="headerCursor" translation="[95,75]" width="93" height="3" color="0xF4F4F7FF" visible="false" />
+                <Rectangle id="headerCursor" height="3" color="0xF4F4F7FF" visible="false" />
             </Group>
             <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[40,120]"
                 numRows="3" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1200,247]"
@@ -74,16 +71,9 @@
             <RowList id="browseCategoryList" itemComponentName="BrowseCategoryItem" translation="[40,123]"
                 numRows="2" rowItemSize="[[284,380]]" rowItemSpacing="[[20,0]]" itemSize="[1200,430]"
                 focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
-            <RowList id="browseFollowingList" itemComponentName="BrowseChannelItem" translation="[40,156]"
-                numRows="3" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1200,247]"
-                focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
-            <SimpleLabel id="followingLiveLabel" translation="[43,120]" text="Live channels" fontSize="20" color="0xEFEFF1FF" visible="false" fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
-            <SimpleLabel id="offlineChannelsLabel" translation="[43,439]" text="Offline channels" fontSize="20" color="0xEFEFF1FF" visible="false" fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
-            <RowList id="browseOfflineFollowingList" visible="false" itemComponentName="BrowseOfflineChannelItem" translation="[40,480]"
-                numRows="2" rowItemSize="[[190,160]]" rowItemSpacing="[[10,0]]" itemSize="[1200,190]"
-                focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
-            <OfflineChannelList id="offlineChannelList" visible="false" translation="[40,480]" />
-            <Label id="loadStatus" translation="[43,300]" width="1194" height="120" wrap="true" horizAlign="center" vertAlign="center" color="0xA9A9B2FF" text="Connecting to Twitch...">
+            <FollowingView id="followingView" translation="[40,114]" visible="false" />
+            <LoadingIndicator id="busy" translation="[612,332]" size="56" />
+            <Label id="loadStatus" translation="[43,300]" width="1194" height="120" wrap="true" horizAlign="center" vertAlign="center" color="0xA9A9B2FF" visible="false">
                 <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="26" />
             </Label>
         </Group>

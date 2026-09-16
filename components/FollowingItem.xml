@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FollowingItem" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="showContent" />
+        <field id="itemHasFocus" type="boolean" onChange="onItemFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/FollowingItem.brs" />
+    <children>
+        <BrowseChannelItem id="live" visible="false" />
+        <BrowseOfflineChannelItem id="offline" visible="false" />
+        <Poster id="liveFocus" uri="pkg:/images/twellie-focus.9.png" width="300" height="172" translation="[-4,-4]" visible="false" />
+    </children>
+</component>

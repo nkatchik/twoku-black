@@ -2,9 +2,6 @@ sub init()
     m.itemThumbnail = m.top.findNode("itemThumbnail")
     m.itemStreamer = m.top.findNode("itemStreamer")
     m.focusRing = m.top.findNode("focusRing")
-    if CreateObject("roDeviceInfo").GetUIResolution().width = 1920
-        m.top.findNode("avatarMask").maskSize = [144, 144]
-    end if
 end sub
 
 sub onItemHasFocus()
