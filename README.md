@@ -46,6 +46,9 @@ Twitch's activation page with the code already filled in. You can also open
 The QR image is generated locally on the Roku. Approve access;
 the app returns to Home and loads your username and followed channels. **Back**
 cancels the attempt; **OK** requests a new code after an error or expiration.
+Once signed in, the account chip opens your account view with **Log out**.
+Viewing the account keeps the current session; logging out clears saved
+credentials and followed channels, then returns to Channels.
 
 Login uses Twitch's official device-code flow, based on
 [nkatchik/smarttv-twitch](https://github.com/nkatchik/smarttv-twitch/blob/main/src/core/twitch/auth.js).
@@ -75,7 +78,11 @@ license is included as `images/twellie-logo-LICENSE.txt`.
 
 Use **Up** from the first grid row to reach the tabs and **Down** to return.
 **OK** on a live channel opens it immediately. ***** on a channel card opens
-its channel page and past broadcasts. Following also includes offline channels.
+its channel page and past broadcasts, with the channel's follower count.
+Following combines live channels and offline profiles in one scrolling list;
+**Back** from a profile returns to the same followed channel. Games requests
+285×380 covers to match the displayed cards. Pending requests use native Roku
+spinners; errors and empty results retain text.
 
 During playback, **OK** or an arrow reveals the controls. **Left/Right** moves
 between Channel, Chat (live only), and Quality. ***** opens Quality directly;

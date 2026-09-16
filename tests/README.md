@@ -8,7 +8,7 @@ python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 ```
 
-The twenty-six suites execute production BrightScript functions. Transport, task fields,
+The suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
 finite request waits, failed async starts, invalid token/JSON responses, a maximum
@@ -56,7 +56,11 @@ On Roxton, the user confirmed that `e98d79c` loads content and exits to Roku Hom
 instantly, but remote navigation remained broken. The user subsequently confirmed that the focus and sidebar build (`2310fc8`)
 restored remote navigation. Their login photo showed an HTML error document in
 the code label; the retired Heroku register endpoint returned HTTP 404, "No such
-app". Login changes still require approval and follow-list verification on Roxton.
+app". The user subsequently reported a signed-in profile chip and populated
+Following content on Roxton. The first Twellie UI build (`ae58e87`) exposed
+misaligned tabs, oversized account controls, square offline avatars, and missing
+live rows after returning from a channel page. These are device observations;
+token refresh, playback, and the revised layout still need their own verification.
 
 1. Sideload the updated ZIP and launch with no saved login. Confirm the header
    responds immediately and content appears. Press Down to enter the grid.
@@ -129,3 +133,29 @@ Device acceptance for this build:
 
 TV rendering, actual codec support, uninterrupted playback, and remote latency
 remain device acceptance checks, not claims established by these doubles.
+
+## Account and Following corrections
+
+The additional regressions cover signed-in account display without starting a
+new device grant, local logout with stale-session rejection, public follower
+counts (including zero and unavailable data), native spinner lifecycle, measured
+header geometry, and one combined Following list. Following checks include mixed
+four-column live and six-column offline rows, partial rows, duplicate exclusion,
+focus preservation across refresh, and returning from a channel page.
+
+On Roxton, verify that tab text is vertically centered and both underlines end
+with their labels. Check short and long account names: the chip should fit its
+contents and center the avatar/name together. Open the chip while signed in,
+press Back, and confirm the account and Following remain intact. Use Log out to
+clear the account, then sign in again.
+
+Scroll from live streams through all offline profiles as one surface. Confirm
+avatars are circular and their focus ring stays in front. Open both a live
+channel's profile with `*` and an offline profile with OK, then press Back and
+check that the same item remains selected with live rows still present. Repeat
+while a followed-channel refresh is in progress and with no live follows.
+
+While browsing, searching, opening a profile, signing in, or starting playback,
+only a spinner should indicate pending work. Completion, failure, cancellation,
+and leaving a screen must stop its visible spinner. Game covers now request
+285×380 pixels instead of enlarging 136×190 thumbnails.
