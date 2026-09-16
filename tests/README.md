@@ -127,9 +127,9 @@ The UI follow-up on 2026-09-16 covers a late login refresh after Channels has
 loaded, results arriving before Task stop, short pages filling existing rows,
 background feed completion, and Following focus during both animation axes.
 Stream pages now request 24 items, while packing handles any returned count.
-Native screenshots confirmed that logged-in startup no longer leaves a spinner,
-and that offline Following rings remain complete and crossfade during movement.
-Focus artwork stays inside item bounds so the native row clip cannot trim it.
+Initial native screenshots confirmed that logged-in startup no longer leaves a
+spinner and offline Following rings remain complete. The later refinement below
+replaces that build's crossfade with a single moving cursor.
 
 VOD token variables use lowercase `vodid` in both the query and serialized map.
 Native BrightScript lowercases associative-array literal keys, unlike the test
@@ -145,6 +145,40 @@ side edges of its rail, retaining its bottom gap. Empty status text uses a
 centered label spanning the chat body; no empty-chat native screenshot was taken.
 The final build passes all 34 deterministic suites (plus the rerun of the final
 focus guard); compilation retains the same twenty legacy WebSocket diagnostics.
+
+The subsequent UI refinement on 2026-09-16 uses one fully opaque Following cursor
+above the RowList. Horizontal position follows native `currFocusColumn`; vertical
+movement hides it until the destination row settles. Native screenshots show one
+circle between adjacent avatars during horizontal movement, a centered complete
+ring after settling, and no intermediate vertical ring. No followed live channels
+were available during this check; mixed-row rectangle geometry and cursor state
+were covered by the deterministic suite.
+
+Player screenshots confirmed 24 pixels of top padding, aligned 96-pixel artwork,
+and a uniform two-pixel quality-panel outline. Twitch's public metadata returned
+`/_404/404_processing_...` for a newest recording. The device showed channel artwork
+for that processing card while retaining real thumbnails on older recordings.
+Failed image loads use the same fallback. The account avatar has no opacity
+reduction in its render chain, and the inspected source image itself was opaque
+RGB with pale, pixelated artwork.
+
+Seek regressions cover the IR initial-repeat gap, accumulation across stale
+position notifications, only one outstanding native seek, release debounce,
+queued direction changes, decoder-stop guards, and pause intent surviving late
+playing events. `seekMode=accurate` requests native precision where supported.
+On this device, `autoplayAfterSeek=false` left some paused seeks buffering; the
+final code lets native buffering finish and restores pause after position
+acknowledgment, including a playing event that arrives after that acknowledgment.
+It re-arms an unchanged pause command through `control=none` before `pause`.
+
+The final native remote-API test started paused at 4.099 seconds. Ten forward
+presses (with a 500 ms initial gap, then 80 ms repeat gaps) settled paused at
+104.000 seconds. Four backward presses settled paused at 64.000 seconds; explicit
+resume returned to playing at 65.017 seconds. Every sampled player result had
+`error=false`. This verifies real decoder behavior with synthetic remote input,
+not the physical IR handset's delivery timing. All 34 suites passed, with the
+final pause-ordering additions rerun in the player suite; compilation retains
+the same twenty pre-existing diagnostics in the unused WebSocket implementation.
 
 On 2026-09-16, the exact production live query and Twitch master returned HTTP
 200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
