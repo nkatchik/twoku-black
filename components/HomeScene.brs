@@ -64,7 +64,6 @@ sub init()
     m.getOfflineFollowed.observeField("offlineFollowedUsers", "onGetOfflineFollowed")
 
     m.top.observeField("visible", "onGetFocus")
-    m.top.observeField("focusedChild", "onHomeFocusChanged")
     m.top.observeField("currentlyLiveStreamerIds", "onGetFollowedStreams")
     m.top.observeField("streamerSelectedName", "onStreamerSelected")
 
@@ -93,12 +92,14 @@ sub init()
     m.browseCategoryList.visible = false
     m.browseFollowingList.visible = false
     m.browseOfflineFollowingList.visible = false
-    m.browseButtons.setFocus(true)
 end sub
 
-sub onHomeFocusChanged()
-    ' MainScene focuses this Group at launch and when returning from other pages.
-    if m.top.hasFocus() then onGetFocus()
+sub focusContent()
+    ' Called explicitly by MainScene; do not depend on nested focus observers.
+    onGetFocus()
+    if m.top.visible and not m.top.isInFocusChain()
+        print "Home focus failed: no control in the focus chain"
+    end if
 end sub
 
 function hasRows(list as Object) as Boolean
@@ -555,7 +556,7 @@ sub onGetOfflineFollowed()
     m.append = false
 end sub
 
-sub onKeyEvent(key, press) as Boolean
+function onKeyEvent(key as String, press as Boolean) as Boolean
     handled = false
     if m.top.visible = true and press
         if (m.browseList.hasFocus() = true or m.browseCategoryList.hasFocus() = true or m.browseFollowingList.hasFocus() = true) and key = "up"
@@ -841,4 +842,4 @@ sub onKeyEvent(key, press) as Boolean
         ? "focus: something else"
     end if
     return handled
-end sub
+end function

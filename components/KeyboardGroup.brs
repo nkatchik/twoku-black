@@ -38,8 +38,12 @@ function init()
     m.keyboard.setFocus(true)
 end function
 
+sub focusContent()
+    if m.top.visible then m.keyboard.setFocus(true)
+end sub
+
 function onGetFocus()
-    m.keyboard.setFocus(true)
+    focusContent()
 end function
 
 function onSearchItemSelect()
@@ -173,4 +177,3 @@ function onKeyEvent(key, press) as Boolean
 
     return handled
 end function
-

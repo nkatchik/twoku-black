@@ -3,6 +3,7 @@
 <component name="HomeScene" extends="Group">
 
     <interface>
+        <function name="focusContent" />
         <field id="apiReady" type="boolean" value="false" onChange="onApiReady" />
         <field id="startupError" type="string" alwaysNotify="true" onChange="onStartupError" />
         <field id="retryAuthentication" type="boolean" alwaysNotify="true" />
@@ -38,7 +39,7 @@
             font="font:SmallSystemFont" wrap="true"
             text="Connecting to Twitch..." color="0xEFEFF1FF" />
         <Group id="browseMain" translation="[0,0]">
-            <Group id="browseButtons">
+            <Group id="browseButtons" focusable="true">
                 <Rectangle
                     visible="true"
                     id="headerRect"

@@ -8,12 +8,14 @@ python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 ```
 
-The six suites execute production BrightScript functions. Transport, task fields,
+The seven suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
 finite request waits, failed async starts, invalid token/JSON responses, a maximum
 of one authentication retry, anonymous startup, parent focus routing, empty grids,
-partial content rows, and failed or exhausted pagination. They do not validate
+partial content rows, and failed or exhausted pagination. Focus doubles enforce
+one active target and walk the parent chain. Navigation checks cover the route to
+Login, moving between header and grid, and restoring focus after screen display. They do not validate
 Roku scheduling, rendering, remote input delivery, or playback.
 
 At baseline commit `61afe43`, BrighterScript 0.73.5 reports 21 existing errors in

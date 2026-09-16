@@ -1,6 +1,22 @@
 sub main()
+    m.top = {screenShown: false}
     m.getToken = node()
     m.homeScene = node()
+    m.homeScene.callFunc = sub(name)
+        check(name = "focusContent", "Home receives explicit focus request")
+        m.focusRequested = true
+    end sub
+    m.homeScene.focusRequested = false
+    m.homeScene.visible = true
+    onScreenShown()
+    check(not m.homeScene.focusRequested, "No focus handoff before the screen is shown")
+    m.top.screenShown = true
+    onScreenShown()
+    check(m.homeScene.focusRequested, "Shown screen explicitly focuses Home content")
+    m.homeScene.visible = false
+    m.homeScene.focusRequested = false
+    focusHome()
+    check(not m.homeScene.focusRequested, "Hidden Home cannot steal focus")
     m.getUser = node()
     m.global = {appBearerToken: ""}
     m.login = ""

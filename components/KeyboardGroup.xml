@@ -3,6 +3,7 @@
 <component name="KeyboardGroup" extends="Group" initialFocus="keyboard">
 
     <interface>
+        <function name="focusContent" />
         <field id="streamUrl" type="uri" />
         <field id="streamerSelectedName" type="string" alwaysNotify="true" />
 
@@ -15,7 +16,7 @@
 
     <children>
 
-        <Group id="browseButtons">
+        <Group id="browseButtons" focusable="true">
             <SimpleLabel
                 id="liveButton"
                 translation="[400,50]"

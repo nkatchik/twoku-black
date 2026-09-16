@@ -1,4 +1,5 @@
 sub init()
+    m.top.focusable = true
     m.code = m.top.findNode("code")
     m.top.observeField("visible", "onVisible")
     m.getAuth = createObject("RoSGNode", "GetAuth")

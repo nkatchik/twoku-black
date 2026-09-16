@@ -1,4 +1,5 @@
 sub init()
+    m.top.focusable = true
     m.currentVideoQuality = m.top.findNode("currentVideoQuality")
     m.videoQualityDropdown = m.top.findNode("videoQualityDropdown")
     m.videoQualitySelectRect = m.top.findNode("videoQualitySelectRect")

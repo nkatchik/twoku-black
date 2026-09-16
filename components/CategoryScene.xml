@@ -3,6 +3,7 @@
 <component name="CategoryScene" extends="Group">
 
     <interface>
+        <function name="focusContent" />
         <field id="currentCategory" type="string" alwaysNotify="true" onChange="onCategoryChange" />
         <field id="browseList" type="node" alias="browseList" />
         <field id="streamUrl" type="uri" />
@@ -18,7 +19,7 @@
 
     <children>
 
-        <Group id="browseButtons">
+        <Group id="browseButtons" focusable="true">
             <SimpleLabel
                 id="liveButton"
                 translation="[400,60]"

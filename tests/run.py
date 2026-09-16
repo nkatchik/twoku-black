@@ -30,14 +30,15 @@ suites = {
     'token': functions('GetToken.brs', ['getStreamLink']),
     'streams': functions('GetStreams.brs', ['getSearchResults']),
     'categories': functions('GetCategories.brs', ['getSearchResults']),
-    'home': functions('HomeScene.brs', ['hasRows', 'onHomeFocusChanged', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect']),
-    'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin']),
+    'home': functions('HomeScene.brs', ['hasRows', 'focusContent', 'onGetFocus', 'onApiReady', 'onStartupError', 'showLoadStatus', 'finishLaunch', 'onHomeLoad', 'onSearchResultChange', 'numberToText', 'onCategorySelect', 'onCategoryResultChange', 'getMoreChannels', 'getMoreCategories', 'onKeyEvent', 'onFollowingSelect']),
+    'entry': (ROOT / 'source/main.brs').read_text(),
+    'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
     for name, source in suites.items():
         # Replace only platform primitives unavailable in the off-device interpreter.
         source = re.sub(r'(?i)\bCreateObject\(', 'testCreateObject(', source)
-        if name == 'network':
+        if name in ['network', 'entry']:
             source = re.sub(r'(?i)\bwait\(', 'testWait(', source)
             source = re.sub(r'(?i)\btype\(', 'testType(', source)
         test = (ROOT / f'tests/{name}.brs').read_text()

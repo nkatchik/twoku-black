@@ -97,6 +97,15 @@ sub insertClips()
     m.append = false
 end sub
 
+sub focusContent()
+    if not m.top.visible then return
+    if m.browseClipsList.visible
+        m.browseClipsList.setFocus(true)
+    else
+        m.browseList.setFocus(true)
+    end if
+end sub
+
 sub onGetFocus()
     '? "wtf"
     if m.top.visible = true

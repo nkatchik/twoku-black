@@ -7,6 +7,8 @@ sub RunUserInterface()
     scene = screen.CreateScene("MainScene")
 
     screen.show()
+    ' Assign focus after the scene and all its children are attached and shown.
+    scene.screenShown = true
 
     while(true)
         msg = wait(0, m.port)

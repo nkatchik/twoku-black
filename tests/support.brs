@@ -6,19 +6,37 @@ sub check(condition, message)
 end sub
 
 function node()
+    g = getGlobalAA()
+    if g.nextNodeId = invalid then g.nextNodeId = 0
+    g.nextNodeId += 1
     return {
+        testId: g.nextNodeId, parent: invalid,
         visible: false, focused: false, content: invalid, rowItemFocused: [0, 0],
         children: [], state: "stop", control: "", errorMessage: "", pagination: "",
         setFocus: function(value)
-            m.focused = value
+            g = getGlobalAA()
+            if value
+                g.focusNode = m
+            else if m.hasFocus()
+                g.focusNode = invalid
+            end if
+            return true
         end function,
         hasFocus: function()
-            return m.focused
+            current = getGlobalAA().focusNode
+            if current = invalid then return false
+            return current.testId = m.testId
         end function,
         isInFocusChain: function()
-            return m.focused
+            current = getGlobalAA().focusNode
+            while current <> invalid
+                if current.testId = m.testId then return true
+                current = current.parent
+            end while
+            return false
         end function,
         appendChild: function(child)
+            child.parent = m
             m.children.push(child)
         end function,
         getChildCount: function()

@@ -159,9 +159,18 @@ function init()
 
     m.top.appendChild(m.options)
 
-    m.homeScene.setFocus(true)
     startAuthentication()
 end function
+
+sub onScreenShown()
+    if m.top.screenShown then focusHome()
+end sub
+
+sub focusHome()
+    if m.homeScene.visible
+        m.homeScene.callFunc("focusContent")
+    end if
+end sub
 
 sub onChatDoneFocus()
     if m.chat.doneFocus
@@ -182,7 +191,7 @@ sub onLoginFinish()
         m.loginPage.visible = false
         m.homeScene.visible = false
         m.homeScene.visible = true
-        m.homeScene.setFocus(true)
+        focusHome()
         m.loginPage.finished = false
     end if
 end sub
@@ -326,7 +335,7 @@ function onHeaderButtonPress()
     if m.homeScene.buttonPressed = "search"
         m.homeScene.visible = false
         m.keyboardGroup.visible = true
-        m.keyboardGroup.setFocus(true)
+        m.keyboardGroup.callFunc("focusContent")
     else if m.homeScene.buttonPressed = "login"
         'm.top.dialog = createObject("RoSGNode", "LoginPrompt")
         'm.top.dialog.observeField("buttonSelected", "onLogin")
@@ -445,17 +454,17 @@ sub onVideoPlayerBack()
         if m.currentScene = "home"
             m.homeScene.visible = false
             m.homeScene.visible = true
-            m.homeScene.setFocus(true)
+            focusHome()
         else if m.currentScene = "category"
             m.categoryScene.visible = true
             'm.categoryScene.fromClip = false
-            m.categoryScene.setFocus(true)
+            m.categoryScene.callFunc("focusContent")
         else if m.currentScene = "search"
             m.keyboardGroup.visible = true
         else if m.currentScene = "channel"
             m.homeScene.visible = false
             m.homeScene.visible = true
-            m.homeScene.setFocus(true)
+            focusHome()
             'm.channelPage.visible = true
             'm.channelPage.setFocus(true)
         end if
@@ -504,13 +513,13 @@ function onKeyEvent(key, press) as Boolean
         else if m.homeScene.visible = true and key = "options"
             m.homeScene.visible = false
             m.keyboardGroup.visible = true
-            m.keyboardGroup.setFocus(true)
+            m.keyboardGroup.callFunc("focusContent")
             handled = true
         else if m.options.visible and key = "back"
             m.options.visible = false
             m.homeScene.visible = false
             m.homeScene.visible = true
-            m.homeScene.setFocus(true)
+            focusHome()
             handled = true
         'else if (m.keyboardGroup.visible or m.categoryScene.visible or m.channelPage.visible) and key = "back"
         else if (m.keyboardGroup.visible or m.categoryScene.visible) and key = "back"
@@ -522,13 +531,13 @@ function onKeyEvent(key, press) as Boolean
             if m.lastScene = "home"
                 m.homeScene.visible = false
                 m.homeScene.visible = true
-                m.homeScene.setFocus(true)
+                focusHome()
             else if m.lastScene = "category"
                 m.lastScene = m.lastLastScene
                 m.lastLastScene = "home"
                 m.categoryScene.visible = true
                 'm.categoryScene.fromClip = false
-                m.categoryScene.setFocus(true)
+                m.categoryScene.callFunc("focusContent")
             else if m.lastScene = "search"
                 m.lastScene = m.lastLastScene
                 m.lastLastScene = "home"
@@ -536,7 +545,7 @@ function onKeyEvent(key, press) as Boolean
             else
                 m.homeScene.visible = false
                 m.homeScene.visible = true
-                m.homeScene.setFocus(true)
+                focusHome()
             end if
             handled = true
         else if m.homeScene.visible and key = "back"
@@ -553,7 +562,7 @@ function onKeyEvent(key, press) as Boolean
             m.loginPage.visible = false
             m.homeScene.visible = false
             m.homeScene.visible = true
-            m.homeScene.setFocus(true)
+            focusHome()
             return true
         else if key = "OK" and m.videoPlayer.visible
             m.chat.setKeyboardFocus = true
