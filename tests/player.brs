@@ -167,6 +167,8 @@ sub main()
     m.top.contentKind = "vod"
     m.video.duration = 600
     m.video.position = 120
+    onVideoPositionChange()
+    check(m.progress.visible, "VOD progress appears when native duration becomes available")
     seekBy(10)
     seekBy(10)
     check(m.pendingSeek = 140, "successive seeks accumulate before one commit")

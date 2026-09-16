@@ -479,6 +479,8 @@ end sub
 
 sub onVideoPositionChange()
     if m.video = invalid then return
+    m.progress.visible = canSeek()
+    m.seekFocus.visible = m.overlayFocus = "seek" and canSeek()
     position = playerSeconds(m.video.position)
     if m.pendingSeek <> invalid then position = m.pendingSeek
     m.top.findNode("positionLabel").text = convertToReadableTimeFormat(position)
