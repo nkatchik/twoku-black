@@ -24,7 +24,7 @@ function getSearchResults() as Object
                 result.push({
                     id: category.id,
                     name: category.name,
-                    logo: category.box_art_url.Replace("{width}", "136").Replace("{height}", "190"),
+                    logo: category.box_art_url.Replace("{width}", "285").Replace("{height}", "380"),
                     viewers: 0
                 })
             end if
