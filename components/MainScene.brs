@@ -93,6 +93,7 @@ function init()
     m.playerChannel = ""
     m.routingChannel = false
 
+    speedUpFocus(m.top)
     startAuthentication()
     refreshFollows()
 end function

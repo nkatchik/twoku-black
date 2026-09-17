@@ -15,6 +15,7 @@ sub onItemHasFocus()
 end sub
 
 sub showContent()
+    syncRowFocusSpeed(m.top)
     content = m.top.itemContent
     if content = invalid then return
     m.itemThumbnail.uri = content.HDPosterUrl

@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It compiles the app and runs 33 BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 34 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
@@ -51,6 +51,17 @@ seven pixels between the outside of a focused card's frame and its neighbor,
 while Games keeps its wider 19.33-pixel cover gaps. Device screenshots verified
 Channels, Following live rows, profiles, and game streams; first/last-column
 focus and rapid Following navigation stayed aligned after the size change.
+
+Cursor motion uses 1.5 times the firmware's default speed for grids and search
+results. RowList's private horizontal grids inherit their owner's speed when
+cards are populated, including newly loaded rows. Tests cover nested lists,
+recycled cards without compounding the speed, and firmware without the field.
+On Roxton K806X / Roku OS 15.3.4, native position tracing measured ordinary grid
+moves at approximately 230 ms instead of 350 ms in both directions. Device
+checks covered Channels, Games, game streams, Following, profile recordings,
+and search results, including rapid direction changes and Following's visible
+cursor matching the profile opened. Header and player button focus is already
+instantaneous; the native keyboard keeps its firmware-controlled motion.
 
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See

@@ -47,6 +47,7 @@ suites = {
     'search': (ROOT / 'components/KeyboardGroup.brs').read_text(),
     'followingview': (ROOT / 'components/FollowingView.brs').read_text(),
     'followingitem': (ROOT / 'components/FollowingItem.brs').read_text(),
+    'focusmotion': (ROOT / 'components/FocusMotion.brs').read_text(),
     'entry': (ROOT / 'source/main.brs').read_text(),
     'videofeed': functions('GetVideos.brs', ['getSearchResults']),
     'playback': (ROOT / 'components/Playback.brs').read_text(),
@@ -66,6 +67,8 @@ with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
     for name, source in suites.items():
         if name in ['home', 'categorypage', 'channelpage', 'loading']:
             source += '\n' + (ROOT / 'components/GridPagination.brs').read_text()
+        if name == 'followingitem':
+            source += '\n' + (ROOT / 'components/FocusMotion.brs').read_text()
         # Replace only platform primitives unavailable in the off-device interpreter.
         source = re.sub(r'(?i)\bCreateObject\(', 'testCreateObject(', source)
         if name in ['network', 'entry', 'auth', 'compatserver']:

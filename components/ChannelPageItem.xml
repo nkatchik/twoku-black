@@ -5,6 +5,7 @@
         <field id="itemHasFocus" type="boolean" onChange="onItemFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/ChannelPageItem.brs" />
+    <script type="text/brightscript" uri="pkg:/components/FocusMotion.brs" />
     <children>
         <BrowseChannelItem id="live" visible="false" />
         <ChannelVideoItem id="recording" visible="false" />

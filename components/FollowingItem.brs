@@ -4,6 +4,7 @@ sub init()
 end sub
 
 sub showContent()
+    syncRowFocusSpeed(m.top)
     item = m.top.itemContent
     if item = invalid then return
     m.live.visible = item.followKind = "live"

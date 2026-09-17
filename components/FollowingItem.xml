@@ -10,6 +10,7 @@
         <field id="index" type="integer" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/FollowingItem.brs" />
+    <script type="text/brightscript" uri="pkg:/components/FocusMotion.brs" />
     <children>
         <BrowseChannelItem id="live" visible="false" />
         <BrowseOfflineChannelItem id="offline" translation="[0,6]" visible="false" drawFocusFeedback="false" />

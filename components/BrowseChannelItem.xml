@@ -5,6 +5,7 @@
         <field id="itemHasFocus" type="boolean" onChange="onItemHasFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/BrowseChannelItem.brs" />
+    <script type="text/brightscript" uri="pkg:/components/FocusMotion.brs" />
     <children>
         <Rectangle width="288" height="162" color="0x18181BFF" /><Poster id="itemThumbnail" width="288" height="162" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToFill" />
 <ScrollingLabel id="itemTitle" translation="[0,170]" maxWidth="288" height="23" repeatCount="0" color="0xFFFFFFFF"><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="19" /></ScrollingLabel>
