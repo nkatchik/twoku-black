@@ -28,6 +28,28 @@ sub main()
     m.clipLine = {visible: false}
     focusContent()
     check(m.browseButtons.hasFocus(), "Empty category focuses usable tabs")
+    m.top.currentCategory = "game"
+    m.streamsCategory = "game"
+    m.streamRows = []
+    m.seenStreams = {}
+    m.newCategory = true
+    m.getStreams = {searchResults: [{name: "a", title: "A", display_name: "A", game: "G", thumbnail: "x", viewers: 1}], errorMessage: ""}
+    m.emptyLabel = node()
+    m.browseList.rowItemFocused = []
+    onSearchResultChange()
+    check(m.browseList.hasFocus() and m.browseList.jumpToRowItem[0] = 0 and m.browseList.jumpToRowItem[1] = 0, "First game response transfers focus to the first live cell")
+    m.browseList.rowItemFocused = [1, 2]
+    onSearchResultChange()
+    check(m.browseList.jumpToRowItem[0] = 1 and m.browseList.jumpToRowItem[1] = 2, "Game pagination preserves selection")
+    m.browseButtons.setFocus(true)
+    m.pendingGridFocus = ""
+    onSearchResultChange()
+    check(m.browseButtons.hasFocus(), "Game response respects cancelled focus intent")
+    m.pendingGridFocus = "live"
+    m.top.visible = false
+    onSearchResultChange()
+    check(m.browseButtons.hasFocus(), "Hidden game result cannot acquire focus")
+    m.top.visible = true
     m.browseList.content = content
     focusContent()
     check(m.browseList.hasFocus(), "Loaded category focuses stream cards")

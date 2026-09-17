@@ -39,6 +39,7 @@ sub init()
     m.offset = 0
     m.append = false
     m.newCategory = false
+    m.pendingGridFocus = ""
     m.wasLastScene = false
     layoutTabs()
     updateCategoryBusy()
@@ -60,17 +61,32 @@ end function
 
 sub focusContent()
     if not m.top.visible then return
+    m.pendingGridFocus = ""
     if m.clipLine.visible and categoryHasRows(m.browseClipsList)
         m.browseClipsList.setFocus(true)
     else if m.liveLine.visible and categoryHasRows(m.browseList)
         m.browseList.setFocus(true)
     else
+        m.pendingGridFocus = "live"
+        if m.clipLine.visible then m.pendingGridFocus = "clips"
         m.browseButtons.setFocus(true)
     end if
 end sub
 
+sub completeCategoryFocus(feed as String)
+    if m.pendingGridFocus <> feed then return
+    m.pendingGridFocus = ""
+    if not m.top.visible or not m.browseButtons.hasFocus() then return
+    if feed = "live" and not m.liveLine.visible then return
+    if feed = "clips" and not m.clipLine.visible then return
+    focusContent()
+end sub
+
 sub onGetFocus()
-    if not m.top.visible then cancelPlaybackRequest()
+    if not m.top.visible
+        m.pendingGridFocus = ""
+        cancelPlaybackRequest()
+    end if
     if m.top.visible
         m.browseList.visible = m.liveLine.visible
         m.browseClipsList.visible = m.clipLine.visible
@@ -90,6 +106,7 @@ sub onCategoryChange()
     m.offset = 0
     m.append = false
     m.newCategory = true
+    m.pendingGridFocus = "live"
     m.liveLine.visible = true
     m.clipLine.visible = false
     m.liveButton.color = "0xF4F4F7FF"
@@ -188,7 +205,9 @@ sub onSearchResultChange()
     end if
     focused = m.browseList.rowItemFocused
     m.browseList.content = categoryGrid(m.streamRows)
-    if not m.newCategory then m.browseList.jumpToRowItem = focused
+    if m.newCategory then focused = [0, 0]
+    m.browseList.jumpToRowItem = focused
+    completeCategoryFocus("live")
     m.newCategory = false
     m.append = false
     if m.liveLine.visible
@@ -219,6 +238,7 @@ sub insertClips()
     focused = m.browseClipsList.rowItemFocused
     m.browseClipsList.content = categoryGrid(m.clipRows)
     m.browseClipsList.jumpToRowItem = focused
+    completeCategoryFocus("clips")
     m.append = false
     if m.clipLine.visible
         m.emptyLabel.visible = not categoryHasRows(m.browseClipsList)
@@ -338,6 +358,7 @@ function onKeyEvent(key, press) as Boolean
     if not press or not m.top.visible then return false
     if m.browseButtons.hasFocus()
         if key = "left" or key = "right" or key = "OK"
+            m.pendingGridFocus = ""
             m.liveLine.visible = not m.liveLine.visible
             m.clipLine.visible = not m.liveLine.visible
             if m.clipLine.visible
@@ -359,6 +380,7 @@ function onKeyEvent(key, press) as Boolean
             return true
         end if
     else if key = "up"
+        m.pendingGridFocus = ""
         m.browseButtons.setFocus(true)
         return true
     else if key = "options" and m.browseList.hasFocus() and categoryHasRows(m.browseList)

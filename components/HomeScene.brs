@@ -49,6 +49,7 @@ sub init()
     m.channelsPending = false
     m.categoriesPending = false
     m.appLaunchComplete = false
+    m.pendingGridFocus = 1
     m.currentlySelectedButton = 1
     m.currentlyFocusedButton = 1
     m.wasLastScene = false
@@ -154,6 +155,7 @@ end sub
 sub onGetFocus()
     m.channelPage.parentVisible = m.top.visible
     if not m.top.visible
+        m.pendingGridFocus = invalid
         cancelPlaybackRequest()
         m.busy.enabled = false
         return
@@ -233,7 +235,8 @@ sub onSearchResultChange()
         finishLaunch()
         return
     end if
-    position = m.browseList.rowItemFocused
+    position = [0, 0]
+    if m.append then position = m.browseList.rowItemFocused
     if m.append = true
         content = m.browseList.content
     else if m.append = false
@@ -266,6 +269,7 @@ sub onSearchResultChange()
         end if
     end if
     m.browseList.jumpToRowItem = position
+    completeGridFocus(1)
     m.append = false
     finishLaunch()
 end sub
@@ -296,7 +300,8 @@ sub onCategoryResultChange()
         finishLaunch()
         return
     end if
-    position = m.browseCategoryList.rowItemFocused
+    position = [0, 0]
+    if m.appendCategory then position = m.browseCategoryList.rowItemFocused
     if m.appendCategory = true
         content = m.browseCategoryList.content
     else if m.appendCategory = false
@@ -327,6 +332,7 @@ sub onCategoryResultChange()
         end if
     end if
     m.browseCategoryList.jumpToRowItem = position
+    completeGridFocus(0)
     m.appendCategory = false
     finishLaunch()
 end sub
@@ -459,6 +465,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     end if
     if m.browseButtons.hasFocus()
         if key = "left" or key = "right"
+            m.pendingGridFocus = invalid
             order = [1,0,2,3,4]
             index = 0
             for i = 0 to order.Count() - 1
@@ -473,6 +480,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             focusActiveGrid()
             return true
         else if key = "OK"
+            m.pendingGridFocus = invalid
             if m.currentlyFocusedButton = 3
                 m.top.buttonPressed = "search"
             else if m.currentlyFocusedButton = 4
@@ -486,12 +494,13 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 else
                     onFollowingSelect()
                 end if
-                focusActiveGrid()
+                focusActiveGrid(true)
             end if
             updateHeaderFocus()
             return true
         end if
     else if key = "up" or key = "back"
+        m.pendingGridFocus = invalid
         m.currentlyFocusedButton = m.currentlySelectedButton
         m.browseButtons.setFocus(true)
         updateHeaderFocus()
@@ -541,7 +550,8 @@ function hasOfflineChannels() as Boolean
     return channels.Count() > 0
 end function
 
-sub focusActiveGrid()
+sub focusActiveGrid(first = false as Boolean)
+    m.pendingGridFocus = invalid
     if m.currentlySelectedButton = 2
         if m.followingView.hasItems
             m.followingView.callFunc("focusContent")
@@ -549,11 +559,21 @@ sub focusActiveGrid()
             m.browseButtons.setFocus(true)
         end if
     else if hasRows(activeGrid())
+        if first then activeGrid().jumpToRowItem = [0, 0]
         activeGrid().setFocus(true)
     else
+        m.pendingGridFocus = m.currentlySelectedButton
         m.browseButtons.setFocus(true)
     end if
     updateHeaderFocus()
+end sub
+
+sub completeGridFocus(feed as Integer)
+    if m.pendingGridFocus = invalid or m.pendingGridFocus <> feed then return
+    m.pendingGridFocus = invalid
+    if not m.top.visible or m.channelPage.visible or not m.browseMain.visible then return
+    if m.currentlySelectedButton <> feed or not m.browseButtons.hasFocus() then return
+    focusActiveGrid(true)
 end sub
 
 sub updateHeaderFocus()

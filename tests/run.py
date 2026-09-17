@@ -58,7 +58,7 @@ suites = {
     'clipfeed': functions('GetClips.brs', ['getStartDate', 'getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'offlinegrid': functions('OfflineChannelList.brs', ['hasOfflineChannels','focusContent','onGetFocus','onOfflineChannelsChange','onChannelSelected','onKeyEvent']),
-    'categorypage': functions('CategoryScene.brs', ['categoryGrid','categoryHasRows','focusContent','itemCategoryText','cancelPlaybackRequest','onStreamUrlChange','updateCategoryBusy']),
+    'categorypage': functions('CategoryScene.brs', ['categoryGrid','categoryHasRows','focusContent','completeCategoryFocus','onSearchResultChange','numberToText','itemCategoryText','cancelPlaybackRequest','onStreamUrlChange','updateCategoryBusy']),
     'channelpage': (ROOT / 'components/ChannelPage.brs').read_text(),
     'playback_routes': functions('MainScene.brs', ['beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),

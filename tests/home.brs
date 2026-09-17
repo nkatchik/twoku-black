@@ -78,6 +78,7 @@ sub setup()
     m.offlineError = ""
     m.offlineLoaded = false
     m.appLaunchComplete = false
+    m.pendingGridFocus = 1
     m.append = false
     m.appendCategory = false
     m.channelsPending = false
@@ -166,13 +167,41 @@ sub main()
     showLoadStatus("Following message")
     onCategorySelect()
     check(m.busy.active and not m.loadStatus.visible, "Switching to an existing in-flight Games request restores its spinner")
+    focusActiveGrid(true)
     m.getCategories.state = "stop"
     m.getCategories.searchResults = [{id: "1",name: "Game",logo: "x",viewers: 0}]
     onCategoryResultChange()
     check(hasRows(m.browseCategoryList) and not m.busy.active, "Category completion stops the spinner")
+    check(m.browseCategoryList.hasFocus() and m.browseCategoryList.jumpToRowItem[0] = 0 and m.browseCategoryList.jumpToRowItem[1] = 0, "Games selects its first cell when asynchronous results arrive")
     m.top.startupError = "offline"
     onStartupError()
     check(m.loadStatus.visible and not m.busy.active and m.appLaunchComplete, "Authentication failure has a finite error state")
+
+    setup()
+    focusContent()
+    m.getStreams.searchResults = [{title: "A",display_name: "A",game: "G",thumbnail: "x",name: "a",viewers: 1}]
+    m.browseList.rowItemFocused = []
+    onSearchResultChange()
+    check(m.browseList.hasFocus() and m.browseList.jumpToRowItem[0] = 0 and m.browseList.jumpToRowItem[1] = 0, "Cold launch focuses first channel without an extra remote press")
+    m.browseList.rowItemFocused = [2, 3]
+    m.append = true
+    onSearchResultChange()
+    check(m.browseList.jumpToRowItem[0] = 2 and m.browseList.jumpToRowItem[1] = 3, "Pagination preserves the selected cell")
+    focusActiveGrid()
+    check(m.browseList.jumpToRowItem[0] = 2, "Returning from playback preserves selection")
+    focusActiveGrid(true)
+    check(m.browseList.jumpToRowItem[0] = 0, "Explicit tab selection starts at the first cell")
+
+    setup()
+    focusContent()
+    onKeyEvent("right", true)
+    m.getStreams.searchResults = [{title: "A",display_name: "A",game: "G",thumbnail: "x",name: "a",viewers: 1}]
+    onSearchResultChange()
+    check(m.browseButtons.hasFocus() and m.currentlyFocusedButton = 0, "Late Channels results do not steal focus after header navigation")
+    m.pendingGridFocus = 1
+    m.top.visible = false
+    onSearchResultChange()
+    check(m.browseButtons.hasFocus(), "Hidden feed completion cannot take focus")
 
     setup()
     m.currentlySelectedButton = 2
