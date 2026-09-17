@@ -206,6 +206,32 @@ The account button uses four pixels of outer padding and fully opaque white idle
 text, verified in its native header screenshot. All 34 suites pass; compilation
 still reports only the same twenty legacy WebSocket diagnostics.
 
+The later 2026-09-17 UI build (`96f4f4b`) was installed and checked on the Roxton.
+Native screenshots confirm the compact account avatar/name gap, the Channels
+and Games grid edges aligned with the header, and the centered seek track sharing
+the photo and Channel button's left edge. Following's live cards use the same
+left edge. The package uses the existing text-free TV icon for its splash; native
+startup reported a 27 ms splash with no forced display delay.
+
+Following now follows native `currFocusColumn` during horizontal motion, while
+settled item notifications remain authoritative across rows. Rapid remote-API
+direction reversals at 40 ms intervals settled on one complete ring; opening the
+profile selected the visibly focused channel. Moving from offline column six to
+the two-item live row selected live column two. Down then settled on offline
+column three; Left selected column two, matching the displayed ring and opened
+profile. Both live thumbnail borders and offline rings were complete in the
+settled screenshots. These checks used the normal app and real followed channels.
+
+A single remote-API Right key-down held for two seconds, followed by key-up,
+advanced a paused VOD from 30.320 to 140.033 seconds. The decoder stayed at the old
+position during the hold and received one seek on release. A 1.1-second Left hold
+then landed at 90.033 seconds. Both operations restored pause, remained stable
+after release, and reported `error=false`. Resume advanced playback to 91.047
+seconds; Back returned to browsing with the decoder closed. This verifies held
+input through Roku's remote API, not the physical IR handset's event timing.
+The installed production build was left on Following. All 34 deterministic suites
+passed before deployment; no source changes were needed during this device check.
+
 On 2026-09-16, the exact production live query and Twitch master returned HTTP
 200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
 selected 480p30. The production clip query returned four signed MP4 qualities;
