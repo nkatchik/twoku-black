@@ -11,7 +11,7 @@ function node()
     g.nextNodeId += 1
     return {
         testId: g.nextNodeId, parent: invalid,
-        visible: false, focused: false, content: invalid, rowItemFocused: [0, 0],
+        visible: false, focused: false, content: invalid, rowItemFocused: [0, 0], numRows: 3,
         children: [], state: "stop", control: "", errorMessage: "", pagination: "",
         setFocus: function(value)
             g = getGlobalAA()
@@ -38,6 +38,15 @@ function node()
         appendChild: function(child)
             child.parent = m
             m.children.push(child)
+        end function,
+        appendChildren: function(children)
+            for each child in children
+                m.appendChild(child)
+            end for
+            return true
+        end function,
+        getChild: function(index)
+            return m.children[index]
         end function,
         getChildCount: function()
             return m.children.count()

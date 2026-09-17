@@ -31,6 +31,7 @@ sub init()
     m.top.observeField("visible", "onGetFocus")
     m.requestedLogin = ""
     m.videosLogin = ""
+    m.videosPending = false
     m.videoItems = []
     m.seenVideos = {}
     m.moreVideos = true
@@ -70,6 +71,7 @@ sub onSelectedStreamerChange()
     m.busy.enabled = channelVisible()
     m.busy.active = true
     m.pastBroadcastsList.content = invalid
+    m.videosPending = false
     m.videoItems = []
     m.liveItem = invalid
     m.seenVideos = {}
@@ -140,6 +142,7 @@ sub getVideos()
     m.getVideos.userId = m.userId
     m.getVideos.pagination = ""
     m.requestCursor = ""
+    m.videosPending = true
     m.getVideos.control = "RUN"
 end sub
 
@@ -147,12 +150,15 @@ sub onVideosStopped()
     if m.getVideos.state = "stop" and m.videosLogin <> m.top.streamerSelectedName
         getVideos()
     end if
+    if m.getVideos.state = "stop" and m.getVideos.errorMessage = "" then onGridFocus()
 end sub
 
 sub onGetVideos()
     if m.videosLogin <> m.top.streamerSelectedName then return
     m.channelLoading = false
+    m.videosPending = false
     m.busy.active = m.playbackPending
+    items = []
     results = m.getVideos.searchResults
     if results <> invalid
         for each video in results
@@ -169,32 +175,28 @@ sub onGetVideos()
                 item.ShortDescriptionLine1 = m.top.streamerSelectedName
                 item.ShortDescriptionLine2 = video.viewer_count
                 m.videoItems.push(item)
+                items.Push(item)
             end if
         end for
     end if
-    m.moreVideos = m.getVideos.pagination <> "" and m.getVideos.pagination <> m.requestCursor
-    renderChannelItems()
+    if m.getVideos.errorMessage <> "" then m.getVideos.pagination = m.requestCursor
+    finishGridPage(m.getVideos, m.requestCursor, items.Count())
+    m.moreVideos = m.getVideos.pagination <> ""
+    renderChannelItems(items)
+    if m.getVideos.errorMessage = "" then onGridFocus()
 end sub
 
-sub renderChannelItems()
-    items = []
-    if m.liveItem <> invalid then items.Push(m.liveItem)
-    for each item in m.videoItems
-        items.Push(item)
-    end for
-    content = CreateObject("roSGNode", "ContentNode")
-    row = invalid
-    for index = 0 to items.count() - 1
-        if index MOD 4 = 0
-            row = CreateObject("roSGNode", "ContentNode")
-            content.appendChild(row)
-        end if
-        row.appendChild(items[index])
-    end for
-    position = m.pastBroadcastsList.rowItemFocused
+sub renderChannelItems(newItems = invalid)
+    reset = newItems = invalid
+    if reset
+        newItems = []
+        if m.liveItem <> invalid then newItems.Push(m.liveItem)
+        for each item in m.videoItems
+            newItems.Push(item)
+        end for
+    end if
     wasEmpty = not channelHasVideos()
-    m.pastBroadcastsList.content = content
-    m.pastBroadcastsList.jumpToRowItem = position
+    appendGridItems(m.pastBroadcastsList, newItems, reset)
     m.emptyLabel.visible = not channelHasVideos() and not m.channelLoading
     m.emptyLabel.text = "No videos available"
     if m.getVideos.errorMessage <> "" then m.emptyLabel.text = m.getVideos.errorMessage
@@ -202,14 +204,17 @@ sub renderChannelItems()
 end sub
 
 sub getMoreVideos()
-    if m.channelLoading or m.getVideos.state = "run" or not m.moreVideos then return
+    if m.videosLogin <> m.top.streamerSelectedName then return
+    if m.channelLoading or m.videosPending or m.getVideos.state = "run" or not m.moreVideos then return
+    if m.getVideos.pagination = "" then return
     m.requestCursor = m.getVideos.pagination
+    m.videosPending = true
     m.getVideos.control = "RUN"
 end sub
 
 sub onGridFocus()
     if not channelVisible() or not channelHasVideos() then return
-    if m.pastBroadcastsList.rowItemFocused[0] >= m.pastBroadcastsList.content.getChildCount() - 2
+    if gridNeedsMore(m.pastBroadcastsList)
         getMoreVideos()
     end if
 end sub
@@ -263,6 +268,10 @@ end sub
 
 function onKeyEvent(key, press) as Boolean
     if not press or not channelVisible() then return false
+    if key = "down"
+        onGridFocus()
+        return true
+    end if
     if key = "OK" and not channelHasVideos()
         onSelectedStreamerChange()
         return true

@@ -8,6 +8,17 @@ device check. On Roxton K806X / Roku OS 15.3.4, the replacement font rendered
 CJK, Korean, accented Latin/Greek/Cyrillic, Thai, and common monochrome emoji;
 the Channels grid also displayed live Japanese titles and display names.
 
+Pagination checks cover the visible-window threshold plus two reserve rows,
+pending Task startup, continuing after Task completion, overlapping/empty pages,
+repeated cursors, errors, hidden views, and retaining content identity and focus
+while pages arrive. Channels, Games, game streams, clips, and profile recordings
+share the append helper. Existing rows stay attached; only initial content moves
+the cursor to the first cell. On Roxton, rapid Down presses through multiple
+pages with an injected two-second delay produced no backward focus movement in
+Channels, Games, or game streams. Additional requests started at row 2 of 6 for
+Channels and row 3 of 6 for Games/game streams. Diagnostic delays and logging
+are excluded from the shipped app.
+
 Install the off-device tools outside the channel package, then run:
 
 ```sh

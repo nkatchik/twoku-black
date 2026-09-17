@@ -24,6 +24,7 @@
     </interface>
 
     <script type="text/brightscript" uri="pkg:/components/CategoryScene.brs" />
+    <script type="text/brightscript" uri="pkg:/components/GridPagination.brs" />
 
     <children>
         <Rectangle width="1280" height="720" color="0x08080AFF" />

@@ -81,6 +81,10 @@ sub setup()
     m.pendingGridFocus = 1
     m.append = false
     m.appendCategory = false
+    m.offset = 0
+    m.offsetCategory = 0
+    m.channelsCursor = ""
+    m.categoriesCursor = ""
     m.channelsPending = false
     m.categoriesPending = false
 end sub
@@ -183,12 +187,13 @@ sub main()
     m.browseList.rowItemFocused = []
     onSearchResultChange()
     check(m.browseList.hasFocus() and m.browseList.jumpToRowItem[0] = 0 and m.browseList.jumpToRowItem[1] = 0, "Cold launch focuses first channel without an extra remote press")
+    m.browseList.jumpToRowItem = invalid
     m.browseList.rowItemFocused = [2, 3]
     m.append = true
     onSearchResultChange()
-    check(m.browseList.jumpToRowItem[0] = 2 and m.browseList.jumpToRowItem[1] = 3, "Pagination preserves the selected cell")
+    check(m.browseList.jumpToRowItem = invalid and m.browseList.rowItemFocused[1] = 3, "Pagination leaves native focus and animation alone")
     focusActiveGrid()
-    check(m.browseList.jumpToRowItem[0] = 2, "Returning from playback preserves selection")
+    check(m.browseList.jumpToRowItem = invalid, "Returning from playback preserves selection")
     focusActiveGrid(true)
     check(m.browseList.jumpToRowItem[0] = 0, "Explicit tab selection starts at the first cell")
 
@@ -253,6 +258,7 @@ sub main()
     check(m.currentlySelectedButton = 1 and not m.followingView.visible, "Logout clears account cache and returns to Channels")
     check(m.followingView.liveStreams.Count() = 0 and m.followingView.offlineChannels.Count() = 0, "Logout cannot show previous account follows")
     testFeedPacking()
+    testPreload()
     print "PASS measured header, compact account, feed packing, spinner lifecycle, unified Following return, logout"
 end sub
 
@@ -263,12 +269,13 @@ sub testFeedPacking()
         m.getStreams.searchResults.Push({title: index.ToStr(),display_name: "A",game: "G",thumbnail: "x",name: index.ToStr(),viewers: 1})
     end for
     onSearchResultChange()
+    m.browseList.jumpToRowItem = invalid
     m.browseList.rowItemFocused = [4,0]
     m.append = true
     m.getStreams.searchResults = [{title:"next",display_name:"B",game:"G",thumbnail:"x",name:"next",viewers:1}]
     onSearchResultChange()
     check(m.browseList.content.getChildCount() = 5 and m.browseList.content.getChild(4).getChildCount() = 2, "A short Channels page fills the previous partial row")
-    check(m.browseList.content.getChild(4).getChild(1).Title = "next" and m.browseList.jumpToRowItem[0] = 4, "Pagination preserves card order and focused row/column")
+    check(m.browseList.content.getChild(4).getChild(1).Title = "next" and m.browseList.jumpToRowItem = invalid, "Pagination preserves card order without replaying a focus snapshot")
     m.browseList.visible = false
     m.append = false
     onSearchResultChange()
@@ -279,4 +286,91 @@ sub testFeedPacking()
     m.getCategories.searchResults = [{name:"b",id:"b",logo:"x",viewers:0}]
     onCategoryResultChange()
     check(m.browseCategoryList.content.getChildCount() = 1 and m.browseCategoryList.content.getChild(0).getChildCount() = 2, "Games also fills a partial row between short pages")
+end sub
+
+function streamPage(first, count)
+    result = []
+    for index = first to first + count - 1
+        result.Push({title: index.ToStr(),display_name: "A",game: "G",thumbnail: "x",name: index.ToStr(),viewers: 1})
+    end for
+    return result
+end function
+
+sub testPreload()
+    setup()
+    m.getStreams.searchResults = streamPage(0, 24)
+    m.getStreams.pagination = "page2"
+    onSearchResultChange()
+    m.top.apiReady = true
+    m.browseList.setFocus(true)
+    onGridFocus()
+    check(not m.channelsPending, "A full initial page does not fetch the entire directory")
+    m.browseList.rowItemFocused = [1, 2]
+    onGridFocus()
+    check(m.channelsPending and m.channelsCursor = "page2", "Channels preloads with two rows beyond the visible window")
+    onGridFocus()
+    check(m.offset = 24, "Repeated focus notifications cannot race the pending Task startup")
+    showActiveSurface()
+    check(not m.busy.active, "Background preloading does not cover existing cards with a spinner")
+    m.getStreams.state = "run"
+    original = m.browseList.content
+    firstRow = original.getChild(0)
+    m.browseList.rowItemFocused = [4, 2]
+    m.browseList.jumpToRowItem = invalid
+    m.getStreams.searchResults = streamPage(23, 25)
+    m.getStreams.pagination = "page3"
+    onSearchResultChange()
+    check(m.browseList.content.testId = original.testId and original.getChild(0).testId = firstRow.testId, "Appending retains root, rows, and existing cards")
+    check(original.getChildCount() = 12 and original.getChild(6).getChild(0).Title = "24", "Overlapping Twitch pages are deduplicated without leaving gaps")
+    check(m.browseList.rowItemFocused[0] = 4 and m.browseList.rowItemFocused[1] = 2 and m.browseList.jumpToRowItem = invalid, "Scrolling during a request is not rewound by its response")
+    check(not m.channelsPending, "Result arriving before Task stop does not start another Task")
+    m.browseList.rowItemFocused = [10, 2]
+    onGridFocus()
+    check(not m.channelsPending, "Native scrolling remains free while the preceding Task stops")
+    m.getStreams.state = "stop"
+    onChannelsStopped()
+    check(m.channelsPending and m.channelsCursor = "page3", "Task completion catches up if scrolling entered the next preload window")
+    m.getStreams.state = "run"
+    m.getStreams.searchResults = streamPage(48, 24)
+    m.getStreams.pagination = "page3"
+    onSearchResultChange()
+    m.getStreams.state = "stop"
+    m.browseList.rowItemFocused = [17, 0]
+    onChannelsStopped()
+    check(m.getStreams.pagination = "" and not m.channelsPending, "A repeated cursor ends preloading instead of looping")
+    m.getStreams.pagination = "retry"
+    onGridFocus()
+    m.getStreams.errorMessage = "offline"
+    onSearchResultChange()
+    onChannelsStopped()
+    check(m.browseList.hasFocus() and not m.channelsPending, "A failed preload preserves grid focus and does not retry automatically")
+    m.getStreams.errorMessage = ""
+    m.getStreams.pagination = "next"
+    m.top.visible = false
+    onGridFocus()
+    check(not m.channelsPending, "Hidden grids do not start background pages")
+
+    setup()
+    m.currentlySelectedButton = 0
+    m.browseCategoryList.numRows = 2
+    m.getCategories.searchResults = []
+    for index = 0 to 23
+        m.getCategories.searchResults.Push({id: index.ToStr(),name: "Game",logo: "x",viewers: 0})
+    end for
+    m.getCategories.pagination = "games2"
+    onCategoryResultChange()
+    m.top.apiReady = true
+    m.browseCategoryList.setFocus(true)
+    m.browseCategoryList.rowItemFocused = [1, 0]
+    onGridFocus()
+    check(not m.categoriesPending, "Games uses its own visible row count")
+    m.browseCategoryList.rowItemFocused = [2, 0]
+    onGridFocus()
+    check(m.categoriesPending and m.categoriesCursor = "games2", "Games preloads before reaching the last row")
+    m.getCategories.state = "run"
+    m.getCategories.searchResults = []
+    m.getCategories.pagination = "games3"
+    m.browseCategoryList.jumpToRowItem = invalid
+    onCategoryResultChange()
+    check(m.getCategories.pagination = "" and m.browseCategoryList.jumpToRowItem = invalid, "An empty page leaves Games and its selection intact and stops preloading")
 end sub

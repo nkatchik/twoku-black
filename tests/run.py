@@ -37,7 +37,7 @@ suites = {
     'loginpage': functions('LoginPage.brs', ['startLogin', 'onVisible', 'onKeyEvent', 'onAuthUpdate', 'whenFinished', 'onAuthStopped', 'clearLoginQr', 'showAccount']),
     'account': functions('MainScene.brs', ['onHeaderButtonPress','onLogoutRequested','focusHome']) + '\n\n' + functions('Logout.brs', ['revokeSession']),
     'channelinfo': (ROOT / 'components/GetUserChannel.brs').read_text(),
-    'loading': (ROOT / 'components/LoadingIndicator.brs').read_text() + '\n\n' + functions('CategoryScene.brs', ['updateCategoryBusy','startCategoryStreams','onStreamsStopped','onClipsStopped','onClipsLoad','categoryHasRows','onPlaybackStopped']) + '\n\n' + functions('KeyboardGroup.brs', ['updateSearchBusy','onSearchTextChange','onSearchStopped','onChannelSearchResultChange','onCategorySearchResultChange','onSearchResultChange']),
+    'loading': (ROOT / 'components/LoadingIndicator.brs').read_text() + '\n\n' + functions('CategoryScene.brs', ['updateCategoryBusy','startCategoryStreams','onStreamsStopped','onClipsStopped','onClipsLoad','categoryHasRows','onPlaybackStopped','onGridFocus','getMoreChannels','getMoreClips']) + '\n\n' + functions('KeyboardGroup.brs', ['updateSearchBusy','onSearchTextChange','onSearchStopped','onChannelSearchResultChange','onCategorySearchResultChange','onSearchResultChange']),
     'follows': functions('GetUser.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
     'offline': functions('GetOfflineFollowedChannels.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
     'token': functions('GetToken.brs', ['getStreamLink']),
@@ -58,13 +58,15 @@ suites = {
     'clipfeed': functions('GetClips.brs', ['getStartDate', 'getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'offlinegrid': functions('OfflineChannelList.brs', ['hasOfflineChannels','focusContent','onGetFocus','onOfflineChannelsChange','onChannelSelected','onKeyEvent']),
-    'categorypage': functions('CategoryScene.brs', ['categoryGrid','categoryHasRows','focusContent','completeCategoryFocus','onSearchResultChange','numberToText','itemCategoryText','cancelPlaybackRequest','onStreamUrlChange','updateCategoryBusy']),
+    'categorypage': (ROOT / 'components/CategoryScene.brs').read_text(),
     'channelpage': (ROOT / 'components/ChannelPage.brs').read_text(),
     'playback_routes': functions('MainScene.brs', ['beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:
     for name, source in suites.items():
+        if name in ['home', 'categorypage', 'channelpage', 'loading']:
+            source += '\n' + (ROOT / 'components/GridPagination.brs').read_text()
         # Replace only platform primitives unavailable in the off-device interpreter.
         source = re.sub(r'(?i)\bCreateObject\(', 'testCreateObject(', source)
         if name in ['network', 'entry', 'auth', 'compatserver']:

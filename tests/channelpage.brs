@@ -84,5 +84,48 @@ sub main()
     check(not m.pastBroadcastsList.hasFocus(), "Hidden Home ancestor prevents late channel results stealing player focus")
     check(channelFollowerLabel(1234567) = "1,234,567 followers", "Actual follower counts are grouped without losing precision")
     check(channelFollowerLabel(0) = "0 followers" and channelFollowerLabel(invalid) = "", "Unknown follower count is distinct from real zero")
+    testVideoPreload()
     print "PASS follower labels, ancestor focus, VOD grid, focus after loading, pagination deduplication, stale channel and playback guards"
+end sub
+
+sub testVideoPreload()
+    m.top.parentVisible = true
+    m.top.visible = true
+    m.channelLoading = false
+    m.playbackPending = false
+    m.videoItems = []
+    m.seenVideos = {}
+    m.liveItem = invalid
+    m.videosLogin = "channel"
+    m.requestCursor = ""
+    m.pastBroadcastsList = node()
+    m.pastBroadcastsList.numRows = 2
+    m.getVideos = node()
+    m.getVideos.pagination = "vod2"
+    m.getVideos.searchResults = []
+    for index = 0 to 23
+        m.getVideos.searchResults.Push({id:index.ToStr(),title:"VOD",user_name:"C",duration:"1:00",published_at:"Today",thumbnail_url:"thumb",viewer_count:"1"})
+    end for
+    onGetVideos()
+    m.pastBroadcastsList.rowItemFocused = [2, 3]
+    onGridFocus()
+    check(m.videosPending and m.requestCursor = "vod2", "Profile recordings use the same early preload window")
+    original = m.pastBroadcastsList.content
+    m.getVideos.state = "run"
+    m.pastBroadcastsList.rowItemFocused = [5, 3]
+    m.pastBroadcastsList.jumpToRowItem = invalid
+    m.getVideos.searchResults = [{id:"new",title:"New VOD",user_name:"C",duration:"1:00",published_at:"Today",thumbnail_url:"thumb",viewer_count:"1"}]
+    m.getVideos.pagination = "vod3"
+    onGetVideos()
+    check(original.testId = m.pastBroadcastsList.content.testId and original.getChildCount() = 7, "VOD append retains existing rows")
+    check(m.pastBroadcastsList.jumpToRowItem = invalid and m.pastBroadcastsList.rowItemFocused[1] = 3, "A VOD response preserves the latest native selection")
+    m.getVideos.state = "stop"
+    onVideosStopped()
+    check(m.videosPending and m.requestCursor = "vod3", "A short VOD page catches up once its Task has stopped")
+    m.getVideos.errorMessage = "offline"
+    m.getVideos.searchResults = []
+    m.getVideos.pagination = ""
+    onGetVideos()
+    onVideosStopped()
+    check(not m.videosPending and m.getVideos.pagination = "vod3" and m.pastBroadcastsList.hasFocus(), "Failed VOD preloading preserves cards, focus, and a retryable cursor without looping")
 end sub

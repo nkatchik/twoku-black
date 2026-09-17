@@ -32,13 +32,9 @@ sub init()
     m.top.observeField("visible", "onGetFocus")
     m.streamsCategory = ""
     m.clipsCategory = ""
-    m.streamRows = []
-    m.clipRows = []
     m.seenStreams = {}
     m.seenClips = {}
     m.offset = 0
-    m.append = false
-    m.newCategory = false
     m.pendingGridFocus = ""
     m.wasLastScene = false
     layoutTabs()
@@ -97,15 +93,11 @@ end sub
 
 sub onCategoryChange()
     cancelPlaybackRequest()
-    m.streamRows = []
-    m.clipRows = []
     m.seenStreams = {}
     m.seenClips = {}
     m.browseList.content = invalid
     m.browseClipsList.content = invalid
     m.offset = 0
-    m.append = false
-    m.newCategory = true
     m.pendingGridFocus = "live"
     m.liveLine.visible = true
     m.clipLine.visible = false
@@ -126,6 +118,7 @@ sub startCategoryStreams()
     if m.getStreams.state = "run" then return
     m.streamsCategory = m.top.currentCategory
     m.getStreams.gameRequested = m.streamsCategory
+    m.streamsCursor = ""
     m.getStreams.pagination = ""
     m.getStreams.offset = "0"
     m.streamsLoading = true
@@ -139,6 +132,7 @@ sub onStreamsStopped()
     if m.getStreams.state = "stop" and m.streamsCategory <> m.top.currentCategory
         startCategoryStreams()
     end if
+    if m.getStreams.state = "stop" and m.getStreams.errorMessage = "" and m.liveLine.visible then onGridFocus()
 end sub
 
 sub onClipsStopped()
@@ -147,6 +141,7 @@ sub onClipsStopped()
     if m.getClips.state = "stop" and m.clipLine.visible and m.clipsCategory <> m.top.currentCategory
         onClipsLoad()
     end if
+    if m.getClips.state = "stop" and m.getClips.errorMessage = "" and m.clipLine.visible then onGridFocus()
 end sub
 
 sub onClipsLoad()
@@ -160,6 +155,7 @@ sub onClipsLoad()
     if m.getClips.state = "run" then return
     m.clipsCategory = m.top.currentCategory
     m.getClips.gameRequested = m.clipsCategory
+    m.clipsCursor = ""
     m.getClips.pagination = ""
     m.getClips.control = "RUN"
 end sub
@@ -171,23 +167,11 @@ function numberToText(number) as String
     return number.ToStr().Trim()
 end function
 
-function categoryGrid(items) as Object
-    content = CreateObject("roSGNode", "ContentNode")
-    row = invalid
-    for index = 0 to items.count() - 1
-        if index MOD 4 = 0
-            row = CreateObject("roSGNode", "ContentNode")
-            content.appendChild(row)
-        end if
-        row.appendChild(items[index])
-    end for
-    return content
-end function
-
 sub onSearchResultChange()
     if m.streamsCategory <> m.top.currentCategory then return
     m.streamsLoading = false
     updateCategoryBusy()
+    items = []
     if m.getStreams.searchResults <> invalid
         for each stream in m.getStreams.searchResults
             if not m.seenStreams.DoesExist(stream.name)
@@ -199,28 +183,26 @@ sub onSearchResultChange()
                 item.HDPosterUrl = stream.thumbnail
                 item.ShortDescriptionLine1 = stream.name
                 item.ShortDescriptionLine2 = numberToText(stream.viewers)
-                m.streamRows.push(item)
+                items.Push(item)
             end if
         end for
     end if
-    focused = m.browseList.rowItemFocused
-    m.browseList.content = categoryGrid(m.streamRows)
-    if m.newCategory then focused = [0, 0]
-    m.browseList.jumpToRowItem = focused
+    appendGridItems(m.browseList, items)
+    finishGridPage(m.getStreams, m.streamsCursor, items.Count())
     completeCategoryFocus("live")
-    m.newCategory = false
-    m.append = false
     if m.liveLine.visible
         m.emptyLabel.visible = not categoryHasRows(m.browseList)
         m.emptyLabel.text = "No live channels in this category"
         if m.getStreams.errorMessage <> "" then m.emptyLabel.text = m.getStreams.errorMessage
     end if
+    if m.getStreams.errorMessage = "" then onGridFocus()
 end sub
 
 sub insertClips()
     if m.clipsCategory <> m.top.currentCategory then return
     m.clipsLoading = false
     updateCategoryBusy()
+    items = []
     if m.getClips.searchResults <> invalid
         for each clip in m.getClips.searchResults
             if not m.seenClips.DoesExist(clip.thumbnail_url)
@@ -231,20 +213,19 @@ sub insertClips()
                 item.HDPosterUrl = clip.thumbnail_url
                 item.ShortDescriptionLine1 = clip.id
                 item.ShortDescriptionLine2 = numberToText(clip.viewer_count)
-                m.clipRows.push(item)
+                items.Push(item)
             end if
         end for
     end if
-    focused = m.browseClipsList.rowItemFocused
-    m.browseClipsList.content = categoryGrid(m.clipRows)
-    m.browseClipsList.jumpToRowItem = focused
+    appendGridItems(m.browseClipsList, items)
+    finishGridPage(m.getClips, m.clipsCursor, items.Count())
     completeCategoryFocus("clips")
-    m.append = false
     if m.clipLine.visible
         m.emptyLabel.visible = not categoryHasRows(m.browseClipsList)
         m.emptyLabel.text = "No clips in this category"
         if m.getClips.errorMessage <> "" then m.emptyLabel.text = m.getClips.errorMessage
     end if
+    if m.getClips.errorMessage = "" then onGridFocus()
 end sub
 
 sub onStreamUrlChange()
@@ -323,18 +304,19 @@ sub onClipPlaybackStopped()
 end sub
 
 sub onGridFocus()
-    if m.browseList.hasFocus() and categoryHasRows(m.browseList)
-        if m.browseList.rowItemFocused[0] >= m.browseList.content.getChildCount() - 2 then getMoreChannels()
-    else if m.browseClipsList.hasFocus() and categoryHasRows(m.browseClipsList)
-        if m.browseClipsList.rowItemFocused[0] >= m.browseClipsList.content.getChildCount() - 2 then getMoreClips()
+    if not m.top.visible then return
+    if m.liveLine.visible and gridNeedsMore(m.browseList)
+        getMoreChannels()
+    else if m.clipLine.visible and gridNeedsMore(m.browseClipsList)
+        getMoreClips()
     end if
 end sub
 
 sub getMoreChannels()
-    if m.getStreams.state = "run" or m.append then return
+    if m.streamsCategory <> m.top.currentCategory or m.streamsLoading or m.getStreams.state = "run" then return
     if m.getStreams.pagination = "" then return
     m.offset += 24
-    m.append = true
+    m.streamsCursor = m.getStreams.pagination
     m.getStreams.offset = m.offset.ToStr()
     m.streamsLoading = true
     updateCategoryBusy()
@@ -342,9 +324,9 @@ sub getMoreChannels()
 end sub
 
 sub getMoreClips()
-    if m.getClips.state = "run" or m.append then return
+    if m.clipsCategory <> m.top.currentCategory or m.clipsLoading or m.getClips.state = "run" then return
     if m.getClips.pagination = "" then return
-    m.append = true
+    m.clipsCursor = m.getClips.pagination
     m.clipsLoading = true
     updateCategoryBusy()
     m.getClips.control = "RUN"
@@ -379,6 +361,9 @@ function onKeyEvent(key, press) as Boolean
             focusContent()
             return true
         end if
+    else if key = "down"
+        onGridFocus()
+        return true
     else if key = "up"
         m.pendingGridFocus = ""
         m.browseButtons.setFocus(true)
@@ -427,8 +412,8 @@ end sub
 sub updateCategoryBusy()
     if m.busy = invalid then return
     loading = m.playbackLoading
-    if m.liveLine.visible and m.streamsLoading then loading = true
-    if m.clipLine.visible and m.clipsLoading then loading = true
+    if m.liveLine.visible and m.streamsLoading and not categoryHasRows(m.browseList) then loading = true
+    if m.clipLine.visible and m.clipsLoading and not categoryHasRows(m.browseClipsList) then loading = true
     m.busy.enabled = m.top.visible
     m.busy.active = loading
     if loading then m.emptyLabel.visible = false

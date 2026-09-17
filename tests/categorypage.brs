@@ -13,11 +13,18 @@ sub main()
         item.Title = index.ToStr()
         items.push(item)
     end for
-    content = categoryGrid(items)
+    grid = node()
+    appendGridItems(grid, items)
+    content = grid.content
     check(content.getChildCount() = 3, "Nine streams occupy three four-column rows")
     check(content.getChild(0).getChildCount() = 4 and content.getChild(1).getChildCount() = 4, "Complete rows contain exactly four items")
     check(content.getChild(2).getChildCount() = 1 and content.getChild(2).getChild(0).Title = "8", "Final partial row is appended exactly once")
-    check(categoryGrid([]).getChildCount() = 0, "Empty response does not create an empty selectable row")
+    empty = node()
+    appendGridItems(empty, [])
+    check(empty.content.getChildCount() = 0, "Empty response does not create an empty selectable row")
+    first = node()
+    appendGridItems(empty, [first])
+    check(empty.jumpToRowItem[0] = 0 and empty.jumpToRowItem[1] = 0, "First cards arriving into an empty content root initialize the first cursor")
     check(itemCategoryText(["Science"]) = "Science" and itemCategoryText([]) = "", "SG Categories arrays are normalized safely")
     m.top = node()
     m.top.visible = true
@@ -33,14 +40,15 @@ sub main()
     m.streamRows = []
     m.seenStreams = {}
     m.newCategory = true
-    m.getStreams = {searchResults: [{name: "a", title: "A", display_name: "A", game: "G", thumbnail: "x", viewers: 1}], errorMessage: ""}
+    m.getStreams = {searchResults: [{name: "a", title: "A", display_name: "A", game: "G", thumbnail: "x", viewers: 1}], errorMessage: "", pagination: "", state: "stop"}
     m.emptyLabel = node()
     m.browseList.rowItemFocused = []
     onSearchResultChange()
     check(m.browseList.hasFocus() and m.browseList.jumpToRowItem[0] = 0 and m.browseList.jumpToRowItem[1] = 0, "First game response transfers focus to the first live cell")
+    m.browseList.jumpToRowItem = invalid
     m.browseList.rowItemFocused = [1, 2]
     onSearchResultChange()
-    check(m.browseList.jumpToRowItem[0] = 1 and m.browseList.jumpToRowItem[1] = 2, "Game pagination preserves selection")
+    check(m.browseList.jumpToRowItem = invalid, "Game pagination does not cancel native scrolling with a focus jump")
     m.browseButtons.setFocus(true)
     m.pendingGridFocus = ""
     onSearchResultChange()
@@ -59,5 +67,46 @@ sub main()
     cancelPlaybackRequest()
     onStreamUrlChange()
     check(m.getStuff.cancelRequested and m.playbackRequestId = 8 and m.top.streamUrl = invalid, "Cancelled stream lookup cannot publish late playback")
+    testClipPreload()
     print "PASS category grid packing, empty focus, SG metadata, cancelled playback"
+end sub
+
+sub testClipPreload()
+    m.top.visible = true
+    m.top.currentCategory = "game"
+    m.clipsCategory = "game"
+    m.clipsCursor = ""
+    m.seenClips = {}
+    m.clipLine.visible = true
+    m.liveLine.visible = false
+    m.browseClipsList = node()
+    m.browseClipsList.numRows = 2
+    m.getClips = node()
+    m.getClips.pagination = "clips2"
+    m.getClips.searchResults = []
+    for index = 0 to 23
+        m.getClips.searchResults.Push({id:index.ToStr(),thumbnail_url:index.ToStr(),title:"Clip",broadcaster_name:"C",viewer_count:1})
+    end for
+    insertClips()
+    m.browseClipsList.setFocus(true)
+    m.browseClipsList.rowItemFocused = [2, 1]
+    onGridFocus()
+    check(m.clipsLoading and m.getClips.control = "RUN", "Clips preloads before the visible window reaches its last row")
+    original = m.browseClipsList.content
+    m.getClips.state = "run"
+    m.browseClipsList.rowItemFocused = [4, 1]
+    m.browseClipsList.jumpToRowItem = invalid
+    m.getClips.searchResults = [{id:"new",thumbnail_url:"new",title:"New clip",broadcaster_name:"C",viewer_count:1}]
+    m.getClips.pagination = "clips3"
+    insertClips()
+    check(m.browseClipsList.content.testId = original.testId and original.getChildCount() = 7, "Clip pagination retains existing content nodes")
+    check(m.browseClipsList.rowItemFocused[0] = 4 and m.browseClipsList.jumpToRowItem = invalid, "Clip responses cannot restart focus animation")
+    m.getClips.errorMessage = "offline"
+    m.getClips.state = "stop"
+    onClipsStopped()
+    check(not m.clipsLoading, "Clip preload errors cannot enter an automatic retry loop")
+    m.top.currentCategory = "other"
+    m.getClips.searchResults = [{id:"late",thumbnail_url:"late",title:"Late clip",broadcaster_name:"C",viewer_count:1}]
+    insertClips()
+    check(original.getChild(6).getChildCount() = 1, "A previous game's clip response cannot append to the new game")
 end sub
