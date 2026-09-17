@@ -49,4 +49,6 @@ jobs:
         run: python3 tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode
 
       - name: Verify fMP4 media and HTTP spans
-        run: python3 tests/verify_fmp4.py --brs "$RUNNER_TEMP/twoku-tests/node_modules/.bin/brs" --server-spans
+        run: |
+          python3 tests/media_probe.py
+          python3 tests/verify_fmp4.py --brs "$RUNNER_TEMP/twoku-tests/node_modules/.bin/brs" --server-spans

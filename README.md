@@ -9,7 +9,7 @@
   Browse Twitch from the couch with an interface built for your TV remote.
 </p>
 <p align="center">
-  <a href="https://github.com/nkatchik/twitch-reloaded-roku/actions/workflows/tests.yml"><img src="https://github.com/nkatchik/twitch-reloaded-roku/actions/workflows/tests.yml/badge.svg?branch=master&amp;event=push" alt="Tests" /></a>
+  <a href="https://github.com/nkatchik/twoku-black/actions/workflows/tests.yml"><img src="https://github.com/nkatchik/twoku-black/actions/workflows/tests.yml/badge.svg?branch=master&amp;event=push" alt="Tests" /></a>
   <img src="https://img.shields.io/badge/platform-Roku-662D91?style=flat-square" alt="Platform: Roku" />
   <img src="https://img.shields.io/badge/built_with-BrightScript_%2B_SceneGraph-9146FF?style=flat-square" alt="Built with BrightScript and SceneGraph" />
 </p>
@@ -39,7 +39,7 @@
 Keep your computer and Roku on the same network.
 
 1. Follow to [enable developer mode](https://developer.roku.com/dev/docs/developer-setup).
-2. [⬇ Download the latest ZIP](https://github.com/nkatchik/twitch-reloaded-roku/releases/latest/download/twoku.zip).
+2. [⬇ Download the latest ZIP](https://github.com/nkatchik/twoku-black/releases/latest/download/twoku.zip).
 3. Open your Roku's IP address in a browser. Sign in as `rokudev` with your developer-mode password.
 4. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip**.
 

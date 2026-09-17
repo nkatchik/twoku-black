@@ -10,6 +10,7 @@ BrightScript. Full media bytes are supplied, but the production parser only read
 bounded container metadata and never traverses mdat payload bytes.
 """
 import argparse
+from fractions import Fraction
 import hashlib
 import json
 import re
@@ -214,18 +215,47 @@ def verify_spans(output, source, media_offset, patches):
 def probe(ffprobe, path):
     output, diagnostics = invoke([
         ffprobe, '-v', 'error', '-show_streams', '-show_packets', '-show_data_hash', 'sha256',
-        '-show_entries', 'stream=index,codec_type,codec_name,width,height,sample_rate:packet=stream_index,pts,dts,duration,size,data_hash',
+        '-show_entries', 'stream=index,codec_type,codec_name,width,height,sample_rate,time_base:packet=stream_index,pts,dts,duration,size,data_hash',
         '-of', 'json', str(path),
     ])
     if diagnostics.strip():
         raise AssertionError('ffprobe diagnostics: ' + diagnostics[:2000])
-    return json.loads(output)
+    data = json.loads(output)
+    for stream in data['streams']:
+        missing_audio_duration = stream['codec_type'] == 'audio' and any(
+            packet['stream_index'] == stream['index'] and 'duration' not in packet
+            for packet in data['packets']
+        )
+        if missing_audio_duration:
+            output, diagnostics = invoke([
+                ffprobe, '-v', 'error', '-select_streams', str(stream['index']),
+                '-show_frames', '-show_entries', 'frame=pts,nb_samples', '-of', 'json', str(path),
+            ])
+            if diagnostics.strip():
+                raise AssertionError('ffprobe audio decoding diagnostics: ' + diagnostics[:2000])
+            stream['decoded_frames'] = json.loads(output)['frames']
+    return data
 
 
 def packets_for(data, kind):
-    index = next(stream['index'] for stream in data['streams'] if stream['codec_type'] == kind)
-    return [{key: value for key, value in packet.items() if key != 'stream_index'}
-            for packet in data['packets'] if packet['stream_index'] == index]
+    stream = next(stream for stream in data['streams'] if stream['codec_type'] == kind)
+    packets = [{key: value for key, value in packet.items() if key != 'stream_index'}
+               for packet in data['packets'] if packet['stream_index'] == stream['index']]
+    for position, packet in enumerate(packets):
+        if 'duration' in packet:
+            continue
+        # FFprobe 6.1 can omit the first AAC packet's duration in an audio-only
+        # fragmented MP4. Use the decoded sample count at that packet's PTS;
+        # adjacent DTS values can include gaps and are not the sample duration.
+        frames = [frame for frame in stream.get('decoded_frames', [])
+                  if 'pts' in packet and frame.get('pts') == packet['pts']]
+        if len(frames) != 1 or frames[0].get('nb_samples', 0) <= 0:
+            raise AssertionError(f'Cannot determine {kind} packet {position} duration')
+        duration = Fraction(frames[0]['nb_samples'], int(stream['sample_rate'])) / Fraction(stream['time_base'])
+        if duration.denominator != 1:
+            raise AssertionError(f'Non-integral {kind} packet {position} duration')
+        packet['duration'] = int(duration)
+    return packets
 
 
 def frame_hashes(ffmpeg, path, kind):
@@ -258,8 +288,11 @@ def verify_fixture(args, fixture, work):
         if len(actual['streams']) != 1 or actual['streams'][0]['codec_type'] != kind:
             raise AssertionError('Unexpected streams in ' + kind + ' view')
         expected_packets, actual_packets = packets_for(baseline, kind), packets_for(actual, kind)
-        if not actual_packets or expected_packets != actual_packets:
-            raise AssertionError('Packet payload hashes or timestamps changed')
+        if not actual_packets or len(expected_packets) != len(actual_packets):
+            raise AssertionError(f'{kind} packet count changed: {len(expected_packets)} -> {len(actual_packets)}')
+        for position, (expected, observed) in enumerate(zip(expected_packets, actual_packets)):
+            if expected != observed:
+                raise AssertionError(f'{kind} packet {position} changed: {expected} -> {observed}')
         expected_frames, actual_frames = frame_hashes(args.ffmpeg, fixture, kind), frame_hashes(args.ffmpeg, path, kind)
         if not actual_frames or expected_frames != actual_frames:
             raise AssertionError('Decoded frame hashes or timestamps changed')

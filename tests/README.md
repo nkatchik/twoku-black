@@ -15,6 +15,7 @@ npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0
 /tmp/twoku-test-python/bin/python tests/release.py
 /tmp/twoku-test-python/bin/python tests/fonts.py
 /tmp/twoku-test-python/bin/python tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode
+/tmp/twoku-test-python/bin/python tests/media_probe.py
 /tmp/twoku-test-python/bin/python tests/verify_fmp4.py --brs /tmp/twoku-validation/node_modules/.bin/brs --server-spans
 ```
 
@@ -374,6 +375,10 @@ It generates an audio-first fragmented MP4, feeds its bytes to the production
 BrightScript parser, applies the returned patches, and compares selected packet
 hashes/timestamps plus decoded frame hashes/timestamps. `--server-spans` also
 checks production HTTP span construction and partial writes at patch boundaries.
+FFprobe 6.1 may omit the first audio packet's duration; the verifier derives
+missing durations from decoded sample counts at the packet's timestamp. Explicit
+durations and decoded frame timing remain part of the comparison. `tests/media_probe.py`
+checks this fallback and verifies that changed packet fields still differ.
 To check an existing combined initialization-and-media capture, add
 `--fixture /path/to/capture.mp4`.
 Fixtures remain outside the repository. The off-device interpreter substitutes
