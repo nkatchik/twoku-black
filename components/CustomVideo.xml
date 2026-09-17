@@ -56,7 +56,8 @@
             <Label id="titleLabel" translation="[162,559]" width="1076" height="48" wrap="true" maxLines="2" color="0xE1E4ECFF">
                 <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="20" />
             </Label>
-            <Group id="progress" translation="[42,612]" visible="false">
+            <!-- Center the 34px seek control between the avatar bottom (588) and buttons (654). -->
+            <Group id="progress" translation="[42,604]" visible="false">
                 <Rectangle id="seekFocus" translation="[-8,-4]" width="1212" height="42" color="0xF4F4F733" visible="false" />
                 <Label id="positionLabel" width="90" height="22">
                     <Font role="font" uri="font:SystemFontFile" size="16" />
