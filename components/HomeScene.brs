@@ -382,7 +382,6 @@ sub onCategorySelect()
     m.appendCategory = false
     m.categoriesCursor = ""
     m.getCategories.pagination = ""
-    m.getCategories.searchText = ""
     m.getCategories.control = "RUN"
 end sub
 

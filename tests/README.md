@@ -34,7 +34,16 @@ key routes through the player controls and quality menu; held presses are coales
 Live streams, VODs, and clips acquire fresh playback URLs through their existing
 tasks. Tests check decoder stop acknowledgement, recording position and pause
 state, quality preference, cancellation on Back, and visible-chat reconnection.
-These checks run off-device; native remote delivery still needs device acceptance.
+These suites run off-device and do not prove native remote delivery.
+
+On 2026-09-17, Roxton K806X / Roku OS 15.3.4 device checks used ECP
+`InstantReplay` input and temporary console tracing to confirm fresh results in
+Channels, Games, Following, game streams/clips, profiles, and channel search.
+Live playback stopped and restarted with an advancing native decoder; visible
+chat reconnected and delivered messages. A paused VOD reloaded from 60.033 to
+60.049 seconds and stayed paused; a paused clip also resumed paused. Back during
+a pending reload left the decoder closed after the request completed. Temporary
+tracing is excluded from the installed production build.
 
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
