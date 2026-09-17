@@ -80,6 +80,9 @@ sub main()
     updateFollowingFocus()
     check(not m.focusCursor.visible, "Vertical animation hides the cursor without fading")
     m.grid.stride = 200.8
+    m.grid.content.focusState = [2,1,true,5,0.996,false]
+    updateFollowingFocus()
+    check(m.focusCursor.visible and m.offlineFocus.visible and Abs(m.focusCursor.translation[0] - 1004) < 0.01, "Finished vertical scrolling shows the frame before delayed native item-focus notifications")
     m.grid.content.focusState = [2,1,true,5,1,true]
     updateFollowingFocus()
     check(m.focusCursor.visible and m.offlineFocus.visible and Abs(m.focusCursor.translation[0] - 1004) < 0.01, "Settled sixth avatar matches the actual focused index")

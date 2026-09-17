@@ -232,6 +232,22 @@ input through Roku's remote API, not the physical IR handset's event timing.
 The installed production build was left on Following. All 34 deterministic suites
 passed before deployment; no source changes were needed during this device check.
 
+The next focus refinement uses the same nine-patch for focused and unfocused
+grid states, with the unfocused bitmap transparent. This prevents the initial
+frame from inheriting different default margins. First-selection screenshots
+on Channels, Games, and a game's streams confirm symmetric borders before any
+horizontal movement. Following's live frame now matches their four-pixel stroke
+and three-pixel thumbnail gap, with clipping expanded to contain the border.
+
+Following shows its frame as soon as `rowFocusPercent` reaches one rather than
+waiting again for `rowItemFocused`. A local-content device probe recorded the
+frame becoming visible 16–65 ms before that later notification. It also verified
+offline column six → live column four → offline column six → Left → column five;
+OK selected the fifth offline channel. The native screenshot showed the live
+border separated from every thumbnail edge. The added delayed-notification
+regression and all 34 suites pass; compilation still has the same twenty unused
+WebSocket diagnostics.
+
 On 2026-09-16, the exact production live query and Twitch master returned HTTP
 200. The checked stream offered 1080p60, 720p60, 480p30, 360p30 and 160p30; Auto
 selected 480p30. The production clip query returned four signed MP4 qualities;

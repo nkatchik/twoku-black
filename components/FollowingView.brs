@@ -151,9 +151,10 @@ end sub
 sub updateFollowingFocus()
     if m.grid.content <> invalid
         state = m.grid.content.focusState
-        if state[5] and state[1] = 1
-            ' A settled native item is authoritative when changing between rows
-            ' with different column counts. currFocusColumn can still be stale.
+        if state[1] = 1 and (state[5] or state[0] <> m.focusPosition[0])
+            ' The row animation can finish before rowItemFocused/itemHasFocus
+            ' arrives. Show its frame now instead of waiting for that second
+            ' notification. Settled items still correct stale native columns.
             m.focusPosition = [state[0],state[3]]
             m.cursorColumn = state[3]
         end if

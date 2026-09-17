@@ -11,7 +11,7 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/FollowingView.brs" />
     <children>
-        <Group clippingRect="[-6,0,1206,606]">
+        <Group clippingRect="[-8,0,1210,606]">
             <RowList id="grid" translation="[0,6]" itemComponentName="FollowingItem" itemSize="[1194,247]"
                 rowItemSize="[[292,227]]" rowItemSpacing="[[8.666667,0]]" numRows="5" rowLabelOffset="[[0,10]]"
                 rowLabelColor="0xEFEFF1FF" showRowCounter="[false]" drawFocusFeedback="false"
@@ -19,11 +19,11 @@
                 <Font role="rowLabelFont" uri="pkg:/fonts/Inter-SemiBold.ttf" size="20" />
             </RowList>
             <Group id="focusCursor" visible="false">
-                <Group id="liveFocus" translation="[0,6]">
-                    <Rectangle width="292" height="3" color="0xF4F4F7FF" />
-                    <Rectangle translation="[0,161]" width="292" height="3" color="0xF4F4F7FF" />
-                    <Rectangle translation="[0,3]" width="3" height="158" color="0xF4F4F7FF" />
-                    <Rectangle translation="[289,3]" width="3" height="158" color="0xF4F4F7FF" />
+                <Group id="liveFocus" translation="[-7,-1]">
+                    <Rectangle width="306" height="4" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,174]" width="306" height="4" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,4]" width="4" height="170" color="0xF4F4F7FF" />
+                    <Rectangle translation="[302,4]" width="4" height="170" color="0xF4F4F7FF" />
                 </Group>
                 <Poster id="offlineFocus" translation="[41,6]" uri="pkg:/images/twellie-avatar-focus.png" width="108" height="108" />
             </Group>
