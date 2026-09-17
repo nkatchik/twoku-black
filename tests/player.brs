@@ -61,6 +61,8 @@ sub resetPlayer()
     m.overlayTimer = playerNode()
     m.watchdog = playerNode()
     m.seekTimer = playerNode()
+    m.seekRepeatTimer = playerNode()
+    m.heldSeekKey = ""
     m.controlIndex = 0
     m.overlayFocus = "buttons"
     m.buttonNodes = []
@@ -417,9 +419,11 @@ sub main()
     onVideoPositionChange()
     check(m.top.findNode("positionLabel").text = "2:20", "Old native progress does not move the seek preview backwards")
     onKeyEvent("right", true)
-    check(m.pendingSeek = 150 and m.seekTimer.duration = 0.65, "IR repeat after an early commit continues from the requested target")
+    check(m.pendingSeek = 150 and m.seekRepeatTimer.duration = 0.5, "A new hold after an early commit continues from the requested target")
     onKeyEvent("right", true)
-    check(m.pendingSeek = 160, "Held input accumulates monotonically")
+    check(m.pendingSeek = 150, "Duplicate key-down edges do not double-count timer repeats")
+    onSeekRepeat()
+    check(m.pendingSeek = 160, "Held input accumulates without repeated key-down events")
     commitSeek()
     check(m.video.seek = 140 and m.pendingSeek = 160, "Repeated input cannot overlap a native seek")
     onKeyEvent("right", false)
@@ -442,8 +446,9 @@ sub main()
     check(m.video.control = "pause", "A late native playing event after seek acknowledgment cannot consume the paused intent")
     m.video.state = "paused"
     onKeyEvent("left", true)
-    onKeyEvent("left", true)
+    onSeekRepeat()
     check(m.pendingSeek = 140, "Held backward seek uses the same accumulating path")
+    onKeyEvent("left", false)
     m.video.duration = 0
     commitSeek()
     seekBy(10)
@@ -467,6 +472,36 @@ sub main()
     check(m.busy.active and not m.statusBox.visible, "Rebuffering shows a spinner without a text box")
     showPlaybackError("Decoder failed")
     check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Decoder failed", "Errors replace the spinner with actionable text")
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.duration = 600
+    m.video.position = 100
+    m.video.state = "playing"
+    onKeyEvent("right", true)
+    for count = 1 to 4
+        onSeekRepeat()
+        commitSeek()
+    end for
+    check(m.pendingSeek = 150 and m.video.seek = invalid, "A two-edge hold advances the preview without overlapping native seeks")
+    onKeyEvent("right", false)
+    check(m.heldSeekKey = "" and m.seekRepeatTimer.control = "stop", "Release stops synthetic repeats")
+    commitSeek()
+    check(m.video.seek = 150 and m.seekInFlight = 150, "Release commits the final held target once")
+    onSeekRepeat()
+    check(m.pendingSeek = invalid, "A queued timer fire after release cannot add another seek step")
+    m.video.position = 150
+    onVideoPositionChange()
+    onKeyEvent("right", true)
+    onSeekRepeat()
+    onKeyEvent("left", true)
+    onKeyEvent("right", false)
+    check(m.heldSeekKey = "left", "Late release from the old direction cannot stop the new hold")
+    onSeekRepeat()
+    check(m.pendingSeek = 150, "A direction reversal accumulates from the preview rather than stale native time")
+    onKeyEvent("back", true)
+    onSeekRepeat()
+    check(m.heldSeekKey = "" and m.seekRepeatTimer.control = "stop", "Back cancels held seeking before navigating away")
+
     testCompatibilityRouting()
     testDecoderLifecycle()
     print "PASS player completion guards, compatibility cancellation and fallback, bandwidth, quality, remote input and VOD seek"

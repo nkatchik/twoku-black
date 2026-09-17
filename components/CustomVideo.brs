@@ -27,6 +27,8 @@ sub init()
     m.overlayTimer = m.top.findNode("overlayTimer")
     m.watchdog = m.top.findNode("watchdog")
     m.seekTimer = m.top.findNode("seekTimer")
+    m.seekRepeatTimer = m.top.findNode("seekRepeatTimer")
+    m.heldSeekKey = ""
     m.video.observeField("state", "onVideoStateChange")
     m.video.observeField("content", "onContentChange")
     m.top.observeField("content", "onRequestedContent")
@@ -43,6 +45,7 @@ sub init()
     m.overlayTimer.observeField("fire", "hideOverlay")
     m.watchdog.observeField("fire", "checkPlaybackProgress")
     m.seekTimer.observeField("fire", "commitSeek")
+    m.seekRepeatTimer.observeField("fire", "onSeekRepeat")
     m.controlIndex = 0
     m.overlayFocus = "buttons"
     m.variants = []
@@ -318,6 +321,7 @@ end sub
 
 sub onContentChange()
     if m.video.content = invalid or not m.top.visible or not m.playbackActive then return
+    stopSeekHold()
     m.pendingSeek = invalid
     m.seekInFlight = invalid
     m.seekPaused = m.resumePaused
@@ -584,6 +588,7 @@ end sub
 
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
+    stopSeekHold()
     selected = m.variants[index]
     showPlayerBusy()
     nextContent = CreateObject("roSGNode", "ContentNode")
@@ -623,6 +628,7 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    stopSeekHold()
     cancelCompatibility()
     m.startRequested = false
     m.playbackActive = false
@@ -763,6 +769,46 @@ sub applyQuality()
     showOverlay()
 end sub
 
+sub startSeekHold(key as String)
+    if not canSeek() or key = m.heldSeekKey then return
+    stopSeekHold()
+    m.heldSeekKey = key
+    seekBy(seekDirection(key))
+    m.seekRepeatTimer.duration = 0.5
+    m.seekRepeatTimer.control = "start"
+end sub
+
+function seekDirection(key as String) as Integer
+    if key = "left" or key = "rewind" then return -10
+    return 10
+end function
+
+sub onSeekRepeat()
+    if m.heldSeekKey = "" then return
+    if not canSeek() or m.qualityPanel.visible
+        stopSeekHold()
+        return
+    end if
+    ' Repeat between down/up edges without relying on extra key-down events.
+    ' Advance the preview while held and submit one native seek on release.
+    m.seekRepeatTimer.control = "stop"
+    seekBy(seekDirection(m.heldSeekKey))
+    m.seekRepeatTimer.duration = 0.15
+    m.seekRepeatTimer.control = "start"
+end sub
+
+sub stopSeekHold()
+    m.heldSeekKey = ""
+    if m.seekRepeatTimer <> invalid then m.seekRepeatTimer.control = "stop"
+end sub
+
+sub scheduleSeekCommit()
+    if m.pendingSeek = invalid then return
+    m.seekTimer.control = "stop"
+    m.seekTimer.duration = 0.12
+    m.seekTimer.control = "start"
+end sub
+
 sub seekBy(seconds as Integer)
     if not canSeek() then return
     if m.video.state = "paused" then m.seekPaused = true
@@ -776,14 +822,16 @@ sub seekBy(seconds as Integer)
     m.overlayFocus = "seek"
     showOverlay()
     m.seekTimer.control = "stop"
-    ' Allow the initial IR repeat delay; release shortens this to a quick commit.
-    m.seekTimer.duration = 0.65
-    m.seekTimer.control = "start"
+    if m.heldSeekKey = ""
+        m.seekTimer.duration = 0.65
+        m.seekTimer.control = "start"
+    end if
     onVideoPositionChange()
 end sub
 
 sub commitSeek()
     m.seekTimer.control = "stop"
+    if m.heldSeekKey <> "" then return
     if m.pendingSeek = invalid then return
     if not canSeek()
         m.pendingSeek = invalid
@@ -868,12 +916,17 @@ end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press
-        if m.pendingSeek <> invalid and (key = "left" or key = "right" or key = "rewind" or key = "fastforward")
-            m.seekTimer.control = "stop"
-            m.seekTimer.duration = 0.12
-            m.seekTimer.control = "start"
+        if key = m.heldSeekKey
+            stopSeekHold()
+            scheduleSeekCommit()
+        else if m.heldSeekKey = "" and (key = "left" or key = "right" or key = "rewind" or key = "fastforward")
+            scheduleSeekCommit()
         end if
         return key <> "home"
+    end if
+    if m.heldSeekKey <> "" and key <> m.heldSeekKey
+        stopSeekHold()
+        scheduleSeekCommit()
     end if
     if key = "back"
         if m.qualityPanel.visible
@@ -915,16 +968,12 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         return true
     end if
     if key = "rewind" or key = "fastforward"
-        delta = 10
-        if key = "rewind" then delta = -10
-        seekBy(delta)
+        startSeekHold(key)
         return true
     end if
     if not m.overlay.visible
         if canSeek() and (key = "left" or key = "right")
-            delta = 10
-            if key = "left" then delta = -10
-            seekBy(delta)
+            startSeekHold(key)
         else
             m.overlayFocus = "buttons"
             if canSeek() then m.overlayFocus = "seek"
@@ -941,9 +990,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         if key = "up" then m.overlayFocus = "seek"
     else if m.overlayFocus = "seek"
         if key = "left"
-            seekBy(-10)
+            startSeekHold(key)
         else if key = "right"
-            seekBy(10)
+            startSeekHold(key)
         else if key = "OK"
             commitSeek()
             togglePlayback()

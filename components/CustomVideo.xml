@@ -104,5 +104,6 @@
         <Timer id="playbackStartTimer" duration="0.01" repeat="false" />
         <Timer id="watchdog" duration="1" repeat="true" />
         <Timer id="seekTimer" duration="0.35" repeat="false" />
+        <Timer id="seekRepeatTimer" duration="0.5" repeat="false" />
     </children>
 </component>
