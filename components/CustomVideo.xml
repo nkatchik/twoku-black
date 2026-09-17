@@ -47,7 +47,7 @@
             <Label id="kindLabel" translation="[162,492]" width="48" height="22" horizAlign="center" vertAlign="center" text="LIVE">
                 <Font role="font" uri="font:BoldSystemFontFile" size="13" />
             </Label>
-            <Label id="viewerLabel" translation="[224,492]" width="400" height="22" color="0xD9DCE4FF">
+            <Label id="viewerLabel" translation="[224,492]" width="400" height="22" vertAlign="center" color="0xD9DCE4FF">
                 <Font role="font" uri="font:SystemFontFile" size="15" />
             </Label>
             <Label id="channelLabel" translation="[162,519]" width="1076" height="38" color="0xFFFFFFFF">
