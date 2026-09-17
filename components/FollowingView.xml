@@ -13,17 +13,17 @@
     <children>
         <Group clippingRect="[-8,0,1210,606]">
             <RowList id="grid" translation="[0,6]" itemComponentName="FollowingItem" itemSize="[1194,247]"
-                rowItemSize="[[292,227]]" rowItemSpacing="[[8.666667,0]]" numRows="5" rowLabelOffset="[[0,10]]"
+                rowItemSize="[[288,227]]" rowItemSpacing="[[14,0]]" numRows="5" rowLabelOffset="[[0,10]]"
                 rowLabelColor="0xEFEFF1FF" showRowCounter="[false]" drawFocusFeedback="false"
                 vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus">
                 <Font role="rowLabelFont" uri="font:BoldSystemFontFile" size="20" />
             </RowList>
             <Group id="focusCursor" visible="false">
                 <Group id="liveFocus" translation="[-7,-1]">
-                    <Rectangle width="306" height="4" color="0xF4F4F7FF" />
-                    <Rectangle translation="[0,174]" width="306" height="4" color="0xF4F4F7FF" />
-                    <Rectangle translation="[0,4]" width="4" height="170" color="0xF4F4F7FF" />
-                    <Rectangle translation="[302,4]" width="4" height="170" color="0xF4F4F7FF" />
+                    <Rectangle width="302" height="4" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,172]" width="302" height="4" color="0xF4F4F7FF" />
+                    <Rectangle translation="[0,4]" width="4" height="168" color="0xF4F4F7FF" />
+                    <Rectangle translation="[298,4]" width="4" height="168" color="0xF4F4F7FF" />
                 </Group>
                 <Poster id="offlineFocus" translation="[41,6]" uri="pkg:/images/twellie-avatar-focus.png" width="108" height="108" />
             </Group>

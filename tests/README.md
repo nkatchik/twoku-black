@@ -45,6 +45,13 @@ chat reconnected and delivered messages. A paused VOD reloaded from 60.033 to
 a pending reload left the decoder closed after the request completed. Temporary
 tracing is excluded from the installed production build.
 
+Landscape grids use 288-by-162 thumbnails with 14-pixel horizontal gaps:
+four cards and three gaps fill the 1194-pixel content width exactly. This leaves
+seven pixels between the outside of a focused card's frame and its neighbor,
+while Games keeps its wider 19.33-pixel cover gaps. Device screenshots verified
+Channels, Following live rows, profiles, and game streams; first/last-column
+focus and rapid Following navigation stayed aligned after the size change.
+
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
 [fonts/README.md](../fonts/README.md) for setup and reproducible generation.

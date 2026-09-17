@@ -65,17 +65,17 @@ sub main()
     m.offlineFocus = node()
     m.grid.setFocus(true)
     m.focusPosition = [0,0]
-    m.grid.stride = 292 + 26 / 3
+    m.grid.stride = 288 + 14
     m.grid.subBoundingRect = function(part)
         return {x:Right(part,1).ToInt()*m.stride,y:42}
     end function
     m.grid.content.focusState = [0,1,true,1,0.5,false]
     m.grid.currFocusColumn = 0.5
     onFocusColumnChanged()
-    check(m.focusCursor.visible and Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01 and m.liveFocus.visible, "Single solid live cursor follows native horizontal motion")
+    check(m.focusCursor.visible and Abs(m.focusCursor.translation[0] - (288 + 14) / 2) < 0.01 and m.liveFocus.visible, "Single solid live cursor follows native horizontal motion")
     m.grid.content.focusState = [0,1,true,0,0.5,false]
     updateFollowingFocus()
-    check(Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01, "Outgoing item updates cannot pull the cursor backwards")
+    check(Abs(m.focusCursor.translation[0] - (288 + 14) / 2) < 0.01, "Outgoing item updates cannot pull the cursor backwards")
     m.grid.content.focusState = [2,0.5,true,5,1,false]
     updateFollowingFocus()
     check(not m.focusCursor.visible, "Vertical animation hides the cursor without fading")
@@ -87,10 +87,10 @@ sub main()
     updateFollowingFocus()
     check(m.focusCursor.visible and m.offlineFocus.visible and Abs(m.focusCursor.translation[0] - 1004) < 0.01, "Settled sixth avatar matches the actual focused index")
     m.grid.currFocusColumn = 5
-    m.grid.stride = 292 + 26 / 3
+    m.grid.stride = 288 + 14
     m.grid.content.focusState = [0,1,true,3,1,true]
     updateFollowingFocus()
-    check(Abs(m.focusCursor.translation[0] - 902) < 0.01, "Moving to four-column live rows uses native selected column four")
+    check(Abs(m.focusCursor.translation[0] - 906) < 0.01, "Moving to four-column live rows uses native selected column four")
     m.grid.stride = 200.8
     m.grid.content.focusState = [2,1,true,3,1,true]
     updateFollowingFocus()

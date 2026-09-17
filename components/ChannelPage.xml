@@ -46,7 +46,7 @@
             </Label>
         </Group>
         <RowList id="pastBroadcastsList" itemComponentName="ChannelPageItem" translation="[43,172]"
-            numRows="2" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            numRows="2" rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
             focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" />
         <Label id="emptyLabel" translation="[43,345]" width="1194" height="110" horizAlign="center" color="0x5C5C66FF" visible="false">

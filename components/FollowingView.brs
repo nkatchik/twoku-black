@@ -60,8 +60,8 @@ function followingRows(liveStreams, offlineChannels) as Object
                         height = 247
                         if first then height += 36
                         heights.Push(height)
-                        sizes.Push([292,227])
-                        spacings.Push([(1194 - 4 * 292) / 3,0])
+                        sizes.Push([288,227])
+                        spacings.Push([14,0])
                     else
                         height = 160
                         if first then height += 36
@@ -106,7 +106,7 @@ sub onContentChanged()
         end for
     end for
     m.grid.rowHeights = model.heights
-    if model.sizes.Count() = 0 then model.sizes = [[292,227]]
+    if model.sizes.Count() = 0 then model.sizes = [[288,227]]
     m.grid.rowItemSize = model.sizes
     m.grid.rowItemSpacing = model.spacings
     m.grid.showRowLabel = model.labels

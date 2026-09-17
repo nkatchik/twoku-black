@@ -47,11 +47,11 @@
             </Label>
         </Group>
         <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
-            rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
             focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" />
         <RowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
-            rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1198,247]"
+            rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
             focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" visible="false" />
         <Label id="emptyLabel" translation="[43,380]" width="1194" height="100" horizAlign="center" color="0x5C5C66FF" text="" visible="false">

@@ -6,15 +6,15 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/ChannelVideoItem.brs" />
     <children>
-        <Rectangle width="292" height="164" color="0x18181BFF" />
+        <Rectangle width="288" height="162" color="0x18181BFF" />
         <Group id="thumbnailFallback" visible="false">
-            <Poster id="fallbackAvatar" translation="[98,34]" width="96" height="96" loadDisplayMode="scaleToFill" />
-            <Poster translation="[98,34]" width="96" height="96" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x18181BFF" loadDisplayMode="scaleToFit" />
+            <Poster id="fallbackAvatar" translation="[96,33]" width="96" height="96" loadDisplayMode="scaleToFill" />
+            <Poster translation="[96,33]" width="96" height="96" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x18181BFF" loadDisplayMode="scaleToFit" />
         </Group>
-        <Poster id="itemThumbnail" width="292" height="164" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToFill" />
-<Rectangle id="viewsRect" translation="[200,132]" width="84" height="24" color="0x08080ACC"><Label id="itemDuration" translation="[4,0]" width="80" height="24" color="0xFFFFFFFF" horizAlign="center"><Font role="font" uri="font:SystemFontFile" size="14" /></Label></Rectangle>
-<ScrollingLabel id="itemTitle" translation="[0,172]" maxWidth="292" height="23" repeatCount="0" color="0xFFFFFFFF"><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="19" /></ScrollingLabel>
-<Label id="itemStreamer" translation="[0,199]" width="170" height="20" color="0xDEDEE3FF" ><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="16" /></Label>
-<Label id="itemPosted" translation="[174,199]" width="118" height="20" color="0xC6C6CEFF" horizAlign="right"><Font role="font" uri="font:SystemFontFile" size="14" /></Label>
+        <Poster id="itemThumbnail" width="288" height="162" loadWidth="320" loadHeight="180" loadDisplayMode="scaleToFill" />
+<Rectangle id="viewsRect" translation="[196,130]" width="84" height="24" color="0x08080ACC"><Label id="itemDuration" translation="[4,0]" width="80" height="24" color="0xFFFFFFFF" horizAlign="center"><Font role="font" uri="font:SystemFontFile" size="14" /></Label></Rectangle>
+<ScrollingLabel id="itemTitle" translation="[0,170]" maxWidth="288" height="23" repeatCount="0" color="0xFFFFFFFF"><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="19" /></ScrollingLabel>
+<Label id="itemStreamer" translation="[0,197]" width="166" height="20" color="0xDEDEE3FF" ><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="16" /></Label>
+<Label id="itemPosted" translation="[170,197]" width="118" height="20" color="0xC6C6CEFF" horizAlign="right"><Font role="font" uri="font:SystemFontFile" size="14" /></Label>
     </children>
 </component>
