@@ -7,6 +7,11 @@ sub main()
     m.offline = {visible:false}
     onItemFocus()
     check(root.focusState[0] = 2 and root.focusState[1] = 1, "Horizontal interpolation never changes cursor opacity")
+    m.top.index = 4
+    m.top.focusPercent = 0.8
+    onItemFocus()
+    check(root.focusState[3] = 5 and root.focusState[4] = 0.5, "Another item's changing progress cannot replace the row motion signal")
+    m.top.index = 5
     m.top.rowFocusPercent = 0.5
     onItemFocus()
     check(root.focusState[1] = 0.5, "Vertical movement signals the shared cursor to wait for settlement")

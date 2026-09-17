@@ -70,8 +70,9 @@ sub main()
         return {x:Right(part,1).ToInt()*m.stride,y:42}
     end function
     m.grid.content.focusState = [0,1,true,1,0.5,false]
-    updateFollowingFocus()
-    check(m.focusCursor.visible and Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01 and m.liveFocus.visible, "Single solid live cursor follows incoming item progress")
+    m.grid.currFocusColumn = 0.5
+    onFocusColumnChanged()
+    check(m.focusCursor.visible and Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01 and m.liveFocus.visible, "Single solid live cursor follows native horizontal motion")
     m.grid.content.focusState = [0,1,true,0,0.5,false]
     updateFollowingFocus()
     check(Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01, "Outgoing item updates cannot pull the cursor backwards")
@@ -91,9 +92,29 @@ sub main()
     m.grid.content.focusState = [2,1,true,3,1,true]
     updateFollowingFocus()
     check(Abs(m.focusCursor.translation[0] - 602.4) < 0.01, "Returning to avatars cannot reuse stale column six")
+    m.grid.currFocusColumn = 5
+    onFocusColumnChanged()
+    check(Abs(m.focusCursor.translation[0] - 602.4) < 0.01, "Late native column notifications cannot override a settled vertical destination")
     m.grid.content.focusState = [2,1,true,2,0.5,false]
-    updateFollowingFocus()
+    m.grid.currFocusColumn = 2.5
+    onFocusColumnChanged()
     check(Abs(m.focusCursor.translation[0] - 502) < 0.01, "Left moves visually from column four toward column three")
+    ' Direction changes during an unfinished move must not restart interpolation
+    ' from the last settled item or trust an older incoming-item callback.
+    m.grid.content.focusState = [2,1,true,4,0.3,false]
+    updateFollowingFocus()
+    check(Abs(m.focusCursor.translation[0] - 502) < 0.01, "An obsolete incoming item cannot move the shared cursor")
+    for each column in [2.7,3.1,3.4,3.2,2.8,2.1]
+        m.grid.currFocusColumn = column
+        onFocusColumnChanged()
+        check(Abs(m.focusCursor.translation[0] - column * 200.8) < 0.01, "Rapid reversals follow only native cursor motion")
+        m.grid.content.focusState = [2,1,true,5,0.6,false]
+        updateFollowingFocus()
+        check(Abs(m.focusCursor.translation[0] - column * 200.8) < 0.01, "Interleaved item callbacks cannot fight native animation")
+    end for
+    m.grid.content.focusState = [2,1,true,2,1,true]
+    updateFollowingFocus()
+    check(m.focusPosition[1] = 2 and Abs(m.focusCursor.translation[0] - 401.6) < 0.01, "The final settled item restores exact logical and visual selection")
     m.grid.setFocus(false)
     updateFollowingFocus()
     check(not m.focusCursor.visible, "Returning to header hides shared focus")

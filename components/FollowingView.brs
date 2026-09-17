@@ -6,9 +6,11 @@ sub init()
     m.offlineFocus = m.top.findNode("offlineFocus")
     m.grid.observeField("rowItemFocused", "onItemFocused")
     m.grid.observeField("rowItemSelected", "onItemSelected")
+    m.grid.observeField("currFocusColumn", "onFocusColumnChanged")
     m.top.observeField("visible", "updateFollowingFocus")
     m.focusLogin = ""
     m.focusPosition = [0,0]
+    m.cursorColumn = 0
 end sub
 
 function followingCount(items) as Integer
@@ -109,6 +111,7 @@ sub onContentChanged()
     m.grid.rowItemSpacing = model.spacings
     m.grid.showRowLabel = model.labels
     m.focusPosition = position
+    m.cursorColumn = position[1]
     m.grid.content = model.content
     m.top.hasItems = model.content.getChildCount() > 0
     m.top.focusedItem = invalid
@@ -141,10 +144,35 @@ sub onItemFocused()
     m.top.focusedItem = item
     m.focusLogin = item.ShortDescriptionLine1
     m.focusPosition = m.grid.rowItemFocused
+    m.cursorColumn = m.focusPosition[1]
     updateFollowingFocus()
 end sub
 
 sub updateFollowingFocus()
+    if m.grid.content <> invalid
+        state = m.grid.content.focusState
+        if state[5] and state[1] = 1
+            ' A settled native item is authoritative when changing between rows
+            ' with different column counts. currFocusColumn can still be stale.
+            m.focusPosition = [state[0],state[3]]
+            m.cursorColumn = state[3]
+        end if
+    end if
+    renderFollowingCursor()
+end sub
+
+sub onFocusColumnChanged()
+    ' Native motion stays continuous when another key interrupts a transition.
+    ' Individual incoming/outgoing focusPercent callbacks cannot be combined
+    ' into one interpolation after the destination changes midway through it.
+    if m.grid.content = invalid then return
+    ' A late column notification after a vertical move must not override the
+    ' settled native item. Floating columns are needed only while it is moving.
+    if not m.grid.content.focusState[5] then m.cursorColumn = m.grid.currFocusColumn
+    renderFollowingCursor()
+end sub
+
+sub renderFollowingCursor()
     if m.focusCursor = invalid then return
     if not m.top.visible or not m.grid.hasFocus() or m.grid.content = invalid
         m.focusCursor.visible = false
@@ -156,20 +184,13 @@ sub updateFollowingFocus()
         m.focusCursor.visible = false
         return
     end if
-    if state[5] then m.focusPosition = [state[0],state[3]]
     if state[0] <> m.focusPosition[0]
         m.focusCursor.visible = false
         return
     end if
     row = m.grid.content.getChild(state[0])
     if row = invalid or row.getChildCount() = 0 then return
-    column = m.focusPosition[1]
-    if not state[5]
-        ' Only the incoming item's progress moves the cursor. The outgoing item
-        ' shares the last settled index and must not move it back each frame.
-        if state[3] = column then return
-        column += (state[3] - column) * state[4]
-    end if
+    column = m.cursorColumn
     if column < 0 then column = 0
     if column > row.getChildCount() - 1 then column = row.getChildCount() - 1
     index = Int(column)
@@ -177,8 +198,6 @@ sub updateFollowingFocus()
     live = item.followKind = "live"
     stride = m.grid.rowItemSize[state[0]][0] + m.grid.rowItemSpacing[state[0]][0]
     rect = m.grid.subBoundingRect("item" + state[0].ToStr() + "_" + index.ToStr())
-    ' Item focus progress uses the native timing without a stale currFocusColumn
-    ' from the six-column row surviving a visit to a four-column row.
     m.focusCursor.translation = [rect.x + (column - index) * stride,rect.y]
     m.liveFocus.visible = live
     m.offlineFocus.visible = not live

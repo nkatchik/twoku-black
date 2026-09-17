@@ -27,6 +27,11 @@ sub onItemFocus()
     content = row.getParent()
     if content = invalid then return
     state = content.focusState
-    if state[0] = m.top.rowIndex and state[1] = m.top.rowFocusPercent and state[2] = m.top.rowListHasFocus and state[3] = m.top.index and state[4] = m.top.focusPercent and state[5] = m.top.itemHasFocus then return
+    ' Forward row changes and motion boundaries, not competing per-item fades.
+    ' Keep observing focusPercent so initial native field ordering cannot leave
+    ' a newly focused row unpublished while its first item is still at zero.
+    if state[0] = m.top.rowIndex and state[1] = m.top.rowFocusPercent and state[2] = m.top.rowListHasFocus and state[5] = m.top.itemHasFocus
+        if not m.top.itemHasFocus or state[3] = m.top.index then return
+    end if
     content.focusState = [m.top.rowIndex,m.top.rowFocusPercent,m.top.rowListHasFocus,m.top.index,m.top.focusPercent,m.top.itemHasFocus]
 end sub
