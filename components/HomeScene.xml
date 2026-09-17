@@ -65,13 +65,13 @@
                 </Group>
                 <Rectangle id="headerCursor" height="3" color="0xF4F4F7FF" visible="false" />
             </Group>
-            <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[40,120]"
-                numRows="3" rowItemSize="[[292,164]]" rowItemSpacing="[[10,0]]" itemSize="[1200,247]"
+            <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,120]"
+                numRows="3" rowItemSize="[[292,164]]" rowItemSpacing="[[8.666667,0]]" itemSize="[1194,247]"
                 focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
-            <RowList id="browseCategoryList" itemComponentName="BrowseCategoryItem" translation="[40,123]"
-                numRows="2" rowItemSize="[[284,380]]" rowItemSpacing="[[20,0]]" itemSize="[1200,430]"
+            <RowList id="browseCategoryList" itemComponentName="BrowseCategoryItem" translation="[43,123]"
+                numRows="2" rowItemSize="[[284,380]]" rowItemSpacing="[[19.333333,0]]" itemSize="[1194,430]"
                 focusBitmapUri="pkg:/images/twellie-focus.9.png" rowFocusAnimationStyle="floatingFocus" />
-            <FollowingView id="followingView" translation="[40,114]" visible="false" />
+            <FollowingView id="followingView" translation="[43,114]" visible="false" />
             <LoadingIndicator id="busy" translation="[612,332]" size="56" />
             <Label id="loadStatus" translation="[43,300]" width="1194" height="120" wrap="true" horizAlign="center" vertAlign="center" color="0xA9A9B2FF" visible="false">
                 <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="26" />

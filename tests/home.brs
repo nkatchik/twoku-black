@@ -107,9 +107,9 @@ sub main()
     m.profileImage.uri = "avatar"
     m.loggedUserName.measuredWidth = 400
     layoutAccount()
-    check(m.loggedUserName.width = 180 and m.accountBackground.width = 226, "Long account names truncate within a compact chip")
+    check(m.loggedUserName.width = 180 and m.accountBackground.width = 220, "Long account names truncate within a compact chip")
     check((4 + m.loggedUserName.translation[0] + m.loggedUserName.width) / 2 = m.accountBackground.width / 2, "Avatar and name content midpoint equals chip midpoint")
-    check(m.profileImage.visible and m.profileCover.visible and m.loggedUserName.translation[0] = 42, "Avatar and name share one vertically centered chip")
+    check(m.profileImage.visible and m.profileCover.visible and m.loggedUserName.translation[0] = 36, "Avatar/name gap matches four-pixel outer padding")
 
     onHomeLoad()
     check(m.getStreams.control = "" and m.top.retryAuthentication, "No feed request before authentication")

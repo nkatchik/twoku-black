@@ -59,13 +59,13 @@ function followingRows(liveStreams, offlineChannels) as Object
                         if first then height += 36
                         heights.Push(height)
                         sizes.Push([292,227])
-                        spacings.Push([10,0])
+                        spacings.Push([(1194 - 4 * 292) / 3,0])
                     else
                         height = 160
                         if first then height += 36
                         heights.Push(height)
                         sizes.Push([190,140])
-                        spacings.Push([9,0])
+                        spacings.Push([(1194 - 6 * 190) / 5,0])
                     end if
                 end if
                 item = CreateObject("roSGNode", "ContentNode")
@@ -175,8 +175,7 @@ sub updateFollowingFocus()
     index = Int(column)
     item = row.getChild(index)
     live = item.followKind = "live"
-    stride = 199
-    if live then stride = 302
+    stride = m.grid.rowItemSize[state[0]][0] + m.grid.rowItemSpacing[state[0]][0]
     rect = m.grid.subBoundingRect("item" + state[0].ToStr() + "_" + index.ToStr())
     ' Item focus progress uses the native timing without a stale currFocusColumn
     ' from the six-column row surviving a visit to a four-column row.

@@ -120,7 +120,7 @@ sub onChatVisibilityChange()
     m.top.findNode("scrim").width = surfaceWidth
     m.top.findNode("channelLabel").width = surfaceWidth - 204
     m.top.findNode("titleLabel").width = surfaceWidth - 204
-    m.progressTrack.width = surfaceWidth - 280
+    m.progressTrack.width = surfaceWidth - 84
     m.seekFocus.width = surfaceWidth - 68
     m.top.findNode("durationLabel").translation = [surfaceWidth - 174, 0]
     m.statusBox.translation = [(surfaceWidth - 480) / 2, 268]

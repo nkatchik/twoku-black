@@ -65,35 +65,35 @@ sub main()
     m.offlineFocus = node()
     m.grid.setFocus(true)
     m.focusPosition = [0,0]
-    m.grid.stride = 302
+    m.grid.stride = 292 + 26 / 3
     m.grid.subBoundingRect = function(part)
         return {x:Right(part,1).ToInt()*m.stride,y:42}
     end function
     m.grid.content.focusState = [0,1,true,1,0.5,false]
     updateFollowingFocus()
-    check(m.focusCursor.visible and m.focusCursor.translation[0] = 151 and m.liveFocus.visible, "Single solid live cursor follows incoming item progress")
+    check(m.focusCursor.visible and Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01 and m.liveFocus.visible, "Single solid live cursor follows incoming item progress")
     m.grid.content.focusState = [0,1,true,0,0.5,false]
     updateFollowingFocus()
-    check(m.focusCursor.translation[0] = 151, "Outgoing item updates cannot pull the cursor backwards")
+    check(Abs(m.focusCursor.translation[0] - (292 + 26 / 3) / 2) < 0.01, "Outgoing item updates cannot pull the cursor backwards")
     m.grid.content.focusState = [2,0.5,true,5,1,false]
     updateFollowingFocus()
     check(not m.focusCursor.visible, "Vertical animation hides the cursor without fading")
-    m.grid.stride = 199
+    m.grid.stride = 200.8
     m.grid.content.focusState = [2,1,true,5,1,true]
     updateFollowingFocus()
-    check(m.focusCursor.visible and m.offlineFocus.visible and m.focusCursor.translation[0] = 995, "Settled sixth avatar matches the actual focused index")
+    check(m.focusCursor.visible and m.offlineFocus.visible and Abs(m.focusCursor.translation[0] - 1004) < 0.01, "Settled sixth avatar matches the actual focused index")
     m.grid.currFocusColumn = 5
-    m.grid.stride = 302
+    m.grid.stride = 292 + 26 / 3
     m.grid.content.focusState = [0,1,true,3,1,true]
     updateFollowingFocus()
-    check(m.focusCursor.translation[0] = 906, "Moving to four-column live rows uses native selected column four")
-    m.grid.stride = 199
+    check(Abs(m.focusCursor.translation[0] - 902) < 0.01, "Moving to four-column live rows uses native selected column four")
+    m.grid.stride = 200.8
     m.grid.content.focusState = [2,1,true,3,1,true]
     updateFollowingFocus()
-    check(m.focusCursor.translation[0] = 597, "Returning to avatars cannot reuse stale column six")
+    check(Abs(m.focusCursor.translation[0] - 602.4) < 0.01, "Returning to avatars cannot reuse stale column six")
     m.grid.content.focusState = [2,1,true,2,0.5,false]
     updateFollowingFocus()
-    check(m.focusCursor.translation[0] = 497.5, "Left moves visually from column four toward column three")
+    check(Abs(m.focusCursor.translation[0] - 502) < 0.01, "Left moves visually from column four toward column three")
     m.grid.setFocus(false)
     updateFollowingFocus()
     check(not m.focusCursor.visible, "Returning to header hides shared focus")

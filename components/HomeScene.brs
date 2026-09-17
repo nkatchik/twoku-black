@@ -688,7 +688,7 @@ sub layoutAccount()
     m.profileImage.visible = avatar
     m.profileCover.visible = avatar
     textX = 4
-    if avatar then textX = 42
+    if avatar then textX = 36
     m.loggedUserName.translation = [textX,0]
     rightPadding = 4
     chipWidth = textX + width + rightPadding
