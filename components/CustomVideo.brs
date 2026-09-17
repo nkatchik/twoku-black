@@ -238,7 +238,7 @@ sub startPendingContent()
         m.compatibility.control = "RUN"
         return
     end if
-    if m.compatMode = "split"
+    if m.compatMode <> "direct"
         nextContent = nextContent.clone(false)
         nextContent.url = m.compatUrl
     end if
@@ -277,7 +277,7 @@ sub onCompatibilityResult()
     if type(result) <> "roAssociativeArray" then return
     if result.requestId <> m.compatRequestId then return
     if not m.compatPreparing
-        if m.compatMode = "split" and result.error <> invalid and result.error <> ""
+        if m.compatMode <> "direct" and result.error <> invalid and result.error <> ""
             recoverPlayback("compatibility-failed")
         end if
         return
@@ -286,10 +286,10 @@ sub onCompatibilityResult()
     m.compatPrepared = true
     m.compatMode = "direct"
     ' A failed or unsupported preparation always leaves the original URL playable.
-    if result.mode = "split" and result.url <> invalid and result.url <> "" and result.error = ""
-        m.compatMode = "split"
+    if (result.mode = "split" or result.mode = "manifest") and result.url <> invalid and result.url <> "" and result.error = ""
+        m.compatMode = result.mode
         m.compatUrl = result.url
-        recordPlaybackDiagnostic("compatibility-split")
+        recordPlaybackDiagnostic("compatibility-" + m.compatMode)
     end if
     deferPendingPlayback()
 end sub
@@ -297,7 +297,7 @@ end sub
 sub onCompatibilityState()
     if m.compatibility = invalid or not m.top.visible or not m.playbackActive then return
     if m.compatibility.state <> "stop" then return
-    if m.compatMode = "split" and not m.compatibility.cancelRequested
+    if m.compatMode <> "direct" and not m.compatibility.cancelRequested
         recoverPlayback("compatibility-stopped")
     else if m.pendingContent <> invalid
         deferPendingPlayback()

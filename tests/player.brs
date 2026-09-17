@@ -568,6 +568,20 @@ sub testCompatibilityRouting()
     check(m.video.control = "stop", "late split result cannot restart an exited player")
 
     prepareCompatibilityPlayer()
+    m.compatibility.state = "run"
+    m.compatibility.result = {requestId: m.compatRequestId, mode: "manifest", url: "http://127.0.0.1/master.m3u8", error: ""}
+    onCompatibilityResult()
+    check(m.video.control <> "play", "Manifest-only startup also leaves the Task rendezvous before native playback")
+    onDeferredPlaybackStart()
+    check(m.compatMode = "manifest" and m.video.content.url = "http://127.0.0.1/master.m3u8", "Selected quality starts with full HLS metadata")
+    m.video.state = "playing"
+    m.video.downloadedSegment = {Status: 0, SegType: 0, SegSequence: 1, SegStart: 0, SegSize: 100, DownloadDuration: 5000, SegDuration: "2000", Height: 720}
+    onDownloadedSegment()
+    check(m.downloadSamples.Count() = 1, "Manifest-only delivery retains genuine CDN bandwidth measurements")
+    stopPlayback()
+    check(m.compatibility.cancelRequested and m.video.control = "stop", "Back releases both the manifest listener and decoder")
+
+    prepareCompatibilityPlayer()
     m.compatibility.result = {requestId: m.compatRequestId, mode: "direct", url: m.pendingContent.url, error: "unsupported-layout"}
     onCompatibilityResult()
     check(m.video.control <> "play", "direct fallback also returns from the publishing Task before native startup")

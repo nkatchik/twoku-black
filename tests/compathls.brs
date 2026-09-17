@@ -64,6 +64,14 @@ sub main()
     check(compatUpstreamUrlAllowed("https://video.ttvnw.net:443/a") and compatUpstreamUrlAllowed("https://media.twitchcdn.net/a"), "Trusted CDN subdomains and explicit HTTPS port remain supported")
     ts = compatParseMedia(header + "#EXTINF:2," + nl + "stream.ts" + nl, base)
     check(ts.valid and not ts.hasMap, "Ordinary transport-stream media is recognized for untouched direct playback")
+    variant = {bandwidth: 6921052, width: 1920, height: 1080, frameRate: 60, codecs: "avc1.64002a,mp4a.40.2"}
+    directMaster = compatDirectMasterPlaylist(base, variant)
+    check(Instr(1, directMaster, "BANDWIDTH=6921052,RESOLUTION=1920x1080,FRAME-RATE=60,CODECS=" + q + variant.codecs + q) > 0, "Direct rendition retains source bitrate, resolution, frame rate, and both codecs")
+    check(Right(directMaster, Len(base) + 1) = base + nl, "Native HLS receives the original signed CDN playlist unchanged")
+    check(directMaster.Split("#EXT-X-STREAM-INF:").Count() = 2, "Single-quality master cannot silently select a different rendition")
+    check(compatDirectMasterPlaylist(base, invalid) = "" and compatDirectMasterPlaylist(base, {}) = "", "Missing metadata falls back to the playable original URL")
+    variant.codecs = "avc1" + Chr(10) + "#EXT-X-ENDLIST"
+    check(compatDirectMasterPlaylist(base, variant) = "", "Codec metadata cannot insert another playlist line")
     repeatedMaps = header
     for index = 1 to 513
         repeatedMaps += "#EXT-X-MAP:URI=" + q + "init" + index.ToStr() + ".mp4" + q + nl

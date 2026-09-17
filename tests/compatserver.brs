@@ -255,7 +255,7 @@ sub testReset()
         check(not g.active,"No SceneGraph result or stats writes occur during active loopback serving")
         m[field] = value
         ready = false
-        if field = "result" then ready = value.mode = "split" and value.url <> ""
+        if field = "result" then ready = (value.mode = "split" or value.mode = "manifest") and value.url <> ""
         if ready
             g.active = true
             g.readyCount += 1
@@ -448,8 +448,29 @@ sub main()
     check(m.top.result = invalid,"Changed request ID discards stale preparation")
     testReset()
     g.responses[m.top.sourceUrl].body = "#EXTM3U"+Chr(10)+"#EXT-X-TARGETDURATION:2"+Chr(10)+"#EXTINF:2,"+Chr(10)+"one.ts"+Chr(10)
+    g.cancelAt = 200
     serveCompatibility()
-    check(m.top.result.mode = "direct" and m.top.result.url = m.top.sourceUrl and g.sockets.Count() = 0,"Transport-stream playlists return direct before creating a server")
+    check(m.top.result.mode = "manifest" and m.top.result.requestId = 9, "Transport-stream playback preserves selected rendition metadata in a local master")
+    check(g.transfers.Count() = 1 and g.readyCount = 1 and g.sockets[0].closed, "Manifest service downloads no media and closes on cancellation without render-field access")
+    testReset()
+    g.responses[m.top.sourceUrl].body = "#EXTM3U"+Chr(10)+"#EXT-X-TARGETDURATION:2"+Chr(10)+"#EXTINF:2,"+Chr(10)+"one.ts"+Chr(10)
+    session = compatServerSession(m.top.sourceUrl, 9)
+    check(compatPrepareServer(session, m.top.variant) and session.mode = "manifest", "Valid TS metadata prepares a master-only session")
+    client = testClient(session.pathPrefix + "/master.m3u8")
+    compatServeRoute(session, client)
+    testDrain(session, client)
+    check(Instr(1, testText(client.socket.output), "BANDWIDTH=8000000,RESOLUTION=1920x1080,FRAME-RATE=60") > 0, "Native master response carries the selected rendition's actual bitrate")
+    check(Instr(1, testText(client.socket.output), m.top.sourceUrl) > 0, "Media playlist is fetched directly from Twitch by native HLS")
+    client = testClient(session.pathPrefix + "/video.m3u8")
+    compatServeRoute(session, client)
+    testDrain(session, client)
+    check(Instr(1, testText(client.socket.output), "404 Not Found") > 0 and g.transfers.Count() = 1, "Master-only routes cannot enter the split media proxy")
+    compatCleanupServer(session)
+    testReset()
+    g.responses[m.top.sourceUrl].body = "#EXTM3U"+Chr(10)+"#EXT-X-TARGETDURATION:2"+Chr(10)+"#EXTINF:2,"+Chr(10)+"one.ts"+Chr(10)
+    m.top.variant = {}
+    serveCompatibility()
+    check(m.top.result.mode = "direct" and m.top.result.url = m.top.sourceUrl and g.sockets.Count() = 0, "Missing rendition metadata retains direct playback")
     testReset()
     g.responses[m.top.sourceUrl].headers = [{Location:"https://other.example/a"}]
     serveCompatibility()

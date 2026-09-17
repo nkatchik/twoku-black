@@ -1,5 +1,5 @@
-' The relay serves only opaque local routes. Signed upstream URLs remain in its
-' Task-local registry and are never copied into a playlist sent to Video.
+' Split media uses opaque local routes. Direct media keeps its signed CDN URL
+' in a single-rendition master, preserving the metadata needed by native HLS.
 function compatParseMedia(text as String, baseUrl as String) as Object
     result = {valid: false, error: "", entries: [], lines: [], hasMap: false,
         firstInitUrl: "", targetDuration: 0, mediaSequence: 0, endList: false}
@@ -153,6 +153,28 @@ function compatRegisterResource(registry as Object, url as String, kind as Strin
         registry.idmap[key] = id
     end if
     return registry.baseUrl + "/resource/" + id
+end function
+
+function compatDirectMasterPlaylist(sourceUrl as String, variant) as String
+    if not compatUpstreamUrlAllowed(sourceUrl) then return ""
+    if type(variant) <> "roAssociativeArray" then return ""
+    if variant.bandwidth = invalid or variant.width = invalid or variant.height = invalid then return ""
+    if variant.bandwidth <= 0 or variant.width <= 0 or variant.height <= 0 then return ""
+    q = Chr(34)
+    result = "#EXTM3U" + Chr(10) + "#EXT-X-VERSION:3" + Chr(10)
+    result += "#EXT-X-STREAM-INF:BANDWIDTH=" + Int(variant.bandwidth).ToStr()
+    result += ",RESOLUTION=" + Int(variant.width).ToStr() + "x" + Int(variant.height).ToStr()
+    if variant.frameRate <> invalid
+        if variant.frameRate > 0 then result += ",FRAME-RATE=" + variant.frameRate.ToStr()
+    end if
+    if variant.codecs <> invalid and variant.codecs <> ""
+        codecs = variant.codecs
+        if Instr(1, codecs, q) > 0 or Instr(1, codecs, Chr(10)) > 0 or Instr(1, codecs, Chr(13)) > 0 then return ""
+        result += ",CODECS=" + q + codecs + q
+    end if
+    ' Only the manifest is local. Native HLS fetches the original playlist and
+    ' media directly, keeping ads, discontinuities, and bandwidth measurements.
+    return result + Chr(10) + sourceUrl + Chr(10)
 end function
 
 function compatMasterPlaylist(videoUrl as String, audioUrl as String, variant = invalid) as String

@@ -19,15 +19,15 @@ sub serveCompatibility()
     result = invalid
     if not session.cancelled
         if ready
-            compatTrace(session, "prepared-split")
+            compatTrace(session, "prepared-" + session.mode)
             ' The render observer must return before starting Video. Once this
             ' rendezvous returns, the relay never touches a SceneGraph node until
             ' all local sockets and upstream transfers have been closed.
-            m.top.SetField("result", {requestId: session.requestId, url: session.baseUrl + "/master.m3u8", mode: "split", error: ""})
+            m.top.SetField("result", {requestId: session.requestId, url: session.baseUrl + "/master.m3u8", mode: session.mode, error: ""})
             compatTrace(session, "serving")
             compatRunServer(session)
             if session.error <> "" and not session.cancelled
-                result = {requestId: session.requestId, url: "", mode: "split", error: "The stream compatibility session could not continue."}
+                result = {requestId: session.requestId, url: "", mode: session.mode, error: "The stream compatibility session could not continue."}
             end if
         else
             compatTrace(session, "direct")
@@ -71,7 +71,7 @@ function compatServerSession(sourceUrl as String, requestId as Integer) as Objec
         listener: invalid, clients: [], jobs: [], cache: cache, cacheBytes: 0, cacheHits: 0,
         downloads: 0, servedBytes: 0.0, files: {}, serial: 0, error: "", baseUrl: "", pathPrefix: "/" + token,
         rawPlaylist: "", parsed: invalid, playlistExpires: 0, playlistVersion: 0,
-        registry: invalid, master: "", views: {}, viewVersion: -1, cancelled: false, maxBytes: 12582912, maxBody: 4194304, maxInit: 524288}
+        registry: invalid, mode: "split", master: "", views: {}, viewVersion: -1, cancelled: false, maxBytes: 12582912, maxBody: 4194304, maxInit: 524288}
 end function
 
 function compatServerCancelled(session) as Boolean
@@ -120,7 +120,14 @@ function compatPrepareServer(session, variant) as Boolean
     leaf = compatAwaitResource(session, session.sourceUrl, "playlist")
     if leaf = invalid then return false
     parsed = compatParseMedia(leaf.text, session.sourceUrl)
-    if not parsed.valid or not parsed.hasMap then return false
+    if not parsed.valid then return false
+    if not parsed.hasMap
+        master = compatDirectMasterPlaylist(session.sourceUrl, variant)
+        if master = "" or not compatOpenListener(session) then return false
+        session.mode = "manifest"
+        session.master = master
+        return true
+    end if
     initial = compatAwaitResource(session, parsed.firstInitUrl, "init")
     if initial = invalid then return false
     info = initial.initInfo
@@ -599,6 +606,10 @@ sub compatServeRoute(session, client)
     route = client.request.path
     if route = session.pathPrefix + "/master.m3u8"
         compatReplyText(client, session.master, 200, "application/vnd.apple.mpegurl")
+        return
+    end if
+    if session.mode = "manifest"
+        compatReplyText(client, "", 404, "text/plain")
         return
     end if
     track = ""

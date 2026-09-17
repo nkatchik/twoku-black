@@ -62,11 +62,17 @@ fresh non-ad 1080p60 sample from `zubarefff`. For the latter, each view changed
 HLS leaf before `CustomVideo` starts the native decoder. It uses asynchronous
 native HTTPS transfers and a loopback listener bound to `127.0.0.1` with an
 operating-system-assigned port. The [Roku stream-socket API](https://developer.roku.com/dev/docs/rostreamsocket)
-provides the listener and ranged byte-array sends. Signed CDN URLs stay inside
-the Task; native playlists contain opaque local resource routes. Only Twitch CDN
+provides the listener and ranged byte-array sends. In split mode, signed CDN URLs
+stay inside the Task and native playlists contain opaque local resource routes. Only Twitch CDN
 HTTPS URLs are accepted, with no account credentials attached. Native HTTPS may
 follow redirects before returning headers; responses exposing a redirect are
 rejected instead of resolving relative segment paths against the wrong base.
+
+For MPEG-TS, the Task serves only a single-rendition master carrying the selected
+quality's bitrate, resolution, frame rate, and codecs. Its media-playlist URL is
+the original signed Twitch CDN URL. Native HLS downloads all playlists and media
+directly; BrightScript neither proxies nor decodes their payloads. This keeps
+manual quality selection exact and preserves real CDN throughput measurements.
 
 For a verified combined audio/video initialization segment, the Task creates one
 master and two media playlists. `Fmp4Compat.brs` returns four-byte box-type patches;
@@ -203,3 +209,42 @@ The off-device checks are separate from the native results above. Remaining
 acceptance checks cover visible motion and audible sound, synchronization across
 an ad/content transition, sustained throughput/CPU usage, and VOD seeking/pause,
 MP4 clips, and chat behavior during compatibility playback.
+
+## MPEG-TS frame freeze on K806X (2026-09-17)
+
+`stariy_bog` reproduced a distinct failure on the supplied TV. Source was
+1920x1080 at 60 fps, AVC High level 4.2, approximately 6.9 Mbps, in MPEG-TS.
+A fresh session included a 30 fps preroll followed by the 60 fps broadcast;
+the media container remained MPEG-TS throughout. The fMP4 relay was not active.
+
+Temporary native instrumentation enabled `Video.enableDecoderStats` and sampled
+`decoderStats` each watchdog tick. With the bare rendition URL, `renderCount`
+stopped at 2661 while playback position advanced through the 60–70 second range.
+Video later crawled forward while position stopped at 93 seconds, eventually
+triggering the existing `progress-timeout` recovery. Native HLS reported the
+rendition bitrate as 128000 bps despite the advertised 6.9 Mbps source.
+
+Passing Twitch's full master instead kept source frames rendering beyond two
+minutes and exposed the actual rendition bitrate in `streamingSegment`. The
+production fix retains that metadata in a local master containing exactly one
+selected rendition. No global resolution/frame-rate restriction or transcoding
+is introduced. The master-only listener uses the existing deferred startup and
+cancellation lifecycle; unsupported preparation still permits the original URL.
+
+Regression coverage includes exact rendition metadata and URL preservation,
+master-only HTTP routing without media downloads, cancellation without Task/render
+rendezvous, and retained native CDN bandwidth samples. The separate browse-focus
+fix covers delayed first results, header navigation while loading, hidden views,
+pagination, and returning from playback.
+
+The selected-rendition master then passed a 210-second device capture (182 seconds
+of reported playback after install/startup): `renderCount` reached 9761, video
+continued advancing beyond the original freeze window, and no buffering timeout,
+progress timeout, or native-error recovery occurred. Tests used temporary logging;
+the shipping build does not enable decoder-stat sampling. Frame counters confirm
+render progress, but rounded epoch timestamps in the log are not a measurement of
+audio/video synchronization or a substitute for watching the TV.
+
+All 34 deterministic suites pass. Native compilation succeeded. BrighterScript
+still reports the same 20 errors confined to the legacy `web_socket_client`
+sources; no new diagnostics were introduced.
