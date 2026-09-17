@@ -1,4 +1,5 @@
 sub init()
+    m.reloadPending = false
     m.busy = m.top.findNode("busy")
     m.searching = false
     m.playbackLoading = false
@@ -37,6 +38,7 @@ sub focusContent()
 end sub
 
 sub onGetFocus()
+    if not m.top.visible then m.reloadPending = false
     if not m.top.visible then cancelPlaybackRequest()
     focusContent()
     updateSearchBusy()
@@ -46,6 +48,25 @@ function searchHasRows(list) as Boolean
     if list.content = invalid then return false
     return list.content.getChildCount() > 0
 end function
+
+sub reloadContent()
+    if not m.top.visible then return
+    m.reloadPending = true
+    cancelPlaybackRequest()
+    m.busy.active = true
+    tryReloadContent()
+end sub
+
+sub tryReloadContent()
+    if m.reloadPending <> true then return
+    if not m.top.visible
+        m.reloadPending = false
+        return
+    end if
+    if m.getSearch.state = "run" or m.getCategorySearch.state = "run" then return
+    m.reloadPending = false
+    onSearchTextChange()
+end sub
 
 sub onSearchTextChange()
     if m.keyboard = invalid then return
@@ -77,6 +98,10 @@ sub onSearchTextChange()
 end sub
 
 sub onSearchStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     query = m.keyboard.text.Trim()
     if query = "" then return
     if m.liveLine.visible and m.getSearch.state = "stop" and m.streamQuery = query then m.searching = false
@@ -98,6 +123,7 @@ sub onCategorySearchResultChange()
 end sub
 
 sub onSearchResultChange()
+    if m.reloadPending = true then return
     query = m.keyboard.text.Trim()
     if query = "" then return
     content = CreateObject("roSGNode", "ContentNode")

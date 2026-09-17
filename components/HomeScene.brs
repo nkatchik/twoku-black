@@ -1,4 +1,5 @@
 sub init()
+    m.reloadPending = false
     m.loadStatus = m.top.findNode("loadStatus")
     m.busy = m.top.findNode("busy")
     m.browseList = m.top.findNode("browseList")
@@ -71,6 +72,48 @@ sub focusContent()
     if m.top.visible and not m.top.isInFocusChain()
         print "Home focus failed: no control in the focus chain"
     end if
+end sub
+
+sub reloadContent()
+    if not m.top.visible then return
+    if m.channelPage.visible
+        m.channelPage.callFunc("reloadContent")
+        return
+    end if
+    m.reloadPending = true
+    cancelPlaybackRequest()
+    showBusy()
+    tryReloadContent()
+end sub
+
+sub tryReloadContent()
+    if m.reloadPending <> true then return
+    if not m.top.visible or m.channelPage.visible
+        m.reloadPending = false
+        return
+    end if
+    if m.getStreams.state = "run" or m.getCategories.state = "run" or m.getOfflineFollowed.state = "run" then return
+    m.reloadPending = false
+    m.channelsPending = false
+    m.categoriesPending = false
+    if m.currentlySelectedButton = 0
+        m.browseCategoryList.content = invalid
+        onCategorySelect()
+    else if m.currentlySelectedButton = 1
+        m.browseList.content = invalid
+        onHomeLoad()
+    else
+        m.followingView.liveStreams = []
+        m.followingView.offlineChannels = []
+        m.pendingFollowingFocus = true
+        m.offlineLoaded = false
+        m.offlinePending = false
+        m.offlineError = ""
+        m.top.followingError = ""
+        m.top.reloadFollowingRequested = true
+        updateFollowingLayout()
+    end if
+    focusActiveGrid(true)
 end sub
 
 function hasRows(list as Object) as Boolean
@@ -150,6 +193,7 @@ end sub
 sub onGetFocus()
     m.channelPage.parentVisible = m.top.visible
     if not m.top.visible
+        m.reloadPending = false
         m.pendingGridFocus = invalid
         cancelPlaybackRequest()
         m.busy.enabled = false
@@ -219,6 +263,7 @@ sub onHomeLoad()
 end sub
 
 sub onSearchResultChange()
+    if m.reloadPending = true then return
     m.channelsPending = false
     if m.getStreams.errorMessage <> ""
         if m.browseList.visible
@@ -277,6 +322,7 @@ sub numberToText(number) as Object
 end sub
 
 sub onCategoryResultChange()
+    if m.reloadPending = true then return
     m.categoriesPending = false
     if m.getCategories.errorMessage <> ""
         if m.browseCategoryList.visible
@@ -349,6 +395,7 @@ sub onFollowingSelect()
 end sub
 
 sub onGridFocus()
+    if m.reloadPending = true then return
     if not m.top.visible or not m.browseMain.visible or m.channelPage.visible then return
     if m.currentlySelectedButton = 1 and gridNeedsMore(m.browseList)
         getMoreChannels()
@@ -358,11 +405,19 @@ sub onGridFocus()
 end sub
 
 sub onChannelsStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getStreams.state <> "stop" or m.getStreams.errorMessage <> "" then return
     if m.currentlySelectedButton = 1 then onGridFocus()
 end sub
 
 sub onCategoriesStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getCategories.state <> "stop" or m.getCategories.errorMessage <> "" then return
     if m.currentlySelectedButton = 0 then onGridFocus()
 end sub
@@ -400,6 +455,10 @@ sub requestOfflineFollowing()
 end sub
 
 sub onOfflineStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getOfflineFollowed.state <> "stop" then return
     if m.getOfflineFollowed.sessionVersion <> m.global.sessionVersion
         m.offlinePending = false
@@ -415,6 +474,7 @@ sub onOfflineStopped()
 end sub
 
 sub onGetFollowedStreams()
+    if m.reloadPending = true then return
     if m.top.loggedInSessionVersion <> m.global.sessionVersion then return
     m.followingView.liveStreams = m.top.followedStreams
     requestOfflineFollowing()
@@ -422,6 +482,7 @@ sub onGetFollowedStreams()
 end sub
 
 sub onGetOfflineFollowed()
+    if m.reloadPending = true then return
     if m.getOfflineFollowed.sessionVersion <> m.global.sessionVersion then return
     m.offlinePending = false
     m.offlineError = m.getOfflineFollowed.errorMessage
@@ -618,6 +679,10 @@ sub updateFollowingLayout()
     if m.currentlySelectedButton <> 2 then return
     if m.followingView.hasItems
         showLoadStatus("")
+        if m.pendingFollowingFocus = true and m.top.visible and not m.channelPage.visible
+            m.pendingFollowingFocus = false
+            m.followingView.callFunc("focusContent")
+        end if
     else if not m.loggedIn
         showLoadStatus("Sign in to see followed channels. Select Login in the header.")
     else if m.top.followingError <> ""

@@ -24,6 +24,8 @@ function routeNode()
 end function
 
 sub setupRoutes()
+    m.reloadKeyDown = false
+    m.loginPage = routeNode()
     m.top = node()
     m.saved = {}
     m.global = {chatOption: false, preferredQuality: "Auto"}
@@ -40,6 +42,38 @@ sub setupRoutes()
     m.routingChannel = false
     m.playbackKind = "live"
     m.currentScene = "home"
+end sub
+
+sub refreshFollows()
+    m.followRefreshes += 1
+end sub
+
+sub testReloadRoutes()
+    for each target in ["homeScene", "categoryScene", "keyboardGroup", "videoPlayer"]
+        setupRoutes()
+        m[target].visible = true
+        m.chat.visible = target = "videoPlayer"
+        check(onKeyEvent("replay", true), "Reload press is consumed")
+        check(m[target].calls.Count() = 1 and m[target].calls[0] = "reloadContent", "Reload routes to the visible surface")
+        onKeyEvent("replay", true)
+        check(m[target].calls.Count() = 1, "Held reload key does not flood requests")
+        onKeyEvent("replay", false)
+        onKeyEvent("replay", true)
+        check(m[target].calls.Count() = 2, "A new reload press works after release")
+        if target = "videoPlayer" then check(m.chat.calls.Count() = 2, "Visible chat refreshes along with the player")
+    end for
+    setupRoutes()
+    m.videoPlayer.visible = true
+    reloadVisibleContent()
+    check(m.chat.calls.Count() = 0 and not m.chat.visible, "Reload does not enable disabled chat")
+    m.getUser = node()
+    m.getUser.state = "run"
+    m.followRefreshes = 0
+    reloadFollowing()
+    check(m.followingReloadPending and m.followRefreshes = 0, "Following refresh queues behind account work")
+    m.getUser.state = "stop"
+    onUserStopped()
+    check(not m.followingReloadPending and m.followRefreshes = 1, "Following refresh starts once the old account task stops")
 end sub
 
 sub main()
@@ -93,5 +127,6 @@ sub main()
     onStreamerSelected()
     check(not m.categoryScene.visible and m.homeScene.visible and m.homeScene.streamerSelectedName = "selected", "Channel forwarding hides its origin and opens the requested Home page")
     check(not m.routingChannel, "Channel forwarding releases the recursion guard")
+    testReloadRoutes()
     print "PASS playback input ownership, Back during buffering, chat preference, VOD isolation, return routes, quality persistence"
 end sub

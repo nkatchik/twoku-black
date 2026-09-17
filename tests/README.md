@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It compiles the app and runs 32 BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 33 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
@@ -26,6 +26,15 @@ takes major/minor integers and uses `github.run_number` for the build number;
 retries keep the same version. Only the packaged manifest is stamped, with the
 build padded to at least five digits. Tags use `vMAJOR.MINOR.BUILD` without padding.
 The checks also cover repeatable builds, advancing run numbers, and invalid inputs.
+
+Reload checks cover the visible Channels/Games/Following grid, game streams and
+clips, profile metadata and recordings, and both search result lists. In-flight
+results are discarded before a fresh request resets pagination. The circular-arrow
+key routes through the player controls and quality menu; held presses are coalesced.
+Live streams, VODs, and clips acquire fresh playback URLs through their existing
+tasks. Tests check decoder stop acknowledgement, recording position and pause
+state, quality preference, cancellation on Back, and visible-chat reconnection.
+These checks run off-device; native remote delivery still needs device acceptance.
 
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See

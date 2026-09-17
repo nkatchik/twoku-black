@@ -3,6 +3,7 @@
 <component name="KeyboardGroup" extends="Group" initialFocus="keyboard">
 
     <interface>
+        <function name="reloadContent" />
         <function name="cancelPlaybackRequest" />
         <field id="playbackInfo" type="assocarray" />
         <field id="liveTitle" type="string" />

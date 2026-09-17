@@ -10,7 +10,9 @@ function testCreateObject(kind, name = invalid)
             end function
         }
     end if
-    return playerNode()
+    result = playerNode()
+    result.componentName = name
+    return result
 end function
 
 sub setSeekTime(milliseconds)
@@ -19,6 +21,8 @@ end sub
 
 function playerNode()
     return {
+        observeField: sub(field, callback)
+        end sub,
         width: 0, height: 0, translation: [0, 0], visible: false, children: [], state: "none", position: 0, duration: 0,
         setFocus: function(value)
             m.focused = value
@@ -36,6 +40,8 @@ function playerNode()
 end function
 
 sub resetPlayer()
+    m.reloadPending = false
+    m.reloadTask = invalid
     setSeekTime(0)
     m.compatibility = invalid
     m.compatRequestId = 0
@@ -111,6 +117,78 @@ sub resetPlayer()
     resetPlaybackAttempt()
     m.lastPosition = 0
     refreshControls()
+end sub
+
+sub testReloadPlayer()
+    for each kind in ["live", "vod", "clip"]
+        resetPlayer()
+        m.top.contentKind = kind
+        m.top.playbackInfo = {login: "channel", videoId: "123", clipId: "clip-slug"}
+        m.global.preferredQuality = "720p"
+        m.video.state = "paused"
+        m.video.position = 125
+        m.qualityPanel.visible = true
+        check(not onKeyEvent("replay", true) and not onKeyEvent("replay", false), "Player lets both reload edges reach the scene even inside quality controls")
+        reloadContent()
+        task = m.reloadTask
+        expected = "GetLivePlayback"
+        if kind = "vod" then expected = "GetVodPlayback"
+        if kind = "clip" then expected = "GetClipPlayback"
+        check(task.componentName = expected and task.control = "RUN", "Reload requests a fresh URL for the current media kind")
+        check(m.busy.active and m.decoderStopPending and not m.qualityPanel.visible, "Reload stops the old decoder and presents a spinner")
+        task.state = "run"
+        reloadContent()
+        check(m.reloadTask.state = "run" and not task.cancelRequested, "Repeated reload does not create overlapping token tasks")
+        task.state = "stop"
+        task.streamUrl = "https://fresh-url"
+        task.playbackInfo = {variants: m.variants, initialIndex: 1}
+        onPlaybackReloadStopped()
+        check(not m.reloadPending and m.top.content.url = "https://fresh-url" and m.top.control = "play", "Fresh playback replaces the old signed URL")
+        check(m.global.preferredQuality = "720p", "Reload preserves the saved manual quality")
+        if kind = "live"
+            check(m.top.content.live and m.top.content.playStart = invalid, "Live reload returns to the live edge")
+        else
+            check(m.top.content.playStart = 125 and m.resumePaused, "Recorded media reload preserves position and paused state")
+        end if
+        if kind = "clip" then check(m.top.content.streamFormat = "mp4", "Clip reload retains its playback format")
+        onRequestedContent()
+        onRequestedControl()
+        check(m.pendingContent <> invalid and m.video.control = "stop", "Reload never overlaps native decoder ownership")
+        finishDecoderStop()
+        check(m.video.content.url = "https://fresh-url", "Fresh playback starts only after decoder stop acknowledgement")
+    end for
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    reloadContent()
+    m.reloadTask.state = "run"
+    stopPlayback()
+    m.top.visible = false
+    m.reloadTask.state = "stop"
+    m.reloadTask.streamUrl = "late-url"
+    onPlaybackReloadStopped()
+    check(m.reloadTask.cancelRequested and not m.reloadPending and m.pendingContent = invalid, "Back cancels reload and rejects its late result")
+    resetPlayer()
+    m.top.playbackInfo = {login: "old-channel"}
+    reloadContent()
+    m.reloadTask.state = "run"
+    stopPlayback()
+    m.top.playbackInfo = {login: "new-channel"}
+    reloadContent()
+    check(m.reloadPending and not m.reloadStarted and m.reloadTask.cancelRequested, "A new reload waits for the cancelled token task to finish")
+    m.reloadTask.state = "stop"
+    onPlaybackReloadStopped()
+    check(m.reloadStarted and m.reloadTask.streamerRequested = "new-channel", "Queued reload uses the latest video identity")
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    reloadContent()
+    m.reloadTask.state = "stop"
+    m.reloadTask.streamUrl = ""
+    m.reloadTask.errorMessage = "Offline"
+    m.reloadTask.playbackInfo = {error: "Offline"}
+    onPlaybackReloadStopped()
+    check(m.top.playbackError = "Offline" and not m.busy.active, "Reload failure leaves a retryable player error")
+    reloadContent()
+    check(m.reloadPending and m.reloadTask.control = "RUN", "Reload retries after a failed lookup")
 end sub
 
 sub main()
@@ -521,6 +599,7 @@ sub main()
     testSeekAcceleration()
     testCompatibilityRouting()
     testDecoderLifecycle()
+    testReloadPlayer()
     print "PASS player completion guards, compatibility cancellation and fallback, bandwidth, quality, remote input and VOD seek"
 end sub
 

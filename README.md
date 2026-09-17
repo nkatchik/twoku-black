@@ -50,6 +50,7 @@ Keep your computer and Roku on the same network.
 | **D-pad** | Move between cards and tabs; **Up** from the first row reaches the header. | Reveal and navigate controls. On recordings, **Left / Right** seeks when the progress bar is selected or controls are hidden. |
 | **OK** | Open the selected item. | Activate a control; pause or resume a recording when the progress bar is selected. |
 | **Options (`*`)** | Open the selected channel's profile where available. | Open the quality menu. |
+| **Reload (circular arrow)** | Refresh the current grid or profile. | Reload the video and visible chat. Recordings and clips keep their position. |
 | **Play / Pause** | — | Pause or resume a recording or clip. |
 | **Rewind / Fast-forward** | — | Seek backward or forward in 10-second steps. |
 | **Back** | Return to the previous view. | Dismiss the quality menu, controls, or chat, then return to browsing. During loading or an error, return immediately. |

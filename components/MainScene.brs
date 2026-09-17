@@ -40,6 +40,7 @@ function init()
     m.getToken = createObject("roSGNode", "GetToken")
     m.getToken.observeField("state", "onTokenStateChanged")
     m.homeScene.observeField("retryAuthentication", "startAuthentication")
+    m.homeScene.observeField("reloadFollowingRequested", "reloadFollowing")
     m.global.addFields({appBearerToken: "", userToken: "", sessionVersion: 0})
     m.global.addField("sessionRefreshRequested", "boolean", true)
     m.global.observeField("sessionRefreshRequested", "onSessionRefreshRequested")
@@ -262,6 +263,7 @@ sub onLogoutRequested()
 end sub
 
 sub onUserLogin()
+    if m.followingReloadPending = true then return
     if m.getUser.sessionVersion <> m.global.sessionVersion then return
     m.homeScene.followingError = m.getUser.errorMessage
     if type(m.getUser.searchResults) <> "roAssociativeArray" then return
@@ -361,6 +363,10 @@ sub onSessionRefreshRequested()
 end sub
 
 sub onUserStopped()
+    if m.followingReloadPending = true
+        reloadFollowing()
+        return
+    end if
     if m.getUser.state = "stop" and m.getUser.sessionVersion <> m.global.sessionVersion
         refreshFollows()
     end if
@@ -395,6 +401,15 @@ sub onToggleStreamLayout()
 end sub
 
 function onKeyEvent(key, press) as Boolean
+    if key = "replay"
+        if not press
+            m.reloadKeyDown = false
+        else if m.reloadKeyDown <> true
+            m.reloadKeyDown = true
+            reloadVisibleContent()
+        end if
+        return true
+    end if
     if not press then return false
     if m.videoPlayer.visible
         if key = "back"
@@ -426,6 +441,29 @@ function onKeyEvent(key, press) as Boolean
     end if
     return false
 end function
+
+sub reloadVisibleContent()
+    if m.videoPlayer.visible
+        m.videoPlayer.callFunc("reloadContent")
+        if m.chat.visible then m.chat.callFunc("reloadContent")
+        requestPlayerInfo()
+    else if m.loginPage.visible
+        return
+    else if m.keyboardGroup.visible
+        m.keyboardGroup.callFunc("reloadContent")
+    else if m.categoryScene.visible
+        m.categoryScene.callFunc("reloadContent")
+    else if m.homeScene.visible
+        m.homeScene.callFunc("reloadContent")
+    end if
+end sub
+
+sub reloadFollowing()
+    m.followingReloadPending = true
+    if m.getUser.state = "run" then return
+    m.followingReloadPending = false
+    refreshFollows()
+end sub
 
 
 sub beginPlayback(url as String, info as Dynamic, streamFormat as String)

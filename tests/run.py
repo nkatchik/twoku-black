@@ -44,6 +44,7 @@ suites = {
     'streams': functions('GetStreams.brs', ['getSearchResults']),
     'categories': functions('GetCategories.brs', ['getSearchResults']),
     'home': (ROOT / 'components/HomeScene.brs').read_text(),
+    'search': (ROOT / 'components/KeyboardGroup.brs').read_text(),
     'followingview': (ROOT / 'components/FollowingView.brs').read_text(),
     'followingitem': (ROOT / 'components/FollowingItem.brs').read_text(),
     'entry': (ROOT / 'source/main.brs').read_text(),
@@ -58,7 +59,7 @@ suites = {
     'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'categorypage': (ROOT / 'components/CategoryScene.brs').read_text(),
     'channelpage': (ROOT / 'components/ChannelPage.brs').read_text(),
-    'playback_routes': functions('MainScene.brs', ['beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
+    'playback_routes': functions('MainScene.brs', ['onKeyEvent', 'reloadVisibleContent', 'reloadFollowing', 'onUserStopped', 'beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:

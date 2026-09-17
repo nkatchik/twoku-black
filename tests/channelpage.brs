@@ -11,6 +11,28 @@ function testCreateObject(kind, name)
     return result
 end function
 
+sub testReloadChannel()
+    m.reloadPending = false
+    m.top.visible = true
+    m.top.parentVisible = true
+    m.getUserChannel = node()
+    m.getUserChannel.state = "run"
+    m.getVideos = node()
+    m.getVideos.state = "run"
+    m.username = node()
+    m.description = node()
+    m.followers = node()
+    reloadContent()
+    check(m.reloadPending and m.busy.active, "Profile refresh waits for both metadata and VOD requests")
+    m.getUserChannel.state = "stop"
+    onUserStopped()
+    check(m.reloadPending, "Finished metadata cannot race a running VOD request")
+    m.getVideos.state = "stop"
+    onVideosStopped()
+    check(not m.reloadPending and m.getUserChannel.control = "RUN", "Profile refresh restarts metadata once requests drain")
+    check(m.videoItems.Count() = 0 and m.moreVideos and m.pastBroadcastsList.content = invalid, "Profile refresh resets live card and VOD pagination")
+end sub
+
 sub main()
     m.top = node()
     m.top.visible = true
@@ -85,6 +107,7 @@ sub main()
     check(channelFollowerLabel(1234567) = "1,234,567 followers", "Actual follower counts are grouped without losing precision")
     check(channelFollowerLabel(0) = "0 followers" and channelFollowerLabel(invalid) = "", "Unknown follower count is distinct from real zero")
     testVideoPreload()
+    testReloadChannel()
     print "PASS follower labels, ancestor focus, VOD grid, focus after loading, pagination deduplication, stale channel and playback guards"
 end sub
 

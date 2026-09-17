@@ -62,6 +62,7 @@ sub main()
         {code:200,body:"#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30" + Chr(10) + "https://cdn.example/vod.m3u8",error:""}
     ]
     result = requestPlayback("", "12345", true)
+    check(result.videoId = "12345", "Recording identity survives for a fresh playback reload")
     check(result.error = "" and result.url = "https://cdn.example/vod.m3u8" and not result.isLive, "Recording playback resolves without a live channel")
     check(Instr(1,g.requests[1].uri,"/vod/12345.m3u8?") > 0, "Recording uses the VOD master endpoint")
     resetRequests()
@@ -70,6 +71,7 @@ sub main()
         {code: 200, body: "#EXTM3U" + Chr(10) + "#EXT-X-STREAM-INF:RESOLUTION=852x480,FRAME-RATE=30,CODECS=" + q + "avc1.4D401F,mp4a.40.2" + q + Chr(10) + "https://cdn.example/480.m3u8", error: ""}
     ]
     result = requestPlayback("demo", "", false)
+    check(result.login = "demo", "Live identity survives for a fresh playback reload")
     check(result.error = "" and result.url = "https://cdn.example/480.m3u8", "live resolver returns playable variant and metadata")
     check(g.requests.Count() = 2, "resolver uses only token and master requests")
     check(g.requests[0].headers["Authorization"] = invalid and g.requests[1].headers["Authorization"] = invalid, "playback requests never leak OAuth credentials")

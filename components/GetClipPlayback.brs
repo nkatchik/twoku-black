@@ -13,7 +13,7 @@ sub getClipPlayback()
 end sub
 
 function requestClipPlayback(slug as String) as Object
-    result = {variants: [], isLive: false, initialIndex: -1, url: "", error: "", title: "Clip", login: "", name: "", avatar: ""}
+    result = {variants: [], isLive: false, clipId: slug, initialIndex: -1, url: "", error: "", title: "Clip", login: "", name: "", avatar: ""}
     if m.top.cancelRequested then return result
     query = "{ clip(slug: " + FormatJSON(slug) + ") { title broadcaster { login displayName profileImageURL(width: 70) } playbackAccessToken(params: { platform: " + Chr(34) + "web" + Chr(34) + ", playerBackend: " + Chr(34) + "mediaplayer" + Chr(34) + ", playerType: " + Chr(34) + "clips_discovery" + Chr(34) + " }) { value signature } videoQualities { frameRate quality sourceURL } } }"
     transfer = createHttpUrl()

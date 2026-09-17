@@ -6,6 +6,43 @@ function testCreateObject(kind, name)
     return result
 end function
 
+sub testReloadCategory()
+    m.top = node()
+    m.top.visible = true
+    m.top.currentCategory = "game"
+    m.busy = node()
+    m.emptyLabel = node()
+    m.playbackStatus = node()
+    m.getLivePlayback = node()
+    m.getClipPlayback = node()
+    m.getStreams = node()
+    m.getClips = node()
+    m.getClips.state = "run"
+    m.liveLine = {visible: false}
+    m.clipLine = {visible: true}
+    m.browseList = node()
+    m.browseClipsList = node()
+    m.browseClipsList.content = node()
+    m.browseButtons = node()
+    reloadContent()
+    check(m.reloadPending and m.busy.active, "Category reload queues behind an in-flight request")
+    insertClips()
+    check(m.browseClipsList.content <> invalid, "Stale clips are ignored during refresh")
+    m.getClips.state = "stop"
+    onClipsStopped()
+    check(m.getClips.control = "RUN" and m.getClips.pagination = "" and m.clipLine.visible, "Clip reload fetches page one without switching to live")
+    check(m.seenClips.Count() = 0 and m.browseClipsList.content = invalid, "Clip pagination deduplication resets on refresh")
+    m.liveLine.visible = true
+    m.clipLine.visible = false
+    reloadContent()
+    check(m.getStreams.control = "RUN" and m.getStreams.gameRequested = "game" and m.getStreams.pagination = "", "Game live grid reload retains its game")
+    m.getStreams.state = "run"
+    reloadContent()
+    m.top.visible = false
+    tryReloadContent()
+    check(not m.reloadPending, "Leaving the category cancels a queued reload")
+end sub
+
 sub main()
     items = []
     for index = 0 to 8
@@ -68,6 +105,7 @@ sub main()
     onStreamUrlChange()
     check(m.getLivePlayback.cancelRequested and m.playbackRequestId = 8 and m.top.streamUrl = invalid, "Cancelled stream lookup cannot publish late playback")
     testClipPreload()
+    testReloadCategory()
     print "PASS category grid packing, empty focus, SG metadata, cancelled playback"
 end sub
 

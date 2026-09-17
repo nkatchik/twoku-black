@@ -1,4 +1,5 @@
 sub init()
+    m.reloadPending = false
     m.channelLoading = false
     m.playbackRequestId = 0
     m.playbackPending = false
@@ -43,6 +44,25 @@ function channelHasVideos() as Boolean
     return m.pastBroadcastsList.content.getChildCount() > 0
 end function
 
+sub reloadContent()
+    if not channelVisible() then return
+    m.reloadPending = true
+    cancelPlaybackRequest()
+    m.busy.active = true
+    tryReloadContent()
+end sub
+
+sub tryReloadContent()
+    if m.reloadPending <> true then return
+    if not channelVisible()
+        m.reloadPending = false
+        return
+    end if
+    if m.getUserChannel.state = "run" or m.getVideos.state = "run" then return
+    m.reloadPending = false
+    onSelectedStreamerChange()
+end sub
+
 sub focusContent()
     if not channelVisible() then return
     m.top.streamItemFocused = false
@@ -55,6 +75,7 @@ end sub
 
 sub onGetFocus()
     m.busy.enabled = channelVisible()
+    if not channelVisible() then m.reloadPending = false
     if not channelVisible() then cancelPlaybackRequest()
     focusContent()
 end sub
@@ -89,12 +110,17 @@ sub requestUserInfo()
 end sub
 
 sub onUserStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getUserChannel.state = "stop" and m.requestedLogin <> m.top.streamerSelectedName
         requestUserInfo()
     end if
 end sub
 
 sub onGetUserInfo()
+    if m.reloadPending = true then return
     if m.requestedLogin <> m.top.streamerSelectedName then return
     user = m.getUserChannel.searchResults
     if user = invalid or user.id = invalid
@@ -147,6 +173,10 @@ sub getVideos()
 end sub
 
 sub onVideosStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getVideos.state = "stop" and m.videosLogin <> m.top.streamerSelectedName
         getVideos()
     end if
@@ -154,6 +184,7 @@ sub onVideosStopped()
 end sub
 
 sub onGetVideos()
+    if m.reloadPending = true then return
     if m.videosLogin <> m.top.streamerSelectedName then return
     m.channelLoading = false
     m.videosPending = false
@@ -213,6 +244,7 @@ sub getMoreVideos()
 end sub
 
 sub onGridFocus()
+    if m.reloadPending = true then return
     if not channelVisible() or not channelHasVideos() then return
     if gridNeedsMore(m.pastBroadcastsList)
         getMoreVideos()

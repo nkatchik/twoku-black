@@ -32,6 +32,15 @@ sub updateChatHeader()
     m.viewers.text = m.top.viewerText
 end sub
 
+sub reloadContent()
+    if not m.top.visible then return
+    m.chat.cancelRequested = true
+    m.currentChannel = ""
+    onEnterChannel()
+    m.status.visible = false
+    m.busy.active = true
+end sub
+
 sub onInvisible()
     m.busy.enabled = m.top.visible
     syncChatConnection()

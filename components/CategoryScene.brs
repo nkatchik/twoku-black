@@ -1,4 +1,5 @@
 sub init()
+    m.reloadPending = false
     m.busy = m.top.findNode("busy")
     m.streamsLoading = false
     m.clipsLoading = false
@@ -48,6 +49,38 @@ sub updateCategoryHeader()
     cover.uri = m.top.currentCategoryImage
 end sub
 
+sub reloadContent()
+    if not m.top.visible then return
+    m.reloadPending = true
+    cancelPlaybackRequest()
+    m.busy.active = true
+    tryReloadContent()
+end sub
+
+sub tryReloadContent()
+    if m.reloadPending <> true then return
+    if not m.top.visible
+        m.reloadPending = false
+        return
+    end if
+    if m.getStreams.state = "run" or m.getClips.state = "run" then return
+    m.reloadPending = false
+    m.streamsLoading = false
+    m.clipsLoading = false
+    m.emptyLabel.visible = false
+    m.emptyLabel.text = ""
+    if m.clipLine.visible
+        m.browseClipsList.content = invalid
+        m.seenClips = {}
+        onClipsLoad()
+    else
+        m.browseList.content = invalid
+        m.seenStreams = {}
+        startCategoryStreams()
+    end if
+    focusContent()
+end sub
+
 function categoryHasRows(list) as Boolean
     if list.content = invalid then return false
     return list.content.getChildCount() > 0
@@ -78,6 +111,7 @@ end sub
 
 sub onGetFocus()
     if not m.top.visible
+        m.reloadPending = false
         m.pendingGridFocus = ""
         cancelPlaybackRequest()
     end if
@@ -123,6 +157,10 @@ sub startCategoryStreams()
 end sub
 
 sub onStreamsStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getStreams.state = "stop" and m.streamsCategory = m.top.currentCategory then m.streamsLoading = false
     updateCategoryBusy()
     if m.getStreams.state = "stop" and m.streamsCategory <> m.top.currentCategory
@@ -132,6 +170,10 @@ sub onStreamsStopped()
 end sub
 
 sub onClipsStopped()
+    if m.reloadPending = true
+        tryReloadContent()
+        return
+    end if
     if m.getClips.state = "stop" and m.clipsCategory = m.top.currentCategory then m.clipsLoading = false
     updateCategoryBusy()
     if m.getClips.state = "stop" and m.clipLine.visible and m.clipsCategory <> m.top.currentCategory
@@ -164,6 +206,7 @@ function numberToText(number) as String
 end function
 
 sub onSearchResultChange()
+    if m.reloadPending = true then return
     if m.streamsCategory <> m.top.currentCategory then return
     m.streamsLoading = false
     updateCategoryBusy()
@@ -195,6 +238,7 @@ sub onSearchResultChange()
 end sub
 
 sub insertClips()
+    if m.reloadPending = true then return
     if m.clipsCategory <> m.top.currentCategory then return
     m.clipsLoading = false
     updateCategoryBusy()
@@ -299,6 +343,7 @@ sub onClipPlaybackStopped()
 end sub
 
 sub onGridFocus()
+    if m.reloadPending = true then return
     if not m.top.visible then return
     if m.liveLine.visible and gridNeedsMore(m.browseList)
         getMoreChannels()

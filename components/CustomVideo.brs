@@ -1,4 +1,6 @@
 sub init()
+    m.reloadPending = false
+    m.reloadTask = invalid
     m.top.focusable = true
     m.video = m.top.findNode("video")
     if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
@@ -134,6 +136,7 @@ sub onChatVisibilityChange()
 end sub
 
 sub onPlaybackInfo()
+    cancelPlaybackReload()
     cancelCompatibility()
     m.variants = []
     m.capabilities = invalid
@@ -628,6 +631,7 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    cancelPlaybackReload()
     stopSeekHold()
     cancelCompatibility()
     m.startRequested = false
@@ -927,6 +931,8 @@ function convertToReadableTimeFormat(value) as String
 end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
+    ' MainScene routes the circular-arrow button even with controls/quality open.
+    if key = "replay" then return false
     if not press
         if key = m.heldSeekKey
             stopSeekHold()
@@ -957,6 +963,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         end if
         return true
     end if
+    if m.reloadPending = true then return true
     if m.qualityPanel.visible
         if key = "up" and m.qualityIndex > 0
             m.qualityIndex -= 1
@@ -1028,6 +1035,93 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     showOverlay()
     return true
 end function
+
+sub reloadContent()
+    if not m.top.visible or m.reloadPending = true then return
+    position = playerSeconds(m.video.position)
+    if position <= 0 then position = playerSeconds(m.completedPosition)
+    if m.pendingSeek <> invalid then position = m.pendingSeek
+    if m.seekInFlight <> invalid and m.pendingSeek = invalid then position = m.seekInFlight
+    paused = m.video.state = "paused" or m.resumePaused or m.seekPaused
+    stopPlayback()
+    m.reloadPosition = position
+    m.reloadPaused = paused
+    m.reloadPending = true
+    m.reloadStarted = false
+    m.top.playbackError = ""
+    showPlayerBusy()
+    showOverlay()
+    startPlaybackReload()
+end sub
+
+sub cancelPlaybackReload()
+    m.reloadPending = false
+    if m.reloadTask <> invalid then m.reloadTask.cancelRequested = true
+end sub
+
+sub startPlaybackReload()
+    if m.reloadPending <> true or not m.top.visible then return
+    if m.reloadTask <> invalid
+        if m.reloadTask.state = "run" then return
+    end if
+    info = m.top.playbackInfo
+    if type(info) <> "roAssociativeArray"
+        m.reloadPending = false
+        showPlaybackError("Could not reload this video. Press Back and open it again.")
+        return
+    end if
+    kind = "GetLivePlayback"
+    field = "streamerRequested"
+    identity = info.login
+    if m.top.contentKind = "vod"
+        kind = "GetVodPlayback"
+        field = "videoId"
+        identity = info.videoId
+    else if m.top.contentKind = "clip"
+        kind = "GetClipPlayback"
+        field = "clipId"
+        identity = info.clipId
+    end if
+    if GetInterface(identity, "ifString") = invalid or identity = ""
+        m.reloadPending = false
+        showPlaybackError("Could not reload this video. Press Back and open it again.")
+        return
+    end if
+    m.reloadTask = CreateObject("roSGNode", kind)
+    m.reloadTask[field] = identity
+    m.reloadTask.observeField("state", "onPlaybackReloadStopped")
+    m.reloadTask.cancelRequested = false
+    m.reloadStarted = true
+    m.reloadTask.control = "RUN"
+end sub
+
+sub onPlaybackReloadStopped()
+    if m.reloadPending <> true or not m.top.visible then return
+    if m.reloadTask.state <> "stop" then return
+    if not m.reloadStarted
+        startPlaybackReload()
+        return
+    end if
+    m.reloadPending = false
+    info = m.reloadTask.playbackInfo
+    if type(info) <> "roAssociativeArray" or m.reloadTask.streamUrl = ""
+        message = m.reloadTask.errorMessage
+        if message = "" then message = "Could not reload this video. Press the reload button to retry."
+        showPlaybackError(message)
+        return
+    end if
+    m.top.playbackInfo = info
+    ' Reuse the normal content/stop handoff; never start a second native decoder.
+    content = CreateObject("roSGNode", "ContentNode")
+    content.url = m.reloadTask.streamUrl
+    content.streamFormat = "hls"
+    if m.top.contentKind = "clip" then content.streamFormat = "mp4"
+    content.live = m.top.contentKind = "live"
+    if not content.live then content.playStart = m.reloadPosition
+    m.top.content = content
+    m.resumePaused = m.reloadPaused
+    m.top.control = "play"
+end sub
 
 function playerSeconds(value)
     kind = LCase(type(value))

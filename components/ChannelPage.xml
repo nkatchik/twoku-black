@@ -3,6 +3,7 @@
 <component name="ChannelPage" extends="Group">
 
     <interface>
+        <function name="reloadContent" />
         <function name="cancelPlaybackRequest" />
         <field id="parentVisible" type="boolean" value="true" onChange="onGetFocus" />
         <function name="focusContent" />

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="Chat" extends="Group">
     <interface>
+        <function name="reloadContent" />
         <field id="channel" type="string" onChange="onEnterChannel" alwaysNotify="true" />
         <field id="channelUsername" type="string" onChange="updateChatHeader" />
         <field id="channelAvatar" type="string" onChange="updateChatHeader" />

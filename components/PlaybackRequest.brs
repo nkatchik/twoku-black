@@ -14,7 +14,7 @@ function playbackTokenPayload(login as String, videoId as String, isVod as Boole
 end function
 
 function requestPlayback(login as String, videoId as String, isVod as Boolean) as Object
-    result = {masterUrl: "", variants: [], isLive: not isVod, initialIndex: -1, url: "", error: ""}
+    result = {masterUrl: "", variants: [], isLive: not isVod, login: login, videoId: videoId, initialIndex: -1, url: "", error: ""}
     if m.top.cancelRequested then return result
     payload = playbackTokenPayload(login, videoId, isVod)
     transfer = createHttpUrl()

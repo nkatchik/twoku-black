@@ -50,6 +50,7 @@ sub main()
     m.cancelDuringRequest = false
     m.response = {error: "", body: FormatJSON({data: {clip: clip}})}
     result = requestClipPlayback("Slug")
+    check(result.clipId = "Slug", "Clip identity survives for a fresh playback reload")
     check(result.initialIndex = 1 and result.title = "A clip" and result.login = "streamer", "Auto chooses compatible clip quality and forwards metadata")
     check(result.capabilities.supported[result.url], "Clip player receives the same native capability decision as its resolver")
     m.global.preferredQuality = "480p"

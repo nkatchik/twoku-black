@@ -17,6 +17,7 @@ function measuredLabel(width)
 end function
 
 sub setup()
+    m.reloadPending = false
     m.top = node()
     m.top.visible = true
     m.top.setFocus(true)
@@ -85,6 +86,43 @@ sub setup()
     m.categoriesCursor = ""
     m.channelsPending = false
     m.categoriesPending = false
+end sub
+
+sub testReloadHome()
+    setup()
+    m.top.apiReady = true
+    m.getStreams.state = "run"
+    m.browseList.content = node()
+    previous = m.browseList.content.testId
+    reloadContent()
+    check(m.reloadPending and m.busy.active, "Reload waits for a running grid request")
+    m.getStreams.searchResults = streamPage(0, 24)
+    onSearchResultChange()
+    check(m.browseList.content.testId = previous, "Superseded page cannot replace the grid while reload waits")
+    m.getStreams.state = "stop"
+    onChannelsStopped()
+    check(not m.reloadPending and m.getStreams.control = "RUN" and m.getStreams.pagination = "", "Channels reload requests page one after the old task stops")
+    check(m.browseList.content = invalid and m.pendingGridFocus = 1, "Reload clears old pages and restores focus when fresh cards arrive")
+    setup()
+    m.top.apiReady = true
+    m.currentlySelectedButton = 0
+    reloadContent()
+    check(m.getCategories.control = "RUN" and m.getCategories.pagination = "" and m.currentlySelectedButton = 0, "Games reload keeps the selected tab")
+    setup()
+    m.currentlySelectedButton = 2
+    m.loggedIn = true
+    reloadContent()
+    check(m.top.reloadFollowingRequested and not m.offlineLoaded and m.busy.active, "Following reload requests fresh live and offline follows")
+    m.followingView.hasItems = true
+    updateFollowingLayout()
+    check(m.followingView.hasFocus(), "Fresh Following content receives focus after reload")
+    setup()
+    m.channelPage.visible = true
+    m.channelPage.callFunc = sub(name)
+        m.reloaded = name = "reloadContent"
+    end sub
+    reloadContent()
+    check(m.channelPage.reloaded, "A visible profile reloads instead of the hidden home grid")
 end sub
 
 sub main()
@@ -257,6 +295,7 @@ sub main()
     check(m.followingView.liveStreams.Count() = 0 and m.followingView.offlineChannels.Count() = 0, "Logout cannot show previous account follows")
     testFeedPacking()
     testPreload()
+    testReloadHome()
     print "PASS measured header, compact account, feed packing, spinner lifecycle, unified Following return, logout"
 end sub
 

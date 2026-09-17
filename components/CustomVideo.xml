@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="CustomVideo" extends="Group">
     <interface>
+        <function name="reloadContent" />
         <field id="content" type="node" alwaysNotify="true" />
         <field id="control" type="string" alwaysNotify="true" />
         <field id="state" type="string" alias="video.state" />

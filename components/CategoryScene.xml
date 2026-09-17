@@ -3,6 +3,7 @@
 <component name="CategoryScene" extends="Group">
 
     <interface>
+        <function name="reloadContent" />
         <function name="cancelPlaybackRequest" />
         <function name="focusContent" />
         <field id="currentCategoryName" type="string" onChange="updateCategoryHeader" />

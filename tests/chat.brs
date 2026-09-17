@@ -31,6 +31,23 @@ sub resetChat()
     m.currentChannel = ""
 end sub
 
+sub testReloadChat()
+    resetChat()
+    m.top.visible = true
+    m.chat.state = "run"
+    m.chat.channel = "alpha"
+    m.currentChannel = "alpha"
+    m.rows = [node()]
+    reloadContent()
+    check(m.chat.cancelRequested and m.restartAfterStop and m.rows.Count() = 0, "Chat reload clears old messages and cancels the existing connection")
+    m.chat.state = "stop"
+    onChatStopped()
+    check(m.chat.control = "RUN" and not m.chat.cancelRequested, "Chat reconnects after its old socket closes")
+    resetChat()
+    reloadContent()
+    check(m.chat.control = "" and not m.chat.cancelRequested, "Hidden chat cannot be started by reload")
+end sub
+
 sub main()
     resetChat()
     onEnterChannel()
@@ -90,5 +107,6 @@ sub main()
     m.top.visible = false
     onInvisible()
     check(not m.busy.enabled, "Hidden rail disables animation")
+    testReloadChat()
     print "PASS hidden startup, cancellation, reopen, channel races, bounded read-only rail"
 end sub

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="HomeScene" extends="Group">
     <interface>
+        <function name="reloadContent" />
+        <field id="reloadFollowingRequested" type="boolean" alwaysNotify="true" />
         <function name="focusContent" />
         <function name="clearAccount" />
         <field id="apiReady" type="boolean" value="false" onChange="onApiReady" />
