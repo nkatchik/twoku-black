@@ -55,7 +55,7 @@ sub main()
     check(m.global.sessionVersion = 5 and m.global.userToken = "" and m.login = "", "Logout invalidates refresh generation before clearing identity")
     check(not g.registry.DoesExist("UserToken") and not g.registry.DoesExist("RefreshToken") and g.flushed, "Logout clears and flushes persisted credentials")
     check(g.registry.RecentStreamers = "preserved", "Logout preserves unrelated local preferences")
-    check(m.homeScene.loggedInUserId = "" and m.homeScene.followedStreams.Count() = 0 and m.chat.loggedInUsername = "", "Logout clears personalized UI and chat identity")
+    check(m.homeScene.loggedInUserId = "" and m.homeScene.loggedInUserName = "" and m.homeScene.loggedInUserProfileImage = "" and m.homeScene.followedStreams.Count() = 0, "Logout clears personalized UI")
     check(g.clearedAccount and g.homeFocused and m.homeScene.visible and not m.loginPage.visible, "Logout returns immediately to Channels")
     check(m.logoutTask.control = "RUN" and m.logoutTask.accessToken = "token", "Remote token revocation runs separately")
     m.top = m.logoutTask

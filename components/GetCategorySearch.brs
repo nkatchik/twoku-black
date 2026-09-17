@@ -1,4 +1,3 @@
-'api.twitch.tv/kraken/search/channels?query=${search_text}&limit=5&client_id=jzkbprff40iqj646a697cyrvl0zt2m6
 
 function init()
     m.top.functionName = "onSearchTextChange"
@@ -11,7 +10,6 @@ function onSearchTextChange()
 end function
 
 function getSearchResults() as Object
-    ' search_results_url = "https://api.twitch.tv/kraken/search/games?query=" + m.top.searchText + "&type=suggest&client_id=jzkbprff40iqj646a697cyrvl0zt2m6"
     search_results_url = "https://api.twitch.tv/helix/search/categories?first=5&query=" + m.top.searchText.EncodeUriComponent()
 
     ' url = CreateObject("roUrlTransfer")

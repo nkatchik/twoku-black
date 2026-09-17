@@ -78,9 +78,6 @@ sub main()
     m.chat.control = ""
     onChatStopped()
     check(m.chat.control = "", "Cancelled hidden chat does not restart")
-    m.top.setKeyboardFocus = true
-    onSetKeyboardFocus()
-    check(not m.top.setKeyboardFocus and m.top.doneFocus, "Legacy keyboard request returns focus without exposing keyboard")
     resetChat()
     m.top.visible = true
     m.chat.channel = "alpha"

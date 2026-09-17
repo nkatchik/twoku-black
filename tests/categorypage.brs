@@ -62,11 +62,11 @@ sub main()
     focusContent()
     check(m.browseList.hasFocus(), "Loaded category focuses stream cards")
     m.playbackRequestId = 7
-    m.getStuff = {requestId: 7, cancelRequested: false, streamUrl: "late-url", streamerRequested: "channel"}
+    m.getLivePlayback = {requestId: 7, cancelRequested: false, streamUrl: "late-url", streamerRequested: "channel"}
     m.playbackStatus = node()
     cancelPlaybackRequest()
     onStreamUrlChange()
-    check(m.getStuff.cancelRequested and m.playbackRequestId = 8 and m.top.streamUrl = invalid, "Cancelled stream lookup cannot publish late playback")
+    check(m.getLivePlayback.cancelRequested and m.playbackRequestId = 8 and m.top.streamUrl = invalid, "Cancelled stream lookup cannot publish late playback")
     testClipPreload()
     print "PASS category grid packing, empty focus, SG metadata, cancelled playback"
 end sub

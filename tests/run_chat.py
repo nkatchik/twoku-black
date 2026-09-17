@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--brs', default='brs')
 args = parser.parse_args()
 with tempfile.TemporaryDirectory(prefix='twoku-chat-tests-') as directory:
-    for name, component in [('chat', 'Chat'), ('chat_transport', 'ChatTest')]:
+    for name, component in [('chat', 'Chat'), ('chat_transport', 'ChatTransport')]:
         source = (ROOT / f'components/{component}.brs').read_text()
         source = re.sub(r'(?ims)^sub init\(\).*?^end sub\s*', '', source)
         source = re.sub(r'(?i)\bCreateObject\(', 'testCreateObject(', source)

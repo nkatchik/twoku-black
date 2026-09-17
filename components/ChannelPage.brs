@@ -19,12 +19,12 @@ sub init()
     m.getVideos = CreateObject("roSGNode", "GetVideos")
     m.getVideos.observeField("searchResults", "onGetVideos")
     m.getVideos.observeField("state", "onVideosStopped")
-    m.getStuffVideo = CreateObject("roSGNode", "GetStuffVideo")
-    m.getStuffVideo.observeField("streamUrl", "onGetVideoUrl")
-    m.getStuffVideo.observeField("state", "onPlaybackStopped")
-    m.getStuffLive = CreateObject("roSGNode", "GetStuff")
-    m.getStuffLive.observeField("streamUrl", "onGetLiveUrl")
-    m.getStuffLive.observeField("state", "onLivePlaybackStopped")
+    m.getVodPlayback = CreateObject("roSGNode", "GetVodPlayback")
+    m.getVodPlayback.observeField("streamUrl", "onGetVideoUrl")
+    m.getVodPlayback.observeField("state", "onPlaybackStopped")
+    m.getLivePlayback = CreateObject("roSGNode", "GetLivePlayback")
+    m.getLivePlayback.observeField("streamUrl", "onGetLiveUrl")
+    m.getLivePlayback.observeField("state", "onLivePlaybackStopped")
     m.pastBroadcastsList.observeField("rowItemSelected", "onVideoItemSelect")
     m.pastBroadcastsList.observeField("rowItemFocused", "onGridFocus")
     m.top.observeField("streamerSelectedName", "onSelectedStreamerChange")
@@ -220,13 +220,13 @@ sub onGridFocus()
 end sub
 
 sub onVideoItemSelect()
-    if not channelVisible() or not channelHasVideos() or m.getStuffVideo.state = "run" or m.getStuffLive.state = "run" then return
+    if not channelVisible() or not channelHasVideos() or m.getVodPlayback.state = "run" or m.getLivePlayback.state = "run" then return
     index = m.pastBroadcastsList.rowItemSelected
     item = m.pastBroadcastsList.content.getChild(index[0]).getChild(index[1])
     m.top.videoTitle = item.Title
-    task = m.getStuffVideo
+    task = m.getVodPlayback
     if item.playbackKind = "live"
-        task = m.getStuffLive
+        task = m.getLivePlayback
         task.streamerRequested = item.ShortDescriptionLine1
         m.top.streamViewers = item.ShortDescriptionLine2
     else
@@ -244,26 +244,26 @@ sub onVideoItemSelect()
 end sub
 
 sub onGetVideoUrl()
-    if m.getStuffVideo.cancelRequested or m.getStuffVideo.requestId <> m.playbackRequestId then return
+    if m.getVodPlayback.cancelRequested or m.getVodPlayback.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
     m.playbackPending = false
     m.busy.active = false
     if not channelVisible() or m.videoLogin <> m.top.streamerSelectedName then return
-    if m.getStuffVideo.streamUrl = "" then return
-    m.top.thumbnailInfo = m.getStuffVideo.thumbnailInfo
-    m.top.playbackInfo = m.getStuffVideo.playbackInfo
-    m.top.videoUrl = m.getStuffVideo.streamUrl
+    if m.getVodPlayback.streamUrl = "" then return
+    m.top.thumbnailInfo = m.getVodPlayback.thumbnailInfo
+    m.top.playbackInfo = m.getVodPlayback.playbackInfo
+    m.top.videoUrl = m.getVodPlayback.streamUrl
 end sub
 
 sub onGetLiveUrl()
-    if m.getStuffLive.cancelRequested or m.getStuffLive.requestId <> m.playbackRequestId then return
+    if m.getLivePlayback.cancelRequested or m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
     m.playbackPending = false
     m.busy.active = false
     if not channelVisible() or m.videoLogin <> m.top.streamerSelectedName then return
-    if m.getStuffLive.streamUrl = "" then return
-    m.top.playbackInfo = m.getStuffLive.playbackInfo
-    m.top.streamUrl = m.getStuffLive.streamUrl
+    if m.getLivePlayback.streamUrl = "" then return
+    m.top.playbackInfo = m.getLivePlayback.playbackInfo
+    m.top.streamUrl = m.getLivePlayback.streamUrl
 end sub
 
 function onKeyEvent(key, press) as Boolean
@@ -283,19 +283,19 @@ sub cancelPlaybackRequest()
     m.playbackPending = false
     m.busy.active = m.channelLoading
     m.playbackRequestId += 1
-    m.getStuffVideo.cancelRequested = true
-    m.getStuffVideo.requestId = m.playbackRequestId
-    m.getStuffLive.cancelRequested = true
-    m.getStuffLive.requestId = m.playbackRequestId
+    m.getVodPlayback.cancelRequested = true
+    m.getVodPlayback.requestId = m.playbackRequestId
+    m.getLivePlayback.cancelRequested = true
+    m.getLivePlayback.requestId = m.playbackRequestId
     m.playbackStatus.text = ""
 end sub
 
 sub onPlaybackStopped()
-    finishChannelPlayback(m.getStuffVideo)
+    finishChannelPlayback(m.getVodPlayback)
 end sub
 
 sub onLivePlaybackStopped()
-    finishChannelPlayback(m.getStuffLive)
+    finishChannelPlayback(m.getLivePlayback)
 end sub
 
 sub finishChannelPlayback(task)

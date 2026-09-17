@@ -6,7 +6,7 @@ sub init()
     m.status = m.top.findNode("status")
     m.busy = m.top.findNode("busy")
     m.busy.enabled = m.top.visible
-    m.chat = CreateObject("roSGNode", "ChatTest")
+    m.chat = CreateObject("roSGNode", "ChatTransport")
     m.chat.observeField("nextComment", "onNewComment")
     m.chat.observeField("statusMessage", "onChatStatus")
     m.chat.observeField("connecting", "onChatStatus")
@@ -143,14 +143,7 @@ sub appendChatComment(comment)
     m.status.visible = false
 end sub
 
-' Retained interface compatibility: the chat rail never takes remote focus.
-sub onSetKeyboardFocus()
-    if m.top.setKeyboardFocus
-        m.top.setKeyboardFocus = false
-        m.top.doneFocus = true
-    end if
-end sub
-
+' Stopping playback also cancels the chat transport.
 sub onVideoChange()
     if m.chat <> invalid and not m.top.control then m.chat.cancelRequested = true
 end sub

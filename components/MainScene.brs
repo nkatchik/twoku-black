@@ -1,18 +1,4 @@
-'api.twitch.tv/api/channels/${user}/access_token?client_id=jzkbprff40iqj646a697cyrvl0zt2m6
-'usher.ttvnw.net/api/channel/hls/${user}.m3u8?allow_source=true&allow_spectre=true&type=any&token=${token}&sig=${sig}
-
 function init()
-    ' environment_variables = ReadAsciiFile("pkg:/env").Split(Chr(10))
-    ' for each var in environment_variables
-    '     var_info = var.Split("=")
-    '     if var_info[0] = "CLIENT-ID"
-    '         m.global.addFields({CLIENT_ID: Left(var_info[1], Len(var_info[1]) - 1)})
-    '     else if var_info[0] = "AUTHORIZATION"
-    '         m.global.addFields({AUTHORIZATION: var_info[1]})
-    '     end if
-    ' end for
-
-
     m.videoPlayer = m.top.findNode("videoPlayer")
     m.getPlayerInfo = createObject("roSGNode", "GetUserChannel")
     m.getPlayerInfo.observeField("searchResults", "onPlayerInfo")
@@ -20,7 +6,6 @@ function init()
     m.keyboardGroup = m.top.findNode("keyboardGroup")
     m.homeScene = m.top.findNode("homeScene")
     m.categoryScene = m.top.findNode("categoryScene")
-    ' m.channelPage = m.top.findNode("channelPage")
     m.loginPage = m.top.findNode("loginPage")
 
     m.keyboardGroup.observeField("streamUrl", "onStreamChange")
@@ -38,9 +23,6 @@ function init()
     m.categoryScene.observeField("streamerSelectedThumbnail", "onStreamerSelected")
     m.categoryScene.observeField("clipUrl", "onClipChange")
 
-    ' m.channelPage.observeField("videoUrl", "onStreamChangeFromChannelPage")
-    ' m.channelPage.observeField("streamUrl", "onStreamChange")
-
     m.loginPage.observeField("finished", "onLoginFinish")
     m.loginPage.observeField("logoutRequested", "onLogoutRequested")
 
@@ -54,10 +36,6 @@ function init()
 
     m.currentScene = "home"
     m.lastScene = ""
-    m.lastLastScene = ""
-
-    m.stream = createObject("RoSGNode", "ContentNode")
-    m.stream["streamFormat"] = "hls"
 
     m.getToken = createObject("roSGNode", "GetToken")
     m.getToken.observeField("state", "onTokenStateChanged")
@@ -71,25 +49,18 @@ function init()
     m.getUser.observeField("searchResults", "onUserLogin")
     m.getUser.observeField("state", "onUserStopped")
 
-    m.testtimer = m.top.findNode("testTimer")
-    m.testtimer.control = "start"
-    m.testtimer.ObserveField("fire", "refreshFollows")
+    m.followingRefreshTimer = m.top.findNode("followingRefreshTimer")
+    m.followingRefreshTimer.control = "start"
+    m.followingRefreshTimer.ObserveField("fire", "refreshFollows")
 
     if checkRegistrySection("LoggedInUserData", "Reset") = invalid
         sec = createObject("roRegistrySection", "LoggedInUserData")
         sec.Write("UserToken", "")
         sec.Write("RefreshToken", "")
         sec.Write("LoggedInUser", "")
-        ? "RESETTED"
-        ' setReset("true")
         setRegistrySection("LoggedInUserData", "Reset", "true")
     end if
     
-    ' registry = CreateObject("roRegistry")
-    ' registry.Delete("LoggedInUserData")
-    ' registry.Delete("VideoSettings")
-
-    ' loggedInUser = checkIfLoggedIn()
     loggedInUser = checkRegistrySection("LoggedInUserData", "LoggedInUser")
     if loggedInUser <> invalid and loggedInUser <> ""
         m.login = loggedInUser
@@ -107,34 +78,12 @@ function init()
         m.global.addFields({chatOption: false})
     end if
 
-    ' GetUser validates saved credentials before publishing a user token.
-
-    ' videoBookmarks = checkVideoBookmarks()
     videoBookmarks = checkRegistrySection("VideoSettings", "VideoBookmarks")
-    ? "MainScene >> videoBookmarks > " videoBookmarks
     if videoBookmarks <> invalid
-        'm.videoPlayer.videoBookmarks = {}
         m.videoPlayer.videoBookmarks = ParseJSON(videoBookmarks)
-        ? "MainScene >> ParseJSON > " m.videoPlayer.videoBookmarks
     else
         m.videoPlayer.videoBookmarks = {}
     end if
-
-    recentStreamers = checkRegistrySection("LoggedInUserData", "RecentStreamers")
-    m.homeScene.recentStreamers = []
-    if recentStreamers <> invalid and recentStreamers <> ""
-        parsedRecents = ParseJSON(recentStreamers)
-        if type(parsedRecents) = "roAssociativeArray"
-            if type(parsedRecents.recents) = "roArray"
-                m.homeScene.recentStreamers = parsedRecents.recents
-            end if
-        end if
-    end if
-
-    ? "MainScene >> registry space > " createObject("roRegistry").GetSpaceAvailable()
-
-    deviceInfo = CreateObject("roDeviceInfo")
-    m.uiResolutionWidth = deviceInfo.GetUIResolution().width
 
     m.chat = m.top.findNode("chat")
 
@@ -157,13 +106,8 @@ sub focusHome()
     end if
 end sub
 
-sub onChatDoneFocus()
-    if m.videoPlayer.visible then m.videoPlayer.callFunc("focusContent")
-end sub
-
 sub onLoginFinish()
     if m.loginPage.finished = true
-        ' loggedInUser = checkIfLoggedIn()
         loggedInUser = checkRegistrySection("LoggedInUserData", "LoggedInUser")
         if loggedInUser <> invalid and loggedInUser <> ""
             m.login = loggedInUser
@@ -221,25 +165,6 @@ sub onStreamChangeFromChannelPage()
     beginPlayback(m.homeScene.videoUrl, m.homeScene.videoPlaybackInfo, "hls")
 end sub
 
-sub updateRecents()
-    recents = m.homeScene.recentStreamers
-    for streamer = 0 to recents.count() - 1
-        if recents[streamer].user_name = m.homeScene.channelUsername
-            recents.delete(streamer)
-            exit for
-        end if
-    end for
-    streamer = {
-        user_name: m.homeScene.channelUsername,
-        profile_image_url: m.homeScene.channelAvatar,
-        login: m.homeScene.streamerSelectedName
-    }
-    recents.push(streamer)
-    m.homeScene.recentStreamers = recents
-    sec = createObject("roRegistrySection", "LoggedInUserData")
-    sec.Write("RecentStreamers", FormatJSON({recents: recents}))
-end sub
-
 sub onStreamerSelected()
     if m.routingChannel then return
     m.routingChannel = true
@@ -282,18 +207,6 @@ function setRegistrySection(section as object, key as object, value as object)
     sec.Flush()
 end function
 
-' function setReset(word as String) as Void
-'     sec = createObject("roRegistrySection", "LoggedInUserData")
-'     sec.Write("Reset", word)
-'     sec.Flush()
-' end function
-
-' function saveLogin() as Void
-'     sec = createObject("roRegistrySection", "LoggedInUserData")
-'     sec.Write("LoggedInUser", m.homeScene.loggedInUserName)
-'     sec.Flush()
-' end function
-
 function onHeaderButtonPress()
     if m.homeScene.buttonPressed = "search"
         m.homeScene.visible = false
@@ -334,7 +247,6 @@ sub onLogoutRequested()
     m.homeScene.followingError = ""
     m.homeScene.followedStreams = []
     m.homeScene.currentlyLiveStreamerIds = {}
-    m.chat.loggedInUsername = ""
     m.loginPage.visible = false
     m.loginPage.accountName = ""
     m.homeScene.callFunc("clearAccount")
@@ -363,7 +275,6 @@ sub onUserLogin()
     m.homeScene.loggedInUserId = m.getUser.searchResults.id
     m.homeScene.loggedInUserName = m.getUser.searchResults.display_name
     m.homeScene.loggedInUserProfileImage = m.getUser.searchResults.profile_image_url
-    m.chat.loggedInUsername = m.getUser.searchResults.login
     if m.getUser.errorMessage = ""
         m.homeScene.followedStreams = m.getUser.searchResults.followed_users
         m.homeScene.currentlyLiveStreamerIds = m.getUser.currentlyLiveStreamerIds
@@ -371,8 +282,6 @@ sub onUserLogin()
         m.homeScene.followedStreams = []
         m.homeScene.currentlyLiveStreamerIds = {}
     end if
-    '? "currentlyLiveStreamerIds mainscene " m.getUser.currentlyLiveStreamerIds
-    ' saveLogin()
     setRegistrySection("LoggedInUserData", "LoggedInUser", m.getUser.searchResults.login)
 end sub
 
@@ -383,7 +292,6 @@ function onCategoryItemSelectFromSearch()
     m.homeScene.visible = false
     m.keyboardGroup.visible = false
     m.categoryScene.visible = true
-    m.lastLastScene = "home"
     m.lastScene = "search"
 end function
 
@@ -457,14 +365,6 @@ sub onUserStopped()
         refreshFollows()
     end if
 end sub
-
-function onLogin()
-    m.login = m.top.dialog.text
-    '? "login > "; m.login
-    m.top.dialog.close = true
-    m.getUser.loginRequested = m.login
-    m.getUser.control = "RUN"
-end function
 
 sub onVideoPlayerBack()
     if not m.videoPlayer.back then return

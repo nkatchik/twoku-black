@@ -19,9 +19,9 @@ sub init()
     m.getClips = CreateObject("roSGNode", "GetClips")
     m.getClips.observeField("searchResults", "insertClips")
     m.getClips.observeField("state", "onClipsStopped")
-    m.getStuff = CreateObject("roSGNode", "GetStuff")
-    m.getStuff.observeField("streamUrl", "onStreamUrlChange")
-    m.getStuff.observeField("state", "onPlaybackStopped")
+    m.getLivePlayback = CreateObject("roSGNode", "GetLivePlayback")
+    m.getLivePlayback.observeField("streamUrl", "onStreamUrlChange")
+    m.getLivePlayback.observeField("state", "onPlaybackStopped")
     m.getClipPlayback = CreateObject("roSGNode", "GetClipPlayback")
     m.getClipPlayback.observeField("streamUrl", "onClipPlaybackUrl")
     m.getClipPlayback.observeField("state", "onClipPlaybackStopped")
@@ -34,9 +34,7 @@ sub init()
     m.clipsCategory = ""
     m.seenStreams = {}
     m.seenClips = {}
-    m.offset = 0
     m.pendingGridFocus = ""
-    m.wasLastScene = false
     layoutTabs()
     updateCategoryBusy()
 end sub
@@ -97,7 +95,6 @@ sub onCategoryChange()
     m.seenClips = {}
     m.browseList.content = invalid
     m.browseClipsList.content = invalid
-    m.offset = 0
     m.pendingGridFocus = "live"
     m.liveLine.visible = true
     m.clipLine.visible = false
@@ -120,7 +117,6 @@ sub startCategoryStreams()
     m.getStreams.gameRequested = m.streamsCategory
     m.streamsCursor = ""
     m.getStreams.pagination = ""
-    m.getStreams.offset = "0"
     m.streamsLoading = true
     updateCategoryBusy()
     m.getStreams.control = "RUN"
@@ -229,35 +225,34 @@ sub insertClips()
 end sub
 
 sub onStreamUrlChange()
-    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if m.getLivePlayback.cancelRequested or m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
     m.playbackLoading = false
     updateCategoryBusy()
-    if not m.top.visible or m.getStuff.streamUrl = "" then return
-    m.top.streamerRequested = m.getStuff.streamerRequested
-    m.top.playbackInfo = m.getStuff.playbackInfo
-    m.top.streamUrl = m.getStuff.streamUrl
+    if not m.top.visible or m.getLivePlayback.streamUrl = "" then return
+    m.top.streamerRequested = m.getLivePlayback.streamerRequested
+    m.top.playbackInfo = m.getLivePlayback.playbackInfo
+    m.top.streamUrl = m.getLivePlayback.streamUrl
 end sub
 
 sub onBrowseItemSelect()
     if not m.browseList.visible or not categoryHasRows(m.browseList) then return
-    if m.getStuff.state = "run" then return
+    if m.getLivePlayback.state = "run" then return
     index = m.browseList.rowItemSelected
     item = m.browseList.content.getChild(index[0]).getChild(index[1])
     m.top.liveTitle = item.Title
     m.top.liveName = item.Description
     m.top.liveGame = itemCategoryText(item.Categories)
     m.top.liveViewers = item.ShortDescriptionLine2
-    m.getStuff.streamerRequested = item.ShortDescriptionLine1
+    m.getLivePlayback.streamerRequested = item.ShortDescriptionLine1
     m.playbackRequestId += 1
-    m.getStuff.requestId = m.playbackRequestId
-    m.getStuff.cancelRequested = false
-    m.getStuff.errorMessage = ""
+    m.getLivePlayback.requestId = m.playbackRequestId
+    m.getLivePlayback.cancelRequested = false
+    m.getLivePlayback.errorMessage = ""
     m.playbackStatus.text = ""
     m.playbackLoading = true
     updateCategoryBusy()
-    m.getStuff.control = "RUN"
-    m.wasLastScene = true
+    m.getLivePlayback.control = "RUN"
 end sub
 
 sub onBrowseClipsItemSelect()
@@ -315,9 +310,7 @@ end sub
 sub getMoreChannels()
     if m.streamsCategory <> m.top.currentCategory or m.streamsLoading or m.getStreams.state = "run" then return
     if m.getStreams.pagination = "" then return
-    m.offset += 24
     m.streamsCursor = m.getStreams.pagination
-    m.getStreams.offset = m.offset.ToStr()
     m.streamsLoading = true
     updateCategoryBusy()
     m.getStreams.control = "RUN"
@@ -330,10 +323,6 @@ sub getMoreClips()
     m.clipsLoading = true
     updateCategoryBusy()
     m.getClips.control = "RUN"
-end sub
-
-sub onSceneLoad()
-    onCategoryChange()
 end sub
 
 function onKeyEvent(key, press) as Boolean
@@ -388,8 +377,8 @@ end function
 
 sub cancelPlaybackRequest()
     m.playbackRequestId += 1
-    m.getStuff.cancelRequested = true
-    m.getStuff.requestId = m.playbackRequestId
+    m.getLivePlayback.cancelRequested = true
+    m.getLivePlayback.requestId = m.playbackRequestId
     if m.getClipPlayback <> invalid
         m.getClipPlayback.cancelRequested = true
         m.getClipPlayback.requestId = m.playbackRequestId
@@ -400,12 +389,12 @@ sub cancelPlaybackRequest()
 end sub
 
 sub onPlaybackStopped()
-    if not m.top.visible or m.getStuff.state <> "stop" then return
-    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if not m.top.visible or m.getLivePlayback.state <> "stop" then return
+    if m.getLivePlayback.cancelRequested or m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackLoading = false
     updateCategoryBusy()
-    if m.getStuff.errorMessage <> ""
-        m.playbackStatus.text = m.getStuff.errorMessage
+    if m.getLivePlayback.errorMessage <> ""
+        m.playbackStatus.text = m.getLivePlayback.errorMessage
     end if
 end sub
 

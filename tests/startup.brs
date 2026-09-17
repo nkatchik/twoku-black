@@ -50,7 +50,7 @@ sub main()
     m.global.userToken = "validated-token"
     onUserLogin()
     check(m.homeScene.loggedInUserName = "Viewer" and m.homeScene.loggedInUserId = "123", "Validated identity reaches Home")
-    check(m.homeScene.apiReady and m.chat.loggedInUsername = "viewer", "User authentication unlocks browsing and chat identity")
+    check(m.homeScene.apiReady, "User authentication unlocks browsing")
     check(getGlobalAA().savedLogin = "viewer", "Registry stores canonical login, not display name")
     m.global.sessionVersion = 2
     m.getUser.searchResults.display_name = "Stale result"

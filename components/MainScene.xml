@@ -32,10 +32,6 @@
             width="1280"
             height="720" />
         
-        <!--<ChannelPage
-            id="channelPage"
-            visible="false" /> -->
-        
         <LoginPage 
             id="loginPage"
             visible="false" />
@@ -45,7 +41,7 @@
            visible="false" />
 
         <Timer
-            id="testTimer"
+            id="followingRefreshTimer"
             repeat="true"
             duration="300" />
 

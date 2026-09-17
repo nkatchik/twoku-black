@@ -5,10 +5,7 @@
         <field id="channelUsername" type="string" onChange="updateChatHeader" />
         <field id="channelAvatar" type="string" onChange="updateChatHeader" />
         <field id="viewerText" type="string" onChange="updateChatHeader" />
-        <field id="loggedInUsername" type="string" value="" />
         <field id="control" type="boolean" onChange="onVideoChange" value="false" />
-        <field id="setKeyboardFocus" type="boolean" onChange="onSetKeyboardFocus" value="false" />
-        <field id="doneFocus" type="boolean" value="false" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/Chat.brs" />
     <children>

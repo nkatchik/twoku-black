@@ -16,7 +16,7 @@ sub init()
     m.searchLabel = m.top.findNode("searchLabel")
     m.headerCursor = m.top.findNode("headerCursor")
     m.channelPage = m.top.findNode("channelPage")
-    m.followBar = {loggedIn: false, focused: false}
+    m.loggedIn = false
     m.browseButtons = m.top.findNode("browseButtons")
     m.browseMain = m.top.findNode("browseMain")
     m.loggedUserGroup = m.top.findNode("loggedUserGroup")
@@ -37,18 +37,16 @@ sub init()
     m.getCategories = CreateObject("roSGNode", "GetCategories")
     m.getCategories.observeField("searchResults", "onCategoryResultChange")
     m.getCategories.observeField("state", "onCategoriesStopped")
-    m.getStuff = CreateObject("roSGNode", "GetStuff")
-    m.getStuff.observeField("streamUrl", "onStreamUrlChange")
-    m.getStuff.observeField("state", "onPlaybackRequestStopped")
+    m.getLivePlayback = CreateObject("roSGNode", "GetLivePlayback")
+    m.getLivePlayback.observeField("streamUrl", "onStreamUrlChange")
+    m.getLivePlayback.observeField("state", "onPlaybackRequestStopped")
     m.getOfflineFollowed = CreateObject("roSGNode", "GetOfflineFollowedChannels")
     m.getOfflineFollowed.observeField("offlineFollowedUsers", "onGetOfflineFollowed")
     m.getOfflineFollowed.observeField("state", "onOfflineStopped")
     m.top.observeField("visible", "onGetFocus")
     m.top.observeField("currentlyLiveStreamerIds", "onGetFollowedStreams")
     m.top.observeField("streamerSelectedName", "onStreamerSelected")
-    m.offset = 0
     m.append = false
-    m.offsetCategory = 0
     m.appendCategory = false
     m.channelsPending = false
     m.categoriesPending = false
@@ -56,7 +54,6 @@ sub init()
     m.pendingGridFocus = 1
     m.currentlySelectedButton = 1
     m.currentlyFocusedButton = 1
-    m.wasLastScene = false
     m.playbackPending = false
     m.playbackRequestId = 0
     m.offlinePending = false
@@ -125,7 +122,6 @@ sub onStreamerSelected()
     m.channelPage.streamerSelectedThumbnail = m.top.streamerSelectedThumbnail
     m.channelPage.streamItemFocused = false
     ' Hide only the parent: child visibility, content and native focus positions survive Back.
-    m.wasLastScene = true
     m.browseMain.visible = false
     m.busy.enabled = false
     m.channelPage.visible = true
@@ -143,17 +139,12 @@ end sub
 
 sub onNewUser()
     if m.loggedUserName = invalid then return
-    m.followBar.loggedIn = m.top.loggedInUserName <> ""
+    m.loggedIn = m.top.loggedInUserName <> ""
     m.loggedUserName.text = m.top.loggedInUserName
     if m.loggedUserName.text = "" then m.loggedUserName.text = "Login"
     m.profileImage.uri = m.top.loggedInUserProfileImage
     layoutAccount()
     updateHeaderFocus()
-end sub
-
-sub onFollowBarLogin()
-    m.followBar.focused = false
-    m.top.buttonPressed = "login"
 end sub
 
 sub onGetFocus()
@@ -179,12 +170,12 @@ end sub
 
 sub onStreamUrlChange()
     if not m.playbackPending or not m.top.visible then return
-    if m.getStuff.requestId <> m.playbackRequestId or m.getStuff.streamUrl = "" then return
+    if m.getLivePlayback.requestId <> m.playbackRequestId or m.getLivePlayback.streamUrl = "" then return
     m.playbackPending = false
     showLoadStatus("")
-    m.top.streamerRequested = m.getStuff.streamerRequested
-    m.top.playbackInfo = m.getStuff.playbackInfo
-    m.top.streamUrl = m.getStuff.streamUrl
+    m.top.streamerRequested = m.getLivePlayback.streamerRequested
+    m.top.playbackInfo = m.getLivePlayback.playbackInfo
+    m.top.streamUrl = m.getLivePlayback.streamUrl
 end sub
 
 sub onBrowseItemSelect()
@@ -222,10 +213,8 @@ sub onHomeLoad()
     showBusy()
     m.append = false
     m.getStreams.gameRequested = ""
-    m.getStreams.offset = "0"
     m.channelsCursor = ""
     m.getStreams.pagination = ""
-    m.offset = 0
     m.getStreams.control = "RUN"
 end sub
 
@@ -348,8 +337,6 @@ sub onCategorySelect()
     m.categoriesCursor = ""
     m.getCategories.pagination = ""
     m.getCategories.searchText = ""
-    m.getCategories.offset = "0"
-    m.offsetCategory = 0
     m.getCategories.control = "RUN"
 end sub
 
@@ -384,11 +371,9 @@ sub getMoreChannels()
     if not m.top.apiReady or m.channelsPending or m.getStreams.state = "run" then return
     if m.getStreams.pagination = "" then return
     m.channelsCursor = m.getStreams.pagination
-    m.offset += 24
     m.append = true
     m.channelsPending = true
     m.getStreams.gameRequested = ""
-    m.getStreams.offset = m.offset.ToStr()
     m.getStreams.control = "RUN"
 end sub
 
@@ -396,10 +381,8 @@ sub getMoreCategories()
     if not m.top.apiReady or m.categoriesPending or m.getCategories.state = "run" then return
     if m.getCategories.pagination = "" then return
     m.categoriesCursor = m.getCategories.pagination
-    m.offsetCategory += 24
     m.appendCategory = true
     m.categoriesPending = true
-    m.getCategories.offset = m.offsetCategory.ToStr()
     m.getCategories.control = "RUN"
 end sub
 
@@ -438,10 +421,6 @@ sub onGetFollowedStreams()
     updateFollowingLayout()
 end sub
 
-sub onBrowseFollowing()
-    updateFollowingLayout()
-end sub
-
 sub onGetOfflineFollowed()
     if m.getOfflineFollowed.sessionVersion <> m.global.sessionVersion then return
     m.offlinePending = false
@@ -462,7 +441,6 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         m.channelPage.callFunc("cancelPlaybackRequest")
         m.channelPage.visible = false
         m.browseMain.visible = true
-        m.wasLastScene = false
         m.busy.enabled = true
         showActiveSurface()
         focusActiveGrid()
@@ -549,12 +527,6 @@ function activeGrid() as Object
     return m.browseList
 end function
 
-function hasOfflineChannels() as Boolean
-    channels = m.followingView.offlineChannels
-    if type(channels) <> "roArray" then return false
-    return channels.Count() > 0
-end function
-
 sub focusActiveGrid(first = false as Boolean)
     m.pendingGridFocus = invalid
     if m.currentlySelectedButton = 2
@@ -610,12 +582,12 @@ sub updateHeaderFocus()
 end sub
 
 sub playLiveItem(item as Object)
-    if m.getStuff.state = "run" then return
+    if m.getLivePlayback.state = "run" then return
     m.playbackRequestId += 1
     m.playbackPending = true
-    m.getStuff.cancelRequested = false
-    m.getStuff.requestId = m.playbackRequestId
-    m.getStuff.streamerRequested = item.ShortDescriptionLine1
+    m.getLivePlayback.cancelRequested = false
+    m.getLivePlayback.requestId = m.playbackRequestId
+    m.getLivePlayback.streamerRequested = item.ShortDescriptionLine1
     m.top.liveTitle = item.Title
     m.top.liveName = item.Description
     m.top.liveGame = ""
@@ -624,29 +596,29 @@ sub playLiveItem(item as Object)
     end if
     m.top.liveViewers = item.ShortDescriptionLine2
     showBusy()
-    m.getStuff.control = "RUN"
+    m.getLivePlayback.control = "RUN"
 end sub
 
 sub cancelPlaybackRequest()
     m.channelPage.callFunc("cancelPlaybackRequest")
     m.playbackPending = false
     m.playbackRequestId += 1
-    m.getStuff.cancelRequested = true
+    m.getLivePlayback.cancelRequested = true
     showLoadStatus("")
 end sub
 
 sub onPlaybackRequestStopped()
-    if m.getStuff.state <> "stop" or not m.playbackPending then return
-    if m.getStuff.requestId <> m.playbackRequestId then return
+    if m.getLivePlayback.state <> "stop" or not m.playbackPending then return
+    if m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackPending = false
-    if m.getStuff.errorMessage <> "" then showLoadStatus(m.getStuff.errorMessage + " Press OK to retry.")
+    if m.getLivePlayback.errorMessage <> "" then showLoadStatus(m.getLivePlayback.errorMessage + " Press OK to retry.")
 end sub
 
 sub updateFollowingLayout()
     if m.currentlySelectedButton <> 2 then return
     if m.followingView.hasItems
         showLoadStatus("")
-    else if not m.followBar.loggedIn
+    else if not m.loggedIn
         showLoadStatus("Sign in to see followed channels. Select Login in the header.")
     else if m.top.followingError <> ""
         showLoadStatus(m.top.followingError)
@@ -742,7 +714,7 @@ sub openFollowingChannel(item)
 end sub
 
 sub clearAccount()
-    m.followBar.loggedIn = false
+    m.loggedIn = false
     m.followingView.liveStreams = []
     m.followingView.offlineChannels = []
     m.offlinePending = false

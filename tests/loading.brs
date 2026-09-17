@@ -10,7 +10,7 @@ sub resetLoadingViews()
     m.playbackStatus = {text: ""}
     m.playbackLoading = false
     m.playbackRequestId = 7
-    m.getStuff = {state: "stop", requestId: 7, cancelRequested: false, errorMessage: ""}
+    m.getLivePlayback = {state: "stop", requestId: 7, cancelRequested: false, errorMessage: ""}
     m.liveLine = {visible: true}
     m.clipLine = {visible: false}
     m.categoryLine = {visible: false}
@@ -82,7 +82,7 @@ sub main()
     updateCategoryBusy()
     check(m.busy.active and not m.busy.enabled, "A hidden category cannot animate its pending request")
     m.top.visible = true
-    m.getStuff.errorMessage = "This channel is offline"
+    m.getLivePlayback.errorMessage = "This channel is offline"
     onPlaybackStopped()
     check(not m.busy.active and m.playbackStatus.text = "This channel is offline", "A playback request error stops the spinner and retains its explanation")
 

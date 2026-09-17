@@ -21,9 +21,9 @@ sub init()
     m.getCategorySearch = CreateObject("roSGNode", "GetCategorySearch")
     m.getCategorySearch.observeField("searchResults", "onCategorySearchResultChange")
     m.getCategorySearch.observeField("state", "onSearchStopped")
-    m.getStuff = CreateObject("roSGNode", "GetStuff")
-    m.getStuff.observeField("streamUrl", "onStreamUrlChange")
-    m.getStuff.observeField("state", "onPlaybackStopped")
+    m.getLivePlayback = CreateObject("roSGNode", "GetLivePlayback")
+    m.getLivePlayback.observeField("streamUrl", "onStreamUrlChange")
+    m.getLivePlayback.observeField("state", "onPlaybackStopped")
     m.top.observeField("visible", "onGetFocus")
     m.streamQuery = ""
     m.categoryQuery = ""
@@ -147,20 +147,20 @@ sub onSearchItemSelect()
     if not searchHasRows(m.searchResultList) then return
     item = m.searchResultList.content.getChild(m.searchResultList.itemSelected)
     if item.isLive
-        if m.getStuff.state = "run" then return
+        if m.getLivePlayback.state = "run" then return
         m.top.liveTitle = item.ShortDescriptionLine1
         m.top.liveName = item.title
         m.top.liveGame = itemCategoryText(item.categories)
         m.top.liveViewers = ""
-        m.getStuff.streamerRequested = item.description
+        m.getLivePlayback.streamerRequested = item.description
         m.playbackRequestId += 1
-        m.getStuff.requestId = m.playbackRequestId
-        m.getStuff.cancelRequested = false
-        m.getStuff.errorMessage = ""
+        m.getLivePlayback.requestId = m.playbackRequestId
+        m.getLivePlayback.cancelRequested = false
+        m.getLivePlayback.errorMessage = ""
         m.playbackStatus.text = ""
         m.playbackLoading = true
         updateSearchBusy()
-        m.getStuff.control = "RUN"
+        m.getLivePlayback.control = "RUN"
     else
         m.top.streamerSelectedName = item.description
     end if
@@ -168,14 +168,14 @@ sub onSearchItemSelect()
 end sub
 
 sub onStreamUrlChange()
-    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if m.getLivePlayback.cancelRequested or m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackStatus.text = ""
     m.playbackLoading = false
     updateSearchBusy()
-    if not m.top.visible or m.getStuff.streamUrl = "" then return
-    m.top.streamerRequested = m.getStuff.streamerRequested
-    m.top.playbackInfo = m.getStuff.playbackInfo
-    m.top.streamUrl = m.getStuff.streamUrl
+    if not m.top.visible or m.getLivePlayback.streamUrl = "" then return
+    m.top.streamerRequested = m.getLivePlayback.streamerRequested
+    m.top.playbackInfo = m.getLivePlayback.playbackInfo
+    m.top.streamUrl = m.getLivePlayback.streamUrl
 end sub
 
 function onKeyEvent(key, press) as Boolean
@@ -229,20 +229,20 @@ end function
 
 sub cancelPlaybackRequest()
     m.playbackRequestId += 1
-    m.getStuff.cancelRequested = true
-    m.getStuff.requestId = m.playbackRequestId
+    m.getLivePlayback.cancelRequested = true
+    m.getLivePlayback.requestId = m.playbackRequestId
     m.playbackStatus.text = ""
     m.playbackLoading = false
     updateSearchBusy()
 end sub
 
 sub onPlaybackStopped()
-    if not m.top.visible or m.getStuff.state <> "stop" then return
-    if m.getStuff.cancelRequested or m.getStuff.requestId <> m.playbackRequestId then return
+    if not m.top.visible or m.getLivePlayback.state <> "stop" then return
+    if m.getLivePlayback.cancelRequested or m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackLoading = false
     updateSearchBusy()
-    if m.getStuff.errorMessage <> ""
-        m.playbackStatus.text = m.getStuff.errorMessage
+    if m.getLivePlayback.errorMessage <> ""
+        m.playbackStatus.text = m.getLivePlayback.errorMessage
     end if
 end sub
 

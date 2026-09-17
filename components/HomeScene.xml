@@ -22,7 +22,6 @@
         <field id="streamerRequested" type="string" />
         <field id="categorySelected" type="string" alwaysNotify="true" />
         <field id="followedStreams" type="array"/>
-        <field id="followBarFocused" type="bool"/>
         <field id="loggedInSessionVersion" type="integer" />
         <field id="loggedInUserId" type="string" />
         <field id="followingError" type="string" onChange="onFollowingError" />
@@ -30,9 +29,6 @@
         <field id="loggedInUserProfileImage" type="uri" alwaysNotify="true" onChange="onNewUser" />
         <field id="buttonPressed" type="string" alwaysNotify="true" value="" />
         <field id="currentlyLiveStreamerIds" type="assocarray" alwaysNotify="true" />
-        <field id="recentStreamers" type="array" />
-
-        <field id="lastScene" type="string" value="" />
 
         <field id="streamerSelectedName" type="string" value="" alwaysNotify="true" />
         <field id="streamerSelectedThumbnail" type="string" value="" />

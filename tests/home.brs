@@ -39,7 +39,7 @@ sub setup()
     m.followingView.callFunc = function(name)
         if name = "focusContent" then m.setFocus(true)
     end function
-    m.followBar = {loggedIn: false,focused: false}
+    m.loggedIn = false
     m.channelPage = node()
     m.channelPage.callFunc = function(name)
         if name = "focusContent" then m.setFocus(true)
@@ -47,7 +47,7 @@ sub setup()
     m.getStreams = node()
     m.getCategories = node()
     m.getOfflineFollowed = node()
-    m.getStuff = node()
+    m.getLivePlayback = node()
     m.currentlySelectedButton = 1
     m.currentlyFocusedButton = 1
     m.actualBrowseButtons = [measuredLabel(58.5), measuredLabel(84.75), measuredLabel(88.25), measuredLabel(63.5), measuredLabel(46.25)]
@@ -81,8 +81,6 @@ sub setup()
     m.pendingGridFocus = 1
     m.append = false
     m.appendCategory = false
-    m.offset = 0
-    m.offsetCategory = 0
     m.channelsCursor = ""
     m.categoriesCursor = ""
     m.channelsPending = false
@@ -213,7 +211,7 @@ sub main()
     onFollowingSelect()
     focusActiveGrid()
     check(m.followingView.visible and m.browseButtons.hasFocus() and m.loadStatus.visible, "Signed-out Following stays navigable at the header")
-    m.followBar.loggedIn = true
+    m.loggedIn = true
     m.top.followedStreams = []
     m.top.currentlyLiveStreamerIds = {}
     m.append = true
@@ -308,8 +306,9 @@ sub testPreload()
     m.browseList.rowItemFocused = [1, 2]
     onGridFocus()
     check(m.channelsPending and m.channelsCursor = "page2", "Channels preloads with two rows beyond the visible window")
+    m.getStreams.pagination = "changed-before-task-start"
     onGridFocus()
-    check(m.offset = 24, "Repeated focus notifications cannot race the pending Task startup")
+    check(m.channelsCursor = "page2", "Repeated focus notifications cannot race the pending Task startup")
     showActiveSurface()
     check(not m.busy.active, "Background preloading does not cover existing cards with a spinner")
     m.getStreams.state = "run"

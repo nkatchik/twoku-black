@@ -1,4 +1,3 @@
-'api.twitch.tv/kraken/search/channels?query=${search_text}&limit=5&client_id=jzkbprff40iqj646a697cyrvl0zt2m6
 
 function init()
     'm.DURATION_REGEX = createObject("roRegex", "h|m|s", "")

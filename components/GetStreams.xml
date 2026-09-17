@@ -3,7 +3,6 @@
 <component name="GetStreams" extends="Task">
 
     <interface>
-        <field id="offset" type="string" value="0" />
         <field id="gameRequested" type="string" />
         <field id="searchResults" type="array" alwaysNotify="true" />
         <field id="errorMessage" type="string" />

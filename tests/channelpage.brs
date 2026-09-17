@@ -20,8 +20,8 @@ sub main()
     m.channelLoading = false
     m.playbackPending = false
     m.liveItem = invalid
-    m.getStuffLive = node()
-    m.getStuffVideo = node()
+    m.getLivePlayback = node()
+    m.getVodPlayback = node()
     m.playbackRequestId = 0
     m.playbackStatus = node()
     m.top.streamerSelectedName = "channel"
@@ -48,16 +48,16 @@ sub main()
     check(m.pastBroadcastsList.content.getChild(0).getChild(1).Rating = "0", "Recordings retain their video IDs after the live card is prepended")
     m.pastBroadcastsList.rowItemSelected = [0,0]
     onVideoItemSelect()
-    check(m.getStuffLive.control = "RUN" and m.getStuffLive.streamerRequested = "channel", "Live card starts the live playback request")
-    check(m.getStuffVideo.control <> "RUN" and m.top.streamViewers = "1.2K", "Live selection does not start a VOD token request")
-    m.getStuffLive.streamUrl = "live-url"
-    m.getStuffLive.playbackInfo = {variants: []}
+    check(m.getLivePlayback.control = "RUN" and m.getLivePlayback.streamerRequested = "channel", "Live card starts the live playback request")
+    check(m.getVodPlayback.control <> "RUN" and m.top.streamViewers = "1.2K", "Live selection does not start a VOD token request")
+    m.getLivePlayback.streamUrl = "live-url"
+    m.getLivePlayback.playbackInfo = {variants: []}
     onGetLiveUrl()
     check(m.top.streamUrl = "live-url" and m.top.videoUrl = invalid, "Live playback publishes through the live route")
     m.pastBroadcastsList.rowItemSelected = [0,1]
     onVideoItemSelect()
-    check(m.getStuffVideo.videoId = "0" and m.getStuffVideo.control = "RUN", "Recording selection still requests the correct VOD")
-    m.getStuffLive.streamUrl = "stale-live-url"
+    check(m.getVodPlayback.videoId = "0" and m.getVodPlayback.control = "RUN", "Recording selection still requests the correct VOD")
+    m.getLivePlayback.streamUrl = "stale-live-url"
     onGetLiveUrl()
     check(m.top.streamUrl = "live-url", "An older live result cannot replace a newer VOD request")
     m.playbackPending = true
@@ -73,7 +73,7 @@ sub main()
     check(m.videoItems.count() = 5, "Late metadata from a previous channel is ignored")
     m.videoLogin = "channel"
     m.playbackRequestId = 3
-    m.getStuffVideo = {requestId: 3, cancelRequested: false, streamUrl: "late-url"}
+    m.getVodPlayback = {requestId: 3, cancelRequested: false, streamUrl: "late-url"}
     m.playbackStatus = node()
     cancelPlaybackRequest()
     onGetVideoUrl()
