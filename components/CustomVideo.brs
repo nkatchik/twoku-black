@@ -82,6 +82,8 @@ end sub
 sub onVisible()
     m.busy.enabled = m.top.visible
     if m.top.visible
+        m.controlIndex = 0
+        m.overlayFocus = "buttons"
         focusContent()
         showOverlay()
     else
@@ -685,6 +687,10 @@ end function
 
 sub refreshControls()
     if m.buttonNodes = invalid then return
+    ' A previous recording can leave focus on seek when the next live stream
+    ' has no seek bar. Keep the logical focus on a control that is visible.
+    seekable = canSeek()
+    if m.overlayFocus = "seek" and not seekable then m.overlayFocus = "buttons"
     while m.controls.getChildCount() > 0
         m.controls.removeChildIndex(0)
     end while
@@ -706,17 +712,15 @@ sub refreshControls()
         button.width = 132
         button.height = 40
         button.color = "0x323239FF"
-        label = CreateObject("roSGNode", "Label")
-        label.width = 132
-        label.height = 40
-        label.horizAlign = "center"
-        label.vertAlign = "center"
+        label = CreateObject("roSGNode", "SimpleLabel")
+        ' Offset the system font's extra descent to center the visible text.
+        label.translation = [66, 22]
+        label.horizOrigin = "center"
+        label.vertOrigin = "center"
         label.text = labels[index]
         label.color = "0xEFF1F6FF"
-        font = CreateObject("roSGNode", "Font")
-        font.uri = "font:BoldSystemFontFile"
-        font.size = 17
-        label.font = font
+        label.fontUri = "font:BoldSystemFontFile"
+        label.fontSize = 17
         if index = m.controlIndex and m.overlayFocus = "buttons"
             button.color = "0xF4F4F7FF"
             label.color = "0x111318FF"
@@ -726,8 +730,8 @@ sub refreshControls()
         m.buttonNodes.Push(button)
         x += 148
     end for
-    m.progress.visible = canSeek()
-    m.seekFocus.visible = m.overlayFocus = "seek" and canSeek()
+    m.progress.visible = seekable
+    m.seekFocus.visible = m.overlayFocus = "seek" and seekable
 end sub
 
 sub renderQuality()

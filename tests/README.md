@@ -63,6 +63,15 @@ and search results, including rapid direction changes and Following's visible
 cursor matching the profile opened. Header and player button focus is already
 instantaneous; the native keyboard keeps its firmware-controlled motion.
 
+Player controls reset to Channel when entering playback and move focus off an
+unavailable seek bar. The player suite reproduces VOD/clip seek focus followed by
+live playback, checks immediate Left/Right response, and preserves a button
+selection across delayed decoder callbacks. These checks fail on the old player.
+On Roxton, a recording was played and sought before returning to its live stream;
+Channel was visibly selected on entry and the controls remained responsive.
+Native screenshots also verified player button and LIVE badge centering in the
+player, profile, and chat, with the red avatar backing removed from chat.
+
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
 [fonts/README.md](../fonts/README.md) for setup and reproducible generation.

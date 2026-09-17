@@ -10,9 +10,7 @@
         <BrowseChannelItem id="live" visible="false" />
         <ChannelVideoItem id="recording" visible="false" />
         <Rectangle id="liveBadge" translation="[8,8]" width="48" height="22" color="0xE91916FF" visible="false">
-            <Label width="48" height="22" text="LIVE" horizAlign="center" vertAlign="center">
-                <Font role="font" uri="font:BoldSystemFontFile" size="13" />
-            </Label>
+            <SimpleLabel translation="[24,14]" text="LIVE" horizOrigin="center" vertOrigin="center" fontUri="font:BoldSystemFontFile" fontSize="13" />
         </Rectangle>
     </children>
 </component>

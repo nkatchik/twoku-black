@@ -45,12 +45,9 @@
             <Rectangle id="scrim" translation="[0,468]" width="1280" height="252" color="0x06070AD1" />
             <Poster id="avatar" translation="[42,492]" width="96" height="96" loadDisplayMode="scaleToFill" />
             <Rectangle id="kindBackground" translation="[162,492]" width="48" height="22" color="0xE91916FF" />
-            <Label id="kindLabel" translation="[162,492]" width="48" height="22" horizAlign="center" vertAlign="center" text="LIVE">
-                <Font role="font" uri="font:BoldSystemFontFile" size="13" />
-            </Label>
-            <Label id="viewerLabel" translation="[224,492]" width="400" height="22" vertAlign="center" color="0xD9DCE4FF">
-                <Font role="font" uri="font:SystemFontFile" size="15" />
-            </Label>
+            <!-- System-font descent needs an optical offset for the uppercase badge. -->
+            <SimpleLabel id="kindLabel" translation="[186,506]" horizOrigin="center" vertOrigin="center" text="LIVE" fontUri="font:BoldSystemFontFile" fontSize="13" />
+            <SimpleLabel id="viewerLabel" translation="[224,504]" vertOrigin="center" color="0xD9DCE4FF" fontUri="font:SystemFontFile" fontSize="15" />
             <Label id="channelLabel" translation="[162,519]" width="1076" height="38" color="0xFFFFFFFF">
                 <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="30" />
             </Label>

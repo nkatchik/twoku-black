@@ -12,12 +12,9 @@
     <children>
         <Rectangle color="0x08080aFF" width="360" height="720" translation="[920,0]" />
         <Rectangle color="0x303038FF" width="360" height="92" translation="[920,0]" />
-        <Rectangle color="0xe91916FF" width="64" height="64" translation="[934,14]" />
         <Poster id="channelAvatar" width="58" height="58" translation="[937,17]" loadDisplayMode="scaleToZoom" />
         <Rectangle color="0xe91916FF" width="32" height="14" translation="[950,67]" />
-        <Label text="LIVE" width="32" height="14" translation="[950,67]" horizAlign="center" vertAlign="center">
-            <Font role="font" uri="font:BoldSystemFontFile" size="9" />
-        </Label>
+        <SimpleLabel text="LIVE" translation="[966,76]" horizOrigin="center" vertOrigin="center" fontUri="font:BoldSystemFontFile" fontSize="9" />
         <Label id="channelName" width="252" height="27" translation="[1012,16]" color="0xFFFFFFFF">
             <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="21" />
         </Label>

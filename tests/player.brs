@@ -191,7 +191,51 @@ sub testReloadPlayer()
     check(m.reloadPending and m.reloadTask.control = "RUN", "Reload retries after a failed lookup")
 end sub
 
+sub testControlFocus()
+    for each kind in ["vod", "clip"]
+        resetPlayer()
+        m.top.contentKind = kind
+        m.video.state = "playing"
+        m.video.duration = 600
+        showOverlay()
+        onKeyEvent("up", true)
+        check(m.overlayFocus = "seek" and m.seekFocus.visible, "Recorded playback can focus the seek bar")
+        refreshControls()
+        check(m.overlayFocus = "seek", "Refreshing a seekable recording preserves its seek focus")
+
+        ' Exercise the reused player, with metadata arriving before visibility.
+        m.top.visible = false
+        onVisible()
+        m.video.state = "stopped"
+        onVideoStateChange()
+        m.top.contentKind = "live"
+        refreshControls()
+        m.controlIndex = 1
+        m.top.visible = true
+        onVisible()
+        check(m.top.focused and m.overlay.visible and m.overlayFocus = "buttons" and m.controlIndex = 0, "Entering live playback resets focus to Channel before buffering")
+        check(m.buttonNodes[0].color = "0xF4F4F7FF" and not m.seekFocus.visible, "Live entry has a visible button highlight instead of hidden seek focus")
+        onKeyEvent("right", true)
+        check(m.controlActions[m.controlIndex] = "chat" and m.buttonNodes[1].color = "0xF4F4F7FF", "First Right on live entry immediately moves focus")
+
+        m.playbackActive = true
+        m.video.state = "buffering"
+        m.video.content = {}
+        onContentChange()
+        check(m.controlActions[m.controlIndex] = "chat", "Delayed decoder content does not reset a user's button selection")
+        onKeyEvent("left", true)
+        check(m.controlIndex = 0, "Buttons remain responsive after the decoder content callback")
+    end for
+
+    resetPlayer()
+    m.overlayFocus = "seek"
+    m.controlIndex = 2
+    showOverlay()
+    check(m.overlayFocus = "buttons" and m.buttonNodes[2].color = "0xF4F4F7FF", "Refreshing live controls repairs hidden seek focus without losing a valid button selection")
+end sub
+
 sub main()
+    testControlFocus()
     resetPlayer()
     m.video.position = invalid
     m.video.duration = invalid
