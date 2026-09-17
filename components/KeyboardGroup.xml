@@ -33,9 +33,11 @@
         </Group>
         <MiniKeyboard id="keyboard" translation="[43,130]" />
         <MarkupList id="resultList" itemComponentName="SearchResultItem" numRows="5" itemSize="[650,88]"
-            itemSpacing="[0,18]" translation="[570,130]" focusBitmapUri="pkg:/images/twellie-focus.9.png" />
+            itemSpacing="[0,18]" translation="[570,130]" focusBitmapUri="pkg:/images/twellie-focus.9.png"
+                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" />
         <MarkupList id="resultCategoryList" itemComponentName="SearchCategoryResultItem" numRows="5" itemSize="[650,88]"
-            itemSpacing="[0,18]" translation="[570,130]" focusBitmapUri="pkg:/images/twellie-focus.9.png" visible="false" />
+            itemSpacing="[0,18]" translation="[570,130]" focusBitmapUri="pkg:/images/twellie-focus.9.png"
+                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" visible="false" />
         <Label id="emptyLabel" translation="[570,285]" width="650" height="160" text="Search for a channel" color="0x5C5C66FF" wrap="true" horizAlign="center">
             <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
         </Label>
