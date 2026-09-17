@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/twoku-tests" --no-audit --no-fund brs@0.45.0
+          python3 -m pip install -r tests/requirements.txt
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ffmpeg
+
+      - name: Run BrightScript regression suites
+        run: python3 tests/run.py --brs "$RUNNER_TEMP/twoku-tests/node_modules/.bin/brs"
+
+      - name: Test release packaging
+        run: python3 tests/release.py
+
+      - name: Check font coverage and references
+        run: python3 tests/fonts.py
+
+      - name: Decode generated login QR codes
+        run: python3 tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode
+
+      - name: Verify fMP4 media and HTTP spans
+        run: python3 tests/verify_fmp4.py --brs "$RUNNER_TEMP/twoku-tests/node_modules/.bin/brs" --server-spans

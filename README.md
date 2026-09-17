@@ -9,6 +9,7 @@
   Browse Twitch from the couch with an interface built for your TV remote.
 </p>
 <p align="center">
+  <a href="https://github.com/nkatchik/twitch-reloaded-roku/actions/workflows/tests.yml"><img src="https://github.com/nkatchik/twitch-reloaded-roku/actions/workflows/tests.yml/badge.svg?branch=master&amp;event=push" alt="Tests" /></a>
   <img src="https://img.shields.io/badge/platform-Roku-662D91?style=flat-square" alt="Platform: Roku" />
   <img src="https://img.shields.io/badge/built_with-BrightScript_%2B_SceneGraph-9146FF?style=flat-square" alt="Built with BrightScript and SceneGraph" />
 </p>

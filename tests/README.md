@@ -1,5 +1,23 @@
 # Regression checks
 
+The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
+request, and can also be started manually. It runs the BrightScript suites,
+release packaging tests, font checks, independent QR decoding, and the generated
+fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
+
+To run the same checks locally with Node.js, Python 3 and FFmpeg installed:
+
+```sh
+python3 -m venv /tmp/twoku-test-python
+/tmp/twoku-test-python/bin/python -m pip install -r tests/requirements.txt
+npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0
+/tmp/twoku-test-python/bin/python tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
+/tmp/twoku-test-python/bin/python tests/release.py
+/tmp/twoku-test-python/bin/python tests/fonts.py
+/tmp/twoku-test-python/bin/python tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode
+/tmp/twoku-test-python/bin/python tests/verify_fmp4.py --brs /tmp/twoku-validation/node_modules/.bin/brs --server-spans
+```
+
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
 [fonts/README.md](../fonts/README.md) for setup and reproducible generation.
