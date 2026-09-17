@@ -4,12 +4,13 @@ major_version=0
 minor_version=9
 build_version=00000
 
+mm_icon_focus_fhd=pkg:/images/channel-icon_FHD.png
 mm_icon_focus_hd=pkg:/images/channel-icon_HD.png
 mm_icon_focus_sd=pkg:/images/channel-poster_sd.png
 
 splash_screen_hd=pkg:/images/twellie-logo.png
 splash_screen_sd=pkg:/images/twellie-logo.png
-splash_color=#08080A
+splash_color=#1C2454
 splash_min_time=0
 
 supports_input_launch=1
