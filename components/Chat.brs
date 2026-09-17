@@ -29,7 +29,8 @@ sub updateChatHeader()
     m.name.text = m.top.channelUsername
     if m.name.text = "" then m.name.text = m.top.channel
     m.avatar.uri = m.top.channelAvatar
-    m.viewers.text = m.top.viewerText
+    ' Numeric formatting can reserve a leading space for the sign.
+    m.viewers.text = m.top.viewerText.Trim()
 end sub
 
 sub reloadContent()

@@ -53,6 +53,12 @@ sub main()
     onEnterChannel()
     check(m.chat.control = "", "Selecting a channel cannot start hidden chat")
     check(m.name.text = "Alpha" and m.avatar.uri = "avatar.png" and m.viewers.text = "12 viewers", "Header uses stream metadata")
+    m.top.viewerText = " 88.0K viewers"
+    updateChatHeader()
+    check(m.viewers.text = "88.0K viewers", "Numeric sign padding cannot indent the viewer count in the header")
+    m.top.viewerText = ""
+    updateChatHeader()
+    check(m.viewers.text = "", "Missing viewer metadata remains empty")
     m.top.visible = true
     onInvisible()
     check(m.chat.control = "RUN" and m.chat.channel = "alpha", "Showing chat starts one task for its channel")
