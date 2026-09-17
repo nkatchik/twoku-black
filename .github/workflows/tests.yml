@@ -31,10 +31,15 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          npm install --prefix "$RUNNER_TEMP/twoku-tests" --no-audit --no-fund brs@0.45.0
+          npm install --prefix "$RUNNER_TEMP/twoku-tests" --no-audit --no-fund brs@0.45.0 brighterscript@0.73.5
           python3 -m pip install -r tests/requirements.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y ffmpeg
+
+      - name: Compile the app
+        run: |
+          "$RUNNER_TEMP/twoku-tests/node_modules/.bin/bsc" \
+            --no-project --create-package false --copy-to-staging false
 
       - name: Run BrightScript regression suites
         run: python3 tests/run.py --brs "$RUNNER_TEMP/twoku-tests/node_modules/.bin/brs"

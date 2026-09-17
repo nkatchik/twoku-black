@@ -1,5 +1,9 @@
 # Twitch delivery compatibility investigation
 
+The verification results below describe the builds tested at each stage. The
+unused WebSocket sources mentioned in historical compiler results have since
+been removed; the current app compiles cleanly and CI enforces that check.
+
 Checked on 2026-09-16. These findings concern media packaging, not the advisory
 device-capability checks used to rank Auto quality. No quality is blocked on the
 basis of these findings.

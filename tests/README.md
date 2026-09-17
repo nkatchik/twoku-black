@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It runs the BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 32 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
@@ -10,7 +10,8 @@ To run the same checks locally with Node.js, Python 3 and FFmpeg installed:
 ```sh
 python3 -m venv /tmp/twoku-test-python
 /tmp/twoku-test-python/bin/python -m pip install -r tests/requirements.txt
-npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0
+npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0 brighterscript@0.73.5
+/tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
 /tmp/twoku-test-python/bin/python tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
 /tmp/twoku-test-python/bin/python tests/release.py
 /tmp/twoku-test-python/bin/python tests/fonts.py
@@ -45,14 +46,6 @@ Channels, Games, or game streams. Additional requests started at row 2 of 6 for
 Channels and row 3 of 6 for Games/game streams. Diagnostic delays and logging
 are excluded from the shipped app.
 
-Install the off-device tools outside the channel package, then run:
-
-```sh
-npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0 brighterscript@0.73.5
-python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
-/tmp/twoku-validation/node_modules/.bin/bsc --no-project --create-package false --copy-to-staging false
-```
-
 The suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform
 primitives that the off-device interpreter does not implement. These checks cover
@@ -61,8 +54,8 @@ of one authentication retry, anonymous startup, parent focus routing, empty grid
 partial content rows, and failed or exhausted pagination. Focus doubles enforce
 one active target and walk the parent chain. Navigation checks cover the route to
 Login, moving between header and grid, and restoring focus after screen display.
-Signed-out sidebar checks cover its placeholder, Login action, empty-list arrows,
-and returning to the header when Following has no content. They do not validate
+Following checks cover its shared scrolling view, focus, empty states, and
+returning to the header when there is no content. These tests do not validate
 Roku scheduling, rendering, remote input delivery, or playback.
 
 QR checks cover the exact prefilled activation link, preserved query parameters,
@@ -96,6 +89,10 @@ must not add diagnostics. Do not interpret that unchanged baseline as a clean
 whole-project compile.
 
 ## Device acceptance
+
+The device notes below record earlier builds and their test counts. The unused
+WebSocket implementation and its 20 compiler errors have since been removed;
+the current app compiles cleanly, and CI checks compilation on every push.
 
 On Roxton, the user confirmed that `e98d79c` loads content and exits to Roku Home
 instantly, but remote navigation remained broken. The user subsequently confirmed that the focus and sidebar build (`2310fc8`)
