@@ -1,163 +1,90 @@
-![Splash](https://i.imgur.com/LXhqf4J.png)
+<p align="center">
+  <img src="docs/hero.png" alt="TV browsing mockup" width="100%" />
+</p>
 
-![Overview](https://i.imgur.com/zcRYrNe.jpg)
+<h1 align="center">Twoku Black (A <a href="https://github.com/worldreboot/twitch-reloaded-roku">Twoku</a> fork)</h1>
+<p align="center">
 
-# 🔮 Twoku (for Roku)
-An Improvable™ Twitch app for Roku. Still buggy, so feel free to suggest improvements (and code and features). Unfortunately, the code is very disorganized and messy because the original developers knew nothing about Roku development when they started on this.
+  <b>Live streams, chat, and past broadcasts on Roku.</b><br />
+  Browse Twitch from the couch with an interface built for your TV remote.
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Roku-662D91?style=flat-square" alt="Platform: Roku" />
+  <img src="https://img.shields.io/badge/built_with-BrightScript_%2B_SceneGraph-9146FF?style=flat-square" alt="Built with BrightScript and SceneGraph" />
+</p>
+<p align="center">
+  <a href="#install-on-your-roku">Install</a> ·
+  <a href="#sign-in">Sign in</a> ·
+  <a href="#remote-controls">Controls</a> ·
+  <a href="#compatibility">Compatibility</a> ·
+  <a href="#contributing">Contribute</a>
+</p>
 
-Also, the original devs have not been very active with this project recently. So if you can contribute, please do. There are still many desirable features that have not been added (just go on the Discord).
+<p align="center">
+  Twoku Black is an unofficial community project with no affiliation to Twitch, Amazon, or Roku.
+</p>
 
-## Discord
-If you have any questions or comments (or phishing links):
+## What you can do
 
-[![Discord](https://discordapp.com/api/guilds/721488568303878155/widget.png?style=banner2)](https://discord.gg/kV5SXkZ)
+- **Find something to watch.** Browse live channels and games by viewer count, or search for a channel or category.
+- **Keep up with your favorites.** Sign in to see followed channels, with live streams and offline profiles in one scrolling view.
+- **Explore a channel.** Open its profile for follower counts, the current live stream, and past broadcasts.
+- **Catch up later.** Watch recordings and recent category clips, with pause, seeking, and quality selection.
+- **Follow the conversation.** Show or hide live chat beside the video. Your chat preference is remembered.
+- **Choose your quality.** Use Auto or select any available video quality, including 60 fps when offered. Switching quality keeps your place in recordings.
 
-## Support
-If you would like to support Twoku:
+## Install on your Roku
 
- [![Support with PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=YRPQDG5UY26DS&currency_code=CAD&source=url)
+Keep your computer and Roku on the same network.
+
+1. Follow to [enable developer mode](https://developer.roku.com/dev/docs/developer-setup).
+2. [⬇ Download the latest ZIP](https://github.com/nkatchik/twitch-reloaded-roku/releases/latest/download/twoku.zip).
+3. Open your Roku's IP address in a browser. Sign in as `rokudev` with your developer-mode password.
+4. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip**.
+
+## Remote controls
+
+| Button | Browsing | Playback |
+| --- | --- | --- |
+| **D-pad** | Move between cards and tabs; **Up** from the first row reaches the header. | Reveal and navigate controls. On recordings, **Left / Right** seeks when the progress bar is selected or controls are hidden. |
+| **OK** | Open the selected item. | Activate a control; pause or resume a recording when the progress bar is selected. |
+| **Options (`*`)** | Open the selected channel's profile where available. | Open the quality menu. |
+| **Play / Pause** | — | Pause or resume a recording or clip. |
+| **Rewind / Fast-forward** | — | Seek backward or forward in 10-second steps. |
+| **Back** | Return to the previous view. | Dismiss the quality menu, controls, or chat, then return to browsing. During loading or an error, return immediately. |
+| **Home** | Return to Roku Home. | Return to Roku Home. |
+
+The player also has **Channel**, **Chat** for live streams, and **Quality** controls. In the quality menu, use **Up / Down** to choose and **OK** to apply.
+
+## Compatibility
+
+This fork is under active development. Device support depends on Roku firmware, the native video decoder, and the stream format Twitch delivers.
+
+| Device | Current coverage |
+| --- | --- |
+| **Roxton / K806X, Roku OS 15.3.4** | Device checks cover browsing, sign-in, Following, live playback, recordings, chat, quality switching, and remote navigation. |
+| **Other Roku players and Roku TVs** | Not yet verified by this fork. Reports from additional models are welcome. |
+
+**Auto quality** prefers the device's reported resolution and frame-rate capabilities, prioritizing resolution. It can step down after playback failures, prolonged buffering, or stalls; direct playback also uses download timing to detect insufficient bandwidth. It does not currently step back up automatically. Manual selection stays fixed, and capability checks never remove available video qualities from the menu.
+
+Some Twitch streams need an experimental compatibility path that separates audio and video delivery on the Roku. It preserves the encoded media without transcoding and requires no separate server to install. Playback and sustained performance can still vary by device; see the [playback compatibility notes](docs/playback-compatibility.md) for tested formats and remaining limitations.
+
+**Not currently supported:** subscriber-only recordings, replay chat for recordings, and sending chat messages.
 
 ## Contributing
-If you have an idea (feature, etc.) that you would like to contribute (with code) to the project with, DM one of the developers on the Discord with your idea. Otherwise, if you just have an idea, post it in the ```#features``` channel on the Discord server. You can also just fork this repository as its up to date and implement the feature yourself.
 
-## How to Install
-### With Access Code
-<em>As of February 23, 2022, the first two codes below no longer work because of Roku's shutdown of private channels. However, the third code below (Twoku Public) still works for us and many others. If that code does not work for you, try the manual developer install described below.</em>
+Bug reports, device tests, and focused pull requests are welcome. For playback or compatibility reports, include your Roku model and OS version, the channel or recording, selected quality, steps to reproduce, and whether **Back** and **Home** still respond. Remove tokens and signed playback URLs from logs before sharing them.
 
-~~Install with access code: TWOKU (https://my.roku.com/account/add?channel=TWOKU)~~
+The app uses BrightScript and SceneGraph; no transpilation is needed to create the sideload ZIP. To run the regression suites, install Node.js and Python 3, then run these commands from the repository:
 
-~~Beta version: TTWOKU (https://my.roku.com/account/add?channel=TTWOKU)~~
+```sh
+npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0
+python3 tests/run.py --brs /tmp/twoku-validation/node_modules/.bin/brs
+python3 tests/release.py
+```
 
-Twoku Public (should be available for users in Mexico and Brazil): C6ZVZD (https://my.roku.com/account/add?channel=C6ZVZD)
+See the [testing guide](tests/README.md) for additional tooling, known compiler diagnostics, and device acceptance checks. The off-device suites exercise app logic; rendering, remote timing, and native playback also need testing on a Roku.
 
-### Manual Developer Install
-1. [Enable developer mode for Roku](https://blog.roku.com/developer/developer-setup-guide)
-2. Log into your Roku from your browser using IP from previous step (http://192.168.x.x)
-3. ZIP (into a ZIP file) all contents of this repo (you do not have to include README.md) (using 7-Zip, WinRAR, etc.). Do not include extra top level directories in the ZIP file, otherwise you may get the error: "```Install Failure: No manifest. Invalid package.```". Alternatively, you can download this ZIP file by clicking [here](https://drive.google.com/uc?export=download&id=1oMOxn41NAAq8CxULCr7VJ-WwFSdvdQ5-).
-4. Upload previous ZIP file in Roku Development Application Installer (step 2)
-5. Press Install
-6. Twoku should now be installed on your Roku. You should see it at the end of your channel list
+## Credits
 
-## Twitch login
-
-Select **Login** in the header and scan the QR code with your phone. It opens
-Twitch's activation page with the code already filled in. You can also open
-[twitch.tv/activate](https://www.twitch.tv/activate) and enter the displayed code.
-The QR image is generated locally on the Roku. Approve access;
-the app returns to Home and loads your username and followed channels. **Back**
-cancels the attempt; **OK** requests a new code after an error or expiration.
-Once signed in, the account chip opens your account view with **Log out**.
-Viewing the account keeps the current session; logging out clears saved
-credentials and followed channels, then returns to Channels.
-
-Login uses Twitch's official device-code flow, based on
-[nkatchik/smarttv-twitch](https://github.com/nkatchik/smarttv-twitch/blob/main/src/core/twitch/auth.js).
-It shares that project's registered public **Twellie** client, so Twitch's consent
-page uses that application name. The requested permissions are followed-channel
-access (`user:read:follows`) and IRC chat (`chat:read`, `chat:edit`). No password
-or client secret is entered on the TV. Access and refresh tokens stay in the Roku
-registry; validation and refresh go directly to Twitch. The retired Heroku login
-service is no longer used.
-
-The public login client ID is configured in `components/UrlFunctions.brs`.
-User tokens use that client ID for Helix; anonymous Helix and GraphQL requests
-retain their separate matching client IDs. Saved sessions are validated at launch
-and during the five-minute followed-channel refresh. `GetUser` is the sole owner
-of refresh-token rotation. Followed channels use Twitch's current
-`streams/followed` and `channels/followed` endpoints.
-
-## Navigation and playback
-
-The interface follows [Twellie](https://github.com/nkatchik/smarttv-twitch): dark
-backgrounds, white focus outlines, four-column grids, a compact account chip,
-and the same bottom player controls and quality popup. Channels, Games,
-Following, Search, and Login are in the header. The old Settings screen and
-its button have been removed; followed channels live in the Following tab.
-The Twellie TV mark comes from that project's `src/assets/logo.png`; its GPLv3
-license is included as `images/twellie-logo-LICENSE.txt`.
-
-Use **Up** from the first grid row to reach the tabs and **Down** to return.
-**OK** on a live channel opens it immediately. ***** on a channel card opens
-its channel page and past broadcasts, with the channel's follower count.
-Following combines live channels and offline profiles in one scrolling list;
-**Back** from a profile returns to the same followed channel. Games requests
-285×380 covers to match the displayed cards. Pending requests use native Roku
-spinners; errors and empty results retain text.
-
-During playback, **OK** or an arrow reveals the controls. **Left/Right** moves
-between Channel, Chat (live only), and Quality. ***** opens Quality directly;
-**Up/Down** chooses a rendition, **OK** applies it, and **Back** dismisses it.
-The selected quality and live-chat preference persist. Chat is read-only, as
-in Twellie, and is disconnected while hidden. The connection spinner clears when
-Twitch confirms the channel; a failed connection or handshake times out and
-retries after five seconds.
-
-**Auto** prefers the highest-resolution rendition matching the device's reported
-video output and decoder capabilities, then the highest frame rate at that
-resolution. This includes 60fps when supported. These are preferences, never
-playback restrictions: if no rendition matches, Auto attempts the best available
-quality and uses the normal bounded playback recovery. Missing metadata stays
-unverified; it cannot mean that every stream is unsupported. Every video rendition
-remains selectable, including saved manual preferences and qualities with codec,
-resolution, or frame-rate hints outside the reported device capabilities.
-Live/VOD Auto recommendations use playlist dimensions, frame rate, and AVC profile/level;
-clips expose less metadata, so their width and AVC profile are explicitly estimated
-from Twitch's reported rendition height and frame rate.
-
-Network adaptation is separate: three successful video-segment downloads taking
-longer than their playback duration trigger a lower-bitrate choice within 80% of
-measured throughput on direct playback. Repaired fMP4 uses a local relay, so its
-native download timings are excluded from this calculation. That path currently
-reacts to failures and stalls rather than measuring Internet throughput. Auto
-steps down after 15 seconds buffering or 20 seconds without playback advancing;
-an upstream relay download also has a 10-second deadline. Auto can also try an
-untried lower quality after a native
-error, prolonged buffering, or stalled playback. It stops retrying when eligible
-qualities are exhausted. Failed live streams retain the player controls instead
-of returning to the grid. There is currently no automatic quality increase or
-same-quality retry; manual quality remains fixed. Quality switches preserve VOD/clip
-position and pause state. Left/Right on the progress bar or the rewind/fast-forward
-keys seek by ten seconds. Play/Pause toggles recorded playback.
-
-**Back** closes the quality popup, then the controls, then visible chat, then
-returns to browsing. During a playback error or loading state it returns
-immediately. Native decoder shutdown uses asynchronous stop on Roku versions
-that provide it (OS 12.5+); older versions retain the platform's synchronous stop.
-The UI keeps remote focus while the decoder loads or stops.
-Repeated close notifications share one stop request. New content waits for the
-native `stopped` acknowledgement, including after an error or completion, and
-starts on a later render event. Hidden players still release their old content
-when shutdown completes.
-
-Live/VOD playlists and signed clip URLs are resolved directly from Twitch over
-HTTPS, with bounded requests. Some current Twitch deliveries combine audio and
-video in fragmented MP4 segments, which [Roku does not support for
-CMAF](https://developer.roku.com/dev/docs/media). The app now includes an experimental
-compatibility Task: it exposes separate audio/video HLS renditions through a
-loopback HTTP listener, changing container metadata without transcoding. Both
-views share downloaded original segments. Ordinary MPEG-TS and clips remain
-direct; unsupported preparation also falls back to the original URL.
-
-The Task has bounded caches and transfers. After preparing playback, it serves
-requests without accessing UI-owned fields; cancellation arrives as message-port
-events. Native startup is deferred until the Task's ready callback returns to
-avoid a circular wait between the player and its local server. No external server
-or configuration is needed. See the [delivery investigation](docs/playback-compatibility.md) for the
-implementation, media validation, and remaining native checks. Off-device tests
-verify unchanged packets and decoded frames. Native testing on the supplied device
-confirmed advancing 1080p/480p playback, quality switching, and responsive Back/Home
-after fixing an empty-file-status crash. Visual/audio synchronization and sustained
-performance remain separate acceptance checks.
-
-## Supported Features
-* Live channels and games, ordered by viewers
-* Search for live/offline channels and games
-* Followed live and offline channels
-* Category clips from the last seven days, with quality selection
-* Read-only live chat
-* VODs with seeking and quality selection (except subscriber-only)
-* QR-based Twitch sign-in
-
-## Notable Unsupported Features
-* VOD chat and chat message entry
-* Subscriber-only VODs
+This fork continues the work of the [original Twoku project](https://github.com/worldreboot/twitch-reloaded-roku) and its contributors. Third-party notices are kept alongside their bundled components and assets.

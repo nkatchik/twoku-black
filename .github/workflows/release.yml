@@ -1,0 +1,74 @@
+name: Release
+run-name: Release ${{ inputs.version }} from ${{ inputs.commit }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit hash to release (full or at least 7 characters)
+        required: true
+        type: string
+      version:
+        description: Version (MAJOR.MINOR.BUILD, e.g. 0.9.1 or v0.9.1)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test packaging
+        run: python3 tests/release.py
+
+      - name: Package requested commit
+        id: package
+        env:
+          COMMIT_HASH: ${{ inputs.commit }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 .github/scripts/package-release.py \
+            "$COMMIT_HASH" "$RELEASE_VERSION" "$RUNNER_TEMP/release" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ steps.package.outputs.sha }}
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            tag_sha=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+            if [ "$tag_sha" != "$RELEASE_SHA" ]; then
+              echo "::error::Tag $RELEASE_TAG already points to another commit."
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$RELEASE_SHA"
+          fi
+
+          printf 'Download **twoku.zip** below. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip** in the Roku Development Application Installer.\n\nBuilt from commit `%s`.\n' \
+            "$RELEASE_SHA" > "$RUNNER_TEMP/release/notes.md"
+
+          gh release create "$RELEASE_TAG" \
+            "$RUNNER_TEMP/release/twoku.zip" \
+            "$RUNNER_TEMP/release/twoku.zip.sha256" \
+            --verify-tag \
+            --title "Twoku Black $RELEASE_VERSION" \
+            --notes-file "$RUNNER_TEMP/release/notes.md" \
+            --generate-notes \
+            --latest

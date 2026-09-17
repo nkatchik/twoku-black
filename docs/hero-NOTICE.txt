@@ -1,0 +1,5 @@
+hero.png is copied without modification from:
+https://github.com/nkatchik/smarttv-twitch/blob/master/docs/hero.png
+
+Upstream license: GNU General Public License v3.0.
+The license text is included at ../images/twellie-logo-LICENSE.txt.
