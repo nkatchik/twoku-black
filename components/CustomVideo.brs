@@ -773,13 +773,22 @@ sub startSeekHold(key as String)
     if not canSeek() or key = m.heldSeekKey then return
     stopSeekHold()
     m.heldSeekKey = key
-    seekBy(seekDirection(key))
+    m.seekHoldClock = CreateObject("roTimespan")
+    m.seekHoldClock.Mark()
+    seekBy(10 * seekDirection(key))
     m.seekRepeatTimer.duration = 0.5
     m.seekRepeatTimer.control = "start"
 end sub
 
 function seekDirection(key as String) as Integer
-    if key = "left" or key = "rewind" then return -10
+    if key = "left" or key = "rewind" then return -1
+    return 1
+end function
+
+function seekHoldStep(elapsedMs as Integer) as Integer
+    if elapsedMs >= 5000 then return 120
+    if elapsedMs >= 3000 then return 60
+    if elapsedMs >= 1500 then return 30
     return 10
 end function
 
@@ -792,13 +801,16 @@ sub onSeekRepeat()
     ' Repeat between down/up edges without relying on extra key-down events.
     ' Advance the preview while held and submit one native seek on release.
     m.seekRepeatTimer.control = "stop"
-    seekBy(seekDirection(m.heldSeekKey))
+    ' Use elapsed time so delayed timer events and IR repeats cannot reset the ramp.
+    seconds = seekHoldStep(m.seekHoldClock.TotalMilliseconds())
+    seekBy(seconds * seekDirection(m.heldSeekKey))
     m.seekRepeatTimer.duration = 0.15
     m.seekRepeatTimer.control = "start"
 end sub
 
 sub stopSeekHold()
     m.heldSeekKey = ""
+    m.seekHoldClock = invalid
     if m.seekRepeatTimer <> invalid then m.seekRepeatTimer.control = "stop"
 end sub
 

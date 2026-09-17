@@ -1,6 +1,21 @@
 function testCreateObject(kind, name = invalid)
+    if LCase(kind) = "rotimespan"
+        return {
+            started: 0,
+            Mark: sub()
+                m.started = getGlobalAA().seekClockMs
+            end sub,
+            TotalMilliseconds: function()
+                return getGlobalAA().seekClockMs - m.started
+            end function
+        }
+    end if
     return playerNode()
 end function
+
+sub setSeekTime(milliseconds)
+    getGlobalAA().seekClockMs = milliseconds
+end sub
 
 function playerNode()
     return {
@@ -21,6 +36,7 @@ function playerNode()
 end function
 
 sub resetPlayer()
+    setSeekTime(0)
     m.compatibility = invalid
     m.compatRequestId = 0
     m.playbackStartTimer = playerNode()
@@ -502,9 +518,67 @@ sub main()
     onSeekRepeat()
     check(m.heldSeekKey = "" and m.seekRepeatTimer.control = "stop", "Back cancels held seeking before navigating away")
 
+    testSeekAcceleration()
     testCompatibilityRouting()
     testDecoderLifecycle()
     print "PASS player completion guards, compatibility cancellation and fallback, bandwidth, quality, remote input and VOD seek"
+end sub
+
+sub testSeekAcceleration()
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.duration = 36000
+    m.video.position = 100
+    m.video.state = "playing"
+    onKeyEvent("right", true)
+    check(m.pendingSeek = 110, "An initial press remains a precise ten-second step")
+    times = [500, 1499, 1500, 2999, 3000, 4999, 5000, 8000]
+    steps = [10, 10, 30, 30, 60, 60, 120, 120]
+    for index = 0 to times.Count() - 1
+        before = m.pendingSeek
+        setSeekTime(times[index])
+        onKeyEvent("right", true)
+        check(m.pendingSeek = before, "IR repeat events do not add steps or restart acceleration")
+        onSeekRepeat()
+        check(m.pendingSeek = before + steps[index], "Elapsed hold time selects the accelerated step even when callbacks are delayed")
+        commitSeek()
+        check(m.video.seek = invalid, "Acceleration updates only the preview while the key is held")
+    end for
+    before = m.pendingSeek
+    onKeyEvent("left", true)
+    check(m.pendingSeek = before - 10, "Reversing an accelerated hold starts with a precise ten-second step")
+    onKeyEvent("right", false)
+    setSeekTime(8500)
+    onSeekRepeat()
+    check(m.pendingSeek = before - 20 and m.heldSeekKey = "left", "Reversal resets the ramp and ignores the old direction's late release")
+    setSeekTime(11000)
+    onSeekRepeat()
+    check(m.pendingSeek = before - 80, "Rewind uses the same acceleration curve")
+    target = m.pendingSeek
+    onKeyEvent("left", false)
+    commitSeek()
+    check(m.video.seek = target and m.seekInFlight = target and m.seekHoldClock = invalid, "Release submits the final target once and clears hold timing")
+    onSeekRepeat()
+    check(m.pendingSeek = invalid, "A late timer event after release cannot advance the target")
+    onKeyEvent("fastforward", true)
+    setSeekTime(11500)
+    onSeekRepeat()
+    check(m.pendingSeek = target + 20, "A new hold and the fast-forward key start at the slow rate")
+    stopSeekHold()
+    m.seekInFlight = invalid
+    m.pendingSeek = invalid
+    m.video.position = 35990
+    onKeyEvent("right", true)
+    setSeekTime(20000)
+    onSeekRepeat()
+    check(m.pendingSeek = 36000, "Accelerated forward seeking clamps at the recording's duration")
+    stopSeekHold()
+    m.pendingSeek = invalid
+    m.video.position = 5
+    onKeyEvent("rewind", true)
+    setSeekTime(26000)
+    onSeekRepeat()
+    check(m.pendingSeek = 0, "Accelerated rewind clamps at the beginning")
 end sub
 
 sub finishDecoderStop()

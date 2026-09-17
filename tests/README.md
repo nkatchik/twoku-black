@@ -251,6 +251,13 @@ input through Roku's remote API, not the physical IR handset's event timing.
 The installed production build was left on Following. All 34 deterministic suites
 passed before deployment; no source changes were needed during this device check.
 
+Held seeking now ramps from 10-second steps to 30 seconds at 1.5 seconds held,
+60 seconds at 3 seconds, and 120 seconds at 5 seconds. A monotonic clock controls
+the ramp; the preview timer keeps its existing cadence. Deterministic checks cover
+thresholds, delayed timer callbacks, duplicate IR events, reversing direction,
+fresh holds, release cancellation, endpoint clamping, and one native seek on
+release. Taps still move ten seconds, and reversal restarts at the slow rate.
+
 The next focus refinement uses the same nine-patch for focused and unfocused
 grid states, with the unfocused bitmap transparent. This prevents the initial
 frame from inheriting different default margins. First-selection screenshots
