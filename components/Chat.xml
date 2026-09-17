@@ -13,6 +13,7 @@
         <Rectangle color="0x08080aFF" width="360" height="720" translation="[920,0]" />
         <Rectangle color="0x303038FF" width="360" height="92" translation="[920,0]" />
         <Poster id="channelAvatar" width="58" height="58" translation="[937,17]" loadDisplayMode="scaleToZoom" />
+        <Poster width="58" height="58" translation="[937,17]" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x303038FF" />
         <Rectangle color="0xe91916FF" width="32" height="14" translation="[950,67]" />
         <SimpleLabel text="LIVE" translation="[966,76]" horizOrigin="center" vertOrigin="center" fontUri="font:BoldSystemFontFile" fontSize="9" />
         <Label id="channelName" width="252" height="27" translation="[1012,16]" color="0xFFFFFFFF">
