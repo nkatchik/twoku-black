@@ -10,13 +10,16 @@ import subprocess
 import zipfile
 
 
-def package_release(commit, version, output):
+def package_release(commit, major, minor, build, output):
     if not re.fullmatch(r"[0-9a-fA-F]{7,40}", commit):
         raise ValueError("Commit must be a full hash or at least 7 hexadecimal characters.")
-    match = re.fullmatch(r"v?((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))", version)
-    if not match:
-        raise ValueError("Version must be MAJOR.MINOR.BUILD, optionally prefixed with v.")
-    version = match[1]
+    numbers = []
+    for name, value in zip(("Major version", "Minor version", "Build number"), (major, minor, build)):
+        if not re.fullmatch(r"[0-9]+", value):
+            raise ValueError(f"{name} must be a non-negative integer.")
+        numbers.append(int(value))
+    major, minor, build = numbers
+    version = f"{major}.{minor}.{build}"
     sha = subprocess.check_output(
         ["git", "rev-parse", "--verify", "--end-of-options", f"{commit.lower()}^{{commit}}"],
         text=True,
@@ -33,7 +36,8 @@ def package_release(commit, version, output):
             raise ValueError("Requested commit has no source/main.brs entry point.")
         manifest = original.read("manifest").decode("utf-8")
         for field, number in zip(
-            ("major_version", "minor_version", "build_version"), version.split(".")
+            ("major_version", "minor_version", "build_version"),
+            (str(major), str(minor), f"{build:05d}"),
         ):
             manifest, count = re.subn(
                 rf"(?m)^{field}=[^\r\n]*", f"{field}={number}", manifest
@@ -60,11 +64,13 @@ def package_release(commit, version, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("commit")
-    parser.add_argument("version")
+    parser.add_argument("major", help="Major version (non-negative integer)")
+    parser.add_argument("minor", help="Minor version (non-negative integer)")
+    parser.add_argument("build", help="Build number (GitHub Actions workflow run number)")
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     try:
-        result = package_release(args.commit, args.version, args.output)
+        result = package_release(args.commit, args.major, args.minor, args.build, args.output)
     except (ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Packaging failed: {error}\n")
     for key, value in result.items():

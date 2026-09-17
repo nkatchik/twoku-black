@@ -19,6 +19,13 @@ npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0
 /tmp/twoku-test-python/bin/python tests/verify_fmp4.py --brs /tmp/twoku-validation/node_modules/.bin/brs --server-spans
 ```
 
+Release packaging checks verify the requested Git commit, manifest version,
+archive contents, and checksum while preserving the checkout. The release workflow
+takes major/minor integers and uses `github.run_number` for the build number;
+retries keep the same version. Only the packaged manifest is stamped, with the
+build padded to at least five digits. Tags use `vMAJOR.MINOR.BUILD` without padding.
+The checks also cover repeatable builds, advancing run numbers, and invalid inputs.
+
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
 [fonts/README.md](../fonts/README.md) for setup and reproducible generation.

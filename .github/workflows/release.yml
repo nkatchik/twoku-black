@@ -1,5 +1,5 @@
 name: Release
-run-name: Release ${{ inputs.version }} from ${{ inputs.commit }}
+run-name: Release ${{ inputs.major }}.${{ inputs.minor }}.${{ github.run_number }} from ${{ inputs.commit }}
 
 on:
   workflow_dispatch:
@@ -8,10 +8,16 @@ on:
         description: Commit hash to release (full or at least 7 characters)
         required: true
         type: string
-      version:
-        description: Version (MAJOR.MINOR.BUILD, e.g. 0.9.1 or v0.9.1)
+      major:
+        description: Major version (non-negative integer)
         required: true
-        type: string
+        type: number
+        default: 0
+      minor:
+        description: Minor version (non-negative integer)
+        required: true
+        type: number
+        default: 0
 
 permissions:
   contents: write
@@ -37,10 +43,14 @@ jobs:
         id: package
         env:
           COMMIT_HASH: ${{ inputs.commit }}
-          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_MAJOR: ${{ inputs.major }}
+          RELEASE_MINOR: ${{ inputs.minor }}
+          # A new release run advances the build; retries keep the same version.
+          RELEASE_BUILD: ${{ github.run_number }}
         run: |
           python3 .github/scripts/package-release.py \
-            "$COMMIT_HASH" "$RELEASE_VERSION" "$RUNNER_TEMP/release" >> "$GITHUB_OUTPUT"
+            "$COMMIT_HASH" "$RELEASE_MAJOR" "$RELEASE_MINOR" "$RELEASE_BUILD" \
+            "$RUNNER_TEMP/release" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         env:
