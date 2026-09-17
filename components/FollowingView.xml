@@ -16,7 +16,7 @@
                 rowItemSize="[[292,227]]" rowItemSpacing="[[8.666667,0]]" numRows="5" rowLabelOffset="[[0,10]]"
                 rowLabelColor="0xEFEFF1FF" showRowCounter="[false]" drawFocusFeedback="false"
                 vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus">
-                <Font role="rowLabelFont" uri="pkg:/fonts/Inter-SemiBold.ttf" size="20" />
+                <Font role="rowLabelFont" uri="font:BoldSystemFontFile" size="20" />
             </RowList>
             <Group id="focusCursor" visible="false">
                 <Group id="liveFocus" translation="[-7,-1]">

@@ -1,5 +1,13 @@
 # Regression checks
 
+Font coverage and packaging references have a separate asset check:
+`python tests/fonts.py` with `fonttools==4.65.0`. See
+[fonts/README.md](../fonts/README.md) for setup and reproducible generation.
+The coverage check reads real glyph outlines; Roku rendering still needs a
+device check. On Roxton K806X / Roku OS 15.3.4, the replacement font rendered
+CJK, Korean, accented Latin/Greek/Cyrillic, Thai, and common monochrome emoji;
+the Channels grid also displayed live Japanese titles and display names.
+
 Install the off-device tools outside the channel package, then run:
 
 ```sh

@@ -48,10 +48,10 @@
         <Group id="browseMain">
             <Group id="browseButtons" focusable="true">
                 <Poster translation="[43,43]" uri="pkg:/images/twellie-logo.png" width="36" height="36" loadDisplayMode="scaleToFit" />
-                <SimpleLabel id="liveButton" translation="[95,61]" text="Channels" vertOrigin="center" color="0xF4F4F7FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
-                <SimpleLabel id="categoryButton" text="Games" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
-                <SimpleLabel id="followingButton" text="Following" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
-                <SimpleLabel id="searchLabel" text="Search" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+                <SimpleLabel id="liveButton" translation="[95,61]" text="Channels" vertOrigin="center" color="0xF4F4F7FF" fontSize="20" fontUri="font:SystemFontFile" />
+                <SimpleLabel id="categoryButton" text="Games" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="font:SystemFontFile" />
+                <SimpleLabel id="followingButton" text="Following" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="font:SystemFontFile" />
+                <SimpleLabel id="searchLabel" text="Search" vertOrigin="center" color="0xA9A9B2FF" fontSize="20" fontUri="font:SystemFontFile" />
                 <Rectangle id="liveLine" height="3" color="0xF4F4F788" />
                 <Rectangle id="categoryLine" height="3" color="0xF4F4F788" visible="false" />
                 <Rectangle id="followingLine" height="3" color="0xF4F4F788" visible="false" />
@@ -60,7 +60,7 @@
                     <Poster id="profileImage" translation="[4,4]" width="28" height="28" loadDisplayMode="scaleToFill" visible="false" />
                     <Poster id="profileCover" translation="[4,4]" width="28" height="28" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x323239FF" visible="false" />
                     <Label id="loggedUserName" translation="[4,0]" height="36" text="Login" color="0xFFFFFFFF" vertAlign="center">
-                        <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
+                        <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="18" />
                     </Label>
                 </Group>
                 <Rectangle id="headerCursor" height="3" color="0xF4F4F7FF" visible="false" />
@@ -76,7 +76,7 @@
             <FollowingView id="followingView" translation="[43,114]" visible="false" />
             <LoadingIndicator id="busy" translation="[612,332]" size="56" />
             <Label id="loadStatus" translation="[43,300]" width="1194" height="120" wrap="true" horizAlign="center" vertAlign="center" color="0xA9A9B2FF" visible="false">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="26" />
+                <Font role="font" uri="font:SystemFontFile" size="26" />
             </Label>
         </Group>
         <ChannelPage id="channelPage" visible="false" />

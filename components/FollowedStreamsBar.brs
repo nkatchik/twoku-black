@@ -80,7 +80,7 @@ sub onFollowedStreamsChange()
         stream_user.translation = "[90,0]"
         stream_user.visible = false
         stream_user.fontSize = "18"
-        stream_user.fontUri = "pkg:/fonts/Inter-SemiBold.ttf"
+        stream_user.fontUri = "pkg:/fonts/TwokuUnicode-Regular.ttf"
 
         stream_game = createObject("roSGNode", "Label")
         stream_game.text = stream.game_id
@@ -91,17 +91,16 @@ sub onFollowedStreamsChange()
         'stream_game.fontSize = "12"
         game_font = createObject("roSGNode", "Font")
         'game_font.role = "font" 
-        game_font.uri = "pkg:/fonts/Inter-Regular.ttf" 
+        game_font.uri = "pkg:/fonts/TwokuUnicode-Regular.ttf"
         game_font.size = "14"
         stream_game.font = game_font
-        'stream_game.fontUri="pkg:/fonts/Roobert-Regular.ttf"
 
         stream_viewers = createObject("roSGNode", "SimpleLabel")
         stream_viewers.text = stream.live_duration 'numberToText(stream.viewer_count)
         stream_viewers.translation = "[303,10]"
         stream_viewers.visible = false
         stream_viewers.fontSize = "12"
-        stream_viewers.fontUri="pkg:/fonts/Inter-Regular.ttf"
+        stream_viewers.fontUri="font:SystemFontFile"
 
         red_rectangle = createObject("roSGNode", "Poster")
         red_rectangle.uri = "pkg:/images/red_rectangle.9.png"

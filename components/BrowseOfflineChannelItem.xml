@@ -11,6 +11,6 @@
         <Poster id="itemThumbnail" translation="[47,0]" width="96" height="96" loadWidth="96" loadHeight="96" loadDisplayMode="scaleToFill" />
         <Poster translation="[47,0]" width="96" height="96" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x08080AFF" />
         <Poster id="focusRing" translation="[41,-6]" width="108" height="108" uri="pkg:/images/twellie-avatar-focus.png" visible="false" />
-        <Label id="itemStreamer" translation="[0,106]" width="190" height="28" color="0xDEDEE3FF" horizAlign="center"><Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" /></Label>
+        <Label id="itemStreamer" translation="[0,106]" width="190" height="28" color="0xDEDEE3FF" horizAlign="center"><Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="18" /></Label>
     </children>
 </component>

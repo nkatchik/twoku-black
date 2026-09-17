@@ -20,7 +20,7 @@
                 text="a"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle>
         <Rectangle
             translation="[0,0]"
@@ -32,7 +32,7 @@
                 text="b"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle>
         <Rectangle
             translation="[0,0]"
@@ -44,7 +44,7 @@
                 text="c"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -56,7 +56,7 @@
                 text="d"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -68,7 +68,7 @@
                 text="e"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -80,7 +80,7 @@
                 text="f"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -92,7 +92,7 @@
                 text="g"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -104,7 +104,7 @@
                 text="h"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -116,7 +116,7 @@
                 text="i"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -128,7 +128,7 @@
                 text="j"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -140,7 +140,7 @@
                 text="k"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -152,7 +152,7 @@
                 text="l"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -164,7 +164,7 @@
                 text="m"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -176,7 +176,7 @@
                 text="n"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -188,7 +188,7 @@
                 text="o"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -200,7 +200,7 @@
                 text="p"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -212,7 +212,7 @@
                 text="q"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -224,7 +224,7 @@
                 text="r"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -236,7 +236,7 @@
                 text="s"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -248,7 +248,7 @@
                 text="t"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -260,7 +260,7 @@
                 text="u"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -272,7 +272,7 @@
                 text="v"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -284,7 +284,7 @@
                 text="w"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -296,7 +296,7 @@
                 text="x"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -308,7 +308,7 @@
                 text="y"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
         <Rectangle
             translation="[0,0]"
@@ -320,7 +320,7 @@
                 text="z"
                 color="0xEFEFF1FF"
                 fontSize="10"
-                fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+                fontUri="font:BoldSystemFontFile" />
         </Rectangle> 
     </children>
 

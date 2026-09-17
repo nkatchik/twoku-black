@@ -27,21 +27,21 @@
 
     <children>
         <Rectangle width="1280" height="720" color="0x08080AFF" />
-        <SimpleLabel id="searchHeader" translation="[43,61]" vertOrigin="center" text="Browse" color="0xF4F4F7FF" fontSize="24" fontUri="pkg:/fonts/Inter-SemiBold.ttf" />
+        <SimpleLabel id="searchHeader" translation="[43,61]" vertOrigin="center" text="Browse" color="0xF4F4F7FF" fontSize="24" fontUri="font:BoldSystemFontFile" />
         <Group id="browseButtons" focusable="true" translation="[250,0]">
-            <SimpleLabel id="liveButton" translation="[0,61]" vertOrigin="center" text="Live channels" color="0xF4F4F7FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+            <SimpleLabel id="liveButton" translation="[0,61]" vertOrigin="center" text="Live channels" color="0xF4F4F7FF" fontSize="20" fontUri="font:SystemFontFile" />
             <Rectangle id="liveLine" width="1" height="3" color="0xF4F4F7FF" translation="[0,75]" />
-            <SimpleLabel id="clipButton" translation="[160,61]" vertOrigin="center" text="Clips" color="0xA9A9B2FF" fontSize="20" fontUri="pkg:/fonts/Inter-Regular.ttf" />
+            <SimpleLabel id="clipButton" translation="[160,61]" vertOrigin="center" text="Clips" color="0xA9A9B2FF" fontSize="20" fontUri="font:SystemFontFile" />
             <Rectangle id="clipLine" width="1" height="3" color="0xF4F4F7FF" translation="[160,75]" visible="false" />
         </Group>
         <Group translation="[43,120]">
             <Rectangle width="108" height="144" color="0x18181BFF" />
             <Poster id="categoryCover" width="108" height="144" loadDisplayMode="scaleToFill" />
             <Label id="categoryName" translation="[132,0]" width="1045" height="42" color="0xFFFFFFFF">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="32" />
+                <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="32" />
             </Label>
             <Label translation="[132,52]" width="1000" text="Discover live streams and clips" color="0xC8C8CFFF">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="18" />
+                <Font role="font" uri="font:SystemFontFile" size="18" />
             </Label>
         </Group>
         <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
@@ -53,11 +53,11 @@
             focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" visible="false" />
         <Label id="emptyLabel" translation="[43,380]" width="1194" height="100" horizAlign="center" color="0x5C5C66FF" text="" visible="false">
-            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="28" />
+            <Font role="font" uri="font:SystemFontFile" size="28" />
         </Label>
         <LoadingIndicator id="busy" translation="[608,442]" size="64" />
         <Label id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
-            <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+            <Font role="font" uri="font:SystemFontFile" size="16" />
         </Label>
     </children>
 

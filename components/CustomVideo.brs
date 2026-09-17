@@ -710,7 +710,7 @@ sub refreshControls()
         label.text = labels[index]
         label.color = "0xEFF1F6FF"
         font = CreateObject("roSGNode", "Font")
-        font.uri = "pkg:/fonts/Inter-SemiBold.ttf"
+        font.uri = "font:BoldSystemFontFile"
         font.size = 17
         label.font = font
         if index = m.controlIndex and m.overlayFocus = "buttons"

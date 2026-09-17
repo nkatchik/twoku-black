@@ -16,10 +16,10 @@ sub init()
     m.currentChannel = ""
     m.rows = []
     m.messageFont = CreateObject("roSGNode", "Font")
-    m.messageFont.uri = "pkg:/fonts/Inter-Regular.ttf"
+    m.messageFont.uri = "pkg:/fonts/TwokuUnicode-Regular.ttf"
     m.messageFont.size = 16
     m.nameFont = CreateObject("roSGNode", "Font")
-    m.nameFont.uri = "pkg:/fonts/Inter-SemiBold.ttf"
+    m.nameFont.uri = "pkg:/fonts/TwokuUnicode-Regular.ttf"
     m.nameFont.size = 15
     updateChatHeader()
 end sub

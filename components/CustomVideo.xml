@@ -45,26 +45,26 @@
             <Poster id="avatar" translation="[42,492]" width="96" height="96" loadDisplayMode="scaleToFill" />
             <Rectangle id="kindBackground" translation="[162,492]" width="48" height="22" color="0xE91916FF" />
             <Label id="kindLabel" translation="[162,492]" width="48" height="22" horizAlign="center" vertAlign="center" text="LIVE">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="13" />
+                <Font role="font" uri="font:BoldSystemFontFile" size="13" />
             </Label>
             <Label id="viewerLabel" translation="[224,492]" width="400" height="22" color="0xD9DCE4FF">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="15" />
+                <Font role="font" uri="font:SystemFontFile" size="15" />
             </Label>
             <Label id="channelLabel" translation="[162,519]" width="1076" height="38" color="0xFFFFFFFF">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="30" />
+                <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="30" />
             </Label>
             <Label id="titleLabel" translation="[162,559]" width="1076" height="48" wrap="true" maxLines="2" color="0xE1E4ECFF">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="20" />
+                <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="20" />
             </Label>
             <Group id="progress" translation="[42,612]" visible="false">
                 <Rectangle id="seekFocus" translation="[-8,-4]" width="1212" height="42" color="0xF4F4F733" visible="false" />
                 <Label id="positionLabel" width="90" height="22">
-                    <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+                    <Font role="font" uri="font:SystemFontFile" size="16" />
                 </Label>
                 <Rectangle id="progressTrack" translation="[0,26]" width="1196" height="8" color="0xFFFFFF3D" />
                 <Rectangle id="progressFill" translation="[0,26]" width="0" height="8" color="0xF4F4F7FF" />
                 <Label id="durationLabel" translation="[1106,0]" width="90" height="22" horizAlign="right">
-                    <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="16" />
+                    <Font role="font" uri="font:SystemFontFile" size="16" />
                 </Label>
             </Group>
             <Group id="controls" translation="[42,654]" />
@@ -73,26 +73,26 @@
             <Rectangle translation="[-2,-2]" width="322" height="188" color="0xF4F4F7FF" />
             <Rectangle width="318" height="184" color="0x18181BFF" />
             <Label translation="[22,22]" width="274" height="24" text="QUALITY" color="0xAEB5C3FF">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="16" />
+                <Font role="font" uri="font:BoldSystemFontFile" size="16" />
             </Label>
             <Rectangle translation="[22,60]" width="274" height="76" color="0x2F2F36FF" />
             <Poster translation="[32,89]" width="18" height="18" uri="pkg:/images/arrow-up.png" loadDisplayMode="scaleToFit" />
             <Label id="qualityName" translation="[58,60]" width="202" height="76" vertAlign="center" horizAlign="center">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="25" />
+                <Font role="font" uri="font:BoldSystemFontFile" size="25" />
             </Label>
             <Poster translation="[266,89]" width="18" height="18" uri="pkg:/images/arrow-down.png" loadDisplayMode="scaleToFit" />
             <Label id="qualityHint" translation="[22,148]" width="274" height="22" text="OK to apply · Back to close" color="0xAEB5C3FF">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="13" />
+                <Font role="font" uri="font:SystemFontFile" size="13" />
             </Label>
         </Group>
         <LoadingIndicator id="busy" translation="[608,328]" size="64" />
         <Group id="statusBox" translation="[400,268]" visible="false">
             <Rectangle width="480" height="134" color="0x18181BF2" />
             <Label id="statusText" translation="[22,22]" width="436" height="60" wrap="true" maxLines="2" horizAlign="center" vertAlign="center">
-                <Font role="font" uri="pkg:/fonts/Inter-SemiBold.ttf" size="22" />
+                <Font role="font" uri="font:BoldSystemFontFile" size="22" />
             </Label>
             <Label id="statusHint" translation="[22,92]" width="436" height="22" text="Options: quality · Back: return" horizAlign="center" color="0xAEB5C3FF">
-                <Font role="font" uri="pkg:/fonts/Inter-Regular.ttf" size="15" />
+                <Font role="font" uri="font:SystemFontFile" size="15" />
             </Label>
         </Group>
         <Group id="pauseIndicator" translation="[574,268]" visible="false">
