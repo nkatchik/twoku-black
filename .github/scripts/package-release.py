@@ -47,7 +47,7 @@ def package_release(commit, major, minor, build, output):
 
         output = Path(output)
         output.mkdir(parents=True, exist_ok=True)
-        archive = output / "twoku.zip"
+        archive = output / "twoku-black.zip"
         with zipfile.ZipFile(archive, "w") as packaged:
             for item in original.infolist():
                 data = manifest.encode("utf-8") if item.filename == "manifest" else original.read(item)
@@ -57,7 +57,7 @@ def package_release(commit, major, minor, build, output):
                 raise ValueError("Generated ZIP failed its integrity check.")
 
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (output / "twoku.zip.sha256").write_text(f"{checksum}  twoku.zip\n", encoding="utf-8")
+    (output / "twoku-black.zip.sha256").write_text(f"{checksum}  twoku-black.zip\n", encoding="utf-8")
     return {"sha": sha, "version": version, "tag": f"v{version}"}
 
 

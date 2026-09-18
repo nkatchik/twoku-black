@@ -39,7 +39,7 @@
 Keep your computer and Roku on the same network.
 
 1. Follow to [enable developer mode](https://developer.roku.com/dev/docs/developer-setup).
-2. [⬇ Download the latest ZIP](https://github.com/nkatchik/twoku-black/releases/latest/download/twoku.zip).
+2. [⬇ Download the latest ZIP](https://github.com/nkatchik/twoku-black/releases/latest/download/twoku-black.zip).
 3. Open your Roku's IP address in a browser. Sign in as `rokudev` with your developer-mode password.
 4. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip**.
 

@@ -60,7 +60,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertIn(f"sha={self.commit}\n", result.stdout)
                 self.assertIn("version=1.2.3\n", result.stdout)
                 self.assertIn("tag=v1.2.3\n", result.stdout)
-                archive = self.repo / "output/twoku.zip"
+                archive = self.repo / "output/twoku-black.zip"
                 with zipfile.ZipFile(archive) as package:
                     self.assertIsNone(package.testzip())
                     self.assertEqual(set(package.namelist()), {
@@ -71,7 +71,7 @@ class ReleaseTests(unittest.TestCase):
                     self.assertEqual(package.read("source/main.brs"), b"sub main()\nend sub\n")
                     self.assertEqual(package.read("manifest"), b"title=Twoku\nmajor_version=1\nminor_version=2\nbuild_version=00003\n")
                 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-                self.assertEqual((self.repo / "output/twoku.zip.sha256").read_text(), f"{digest}  twoku.zip\n")
+                self.assertEqual((self.repo / "output/twoku-black.zip.sha256").read_text(), f"{digest}  twoku-black.zip\n")
         self.assertEqual((self.repo / "manifest").read_text(), self.manifest)
         self.assertEqual((self.repo / "source/main.brs").read_text(), "uncommitted code\n")
 
@@ -98,7 +98,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"version=0.9.{build}\n", result.stdout)
                 self.assertIn(f"tag=v0.9.{build}\n", result.stdout)
-                archive = self.repo / "output/twoku.zip"
+                archive = self.repo / "output/twoku-black.zip"
                 with zipfile.ZipFile(archive) as package:
                     self.assertEqual(package.read("manifest"), (
                         "title=Twoku\nmajor_version=0\nminor_version=9\n"
@@ -121,7 +121,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"version={version}\n", result.stdout)
                 self.assertIn(f"tag=v{version}\n", result.stdout)
-                with zipfile.ZipFile(self.repo / "output/twoku.zip") as package:
+                with zipfile.ZipFile(self.repo / "output/twoku-black.zip") as package:
                     major, minor, _ = version.split(".")
                     self.assertEqual(package.read("manifest"), (
                         f"title=Twoku\nmajor_version={major}\nminor_version={minor}\nbuild_version={build}\n"

@@ -71,12 +71,12 @@ jobs:
               -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$RELEASE_SHA"
           fi
 
-          printf 'Download **twoku.zip** below. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip** in the Roku Development Application Installer.\n\nBuilt from commit `%s`.\n' \
+          printf 'Download **twoku-black.zip** below. Click **Upload**, select the ZIP, then **Install with zip** or **Replace with zip** in the Roku Development Application Installer.\n\nBuilt from commit `%s`.\n' \
             "$RELEASE_SHA" > "$RUNNER_TEMP/release/notes.md"
 
           gh release create "$RELEASE_TAG" \
-            "$RUNNER_TEMP/release/twoku.zip" \
-            "$RUNNER_TEMP/release/twoku.zip.sha256" \
+            "$RUNNER_TEMP/release/twoku-black.zip" \
+            "$RUNNER_TEMP/release/twoku-black.zip.sha256" \
             --verify-tag \
             --title "Twoku Black $RELEASE_VERSION" \
             --notes-file "$RUNNER_TEMP/release/notes.md" \
