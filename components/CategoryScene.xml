@@ -38,14 +38,14 @@
         </Group>
         <CategoryHeader id="categoryHeader" translation="[43,120]" />
         <Group clippingRect="[35,112,1210,608]">
-            <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
+            <PagedRowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
                 rowTitleComponentName="CategoryHeader" showRowLabel="[true,false]" showRowCounter="[false]"
                 rowLabelOffset="[[0,30],[0,0]]" rowHeights="[421,247]"
                 rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
                 focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00"
                 vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus" />
-            <RowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
+            <PagedRowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
                 rowTitleComponentName="CategoryHeader" showRowLabel="[true,false]" showRowCounter="[false]"
                 rowLabelOffset="[[0,30],[0,0]]" rowHeights="[421,247]"
                 rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"

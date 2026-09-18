@@ -34,8 +34,13 @@ function gridNeedsMore(list) as Boolean
     if not list.hasFocus() or list.content = invalid then return false
     position = list.rowItemFocused
     if position.Count() <> 2 or list.content.getChildCount() = 0 then return false
+    row = position[0]
+    ' Preload from the requested row, even while native focus is still moving.
+    if list.navigationRow <> invalid
+        if list.navigationRow > row then row = list.navigationRow
+    end if
     ' Start fetching with two rows in reserve beyond the visible window.
-    return position[0] + list.numRows + 2 >= list.content.getChildCount()
+    return row + list.numRows + 2 >= list.content.getChildCount()
 end function
 
 sub finishGridPage(task, requestedCursor, addedCount as Integer)

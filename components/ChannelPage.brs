@@ -32,6 +32,7 @@ sub init()
     m.getLivePlayback.observeField("state", "onLivePlaybackStopped")
     m.pastBroadcastsList.observeField("rowItemSelected", "onVideoItemSelect")
     m.pastBroadcastsList.observeField("rowItemFocused", "onGridFocus")
+    m.pastBroadcastsList.observeField("navigationRow", "onGridFocus")
     m.top.observeField("streamerSelectedName", "onSelectedStreamerChange")
     m.top.observeField("visible", "onGetFocus")
     m.requestedLogin = ""

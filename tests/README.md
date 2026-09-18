@@ -184,11 +184,19 @@ pending Task startup, continuing after Task completion, overlapping/empty pages,
 repeated cursors, errors, hidden views, and retaining content identity and focus
 while pages arrive. Channels, Games, game streams, clips, and profile recordings
 share the append helper. Existing rows stay attached; only initial content moves
-the cursor to the first cell. On Roxton, rapid Down presses through multiple
-pages with an injected two-second delay produced no backward focus movement in
-Channels, Games, or game streams. Additional requests started at row 2 of 6 for
-Channels and row 3 of 6 for Games/game streams. Diagnostic delays and logging
-are excluded from the shipped app.
+the cursor to the first cell. `PagedRowList` owns Down repeats because native
+RowList caches the last row at key-down and defers focus updates during a hold.
+Preloading follows the requested row; each repeat checks the current row count,
+so it can wait for a slow page and continue without another key press. Tests
+cover quick taps while focus is moving, IR repeat events, release before a page
+arrives, exhausted feeds, focus loss, and retaining the column in newly created
+or partial rows. Native Up and horizontal navigation are unchanged.
+
+On Roxton K806X / Roku OS 15.3.4, continuous Down holds crossed successive
+pages in Channels, Games, game streams, and game clips. Game stream/clip checks
+also injected a two-second delay per page to exercise waiting at the boundary. Releasing
+Down during a pending request left the cursor in place when that page arrived.
+Diagnostic delays and logging are excluded from the shipped app.
 
 The suites execute production BrightScript functions. Transport, task fields,
 and SceneGraph nodes use deterministic doubles; the runner substitutes platform

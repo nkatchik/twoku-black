@@ -50,6 +50,7 @@ suites = {
     'search': (ROOT / 'components/KeyboardGroup.brs').read_text(),
     'followingview': (ROOT / 'components/FollowingView.brs').read_text(),
     'followingitem': (ROOT / 'components/FollowingItem.brs').read_text(),
+    'pagedrowlist': (ROOT / 'components/PagedRowList.brs').read_text() + '\n' + (ROOT / 'components/GridPagination.brs').read_text(),
     'focusmotion': (ROOT / 'components/FocusMotion.brs').read_text(),
     'entry': (ROOT / 'source/main.brs').read_text(),
     'videofeed': functions('GetVideos.brs', ['getSearchResults']),

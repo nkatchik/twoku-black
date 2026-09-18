@@ -353,8 +353,9 @@ sub testPreload()
     m.browseList.setFocus(true)
     onGridFocus()
     check(not m.channelsPending, "A full initial page does not fetch the entire directory")
-    m.browseList.rowItemFocused = [1, 2]
+    m.browseList.navigationRow = 1
     onGridFocus()
+    check(m.browseList.rowItemFocused[0] = 0, "Settled focus can remain behind a requested held-scroll row")
     check(m.channelsPending and m.channelsCursor = "page2", "Channels preloads with two rows beyond the visible window")
     m.getStreams.pagination = "changed-before-task-start"
     onGridFocus()

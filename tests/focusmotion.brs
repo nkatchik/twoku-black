@@ -4,8 +4,9 @@ sub main()
     rows = motionNode("RowList", 3.0)
     search = motionNode("MarkupList", 5.0)
     title = motionNode("ScrollingLabel", 100.0)
+    paged = motionNode("PagedRowList", 3.0)
     legacy = motionNode("RowList")
-    group.children = [rows, search, title, legacy]
+    group.children = [rows, paged, search, title, legacy]
     root.children = [group]
     speedUpFocus(root)
     check(rows.scrollSpeed = 4.5 and search.scrollSpeed = 7.5, "Nested grids and search lists get the same proportional increase")
@@ -25,6 +26,10 @@ sub main()
     end for
     check(horizontal.scrollSpeed = 4.5, "Populating/recycling many cards synchronizes a private row without compounding its speed")
     check(rows.scrollSpeed = 4.5, "Synchronizing horizontal motion does not multiply the owner again")
+
+    row.parent = paged
+    syncRowFocusSpeed(item)
+    check(paged.scrollSpeed = 4.5 and horizontal.scrollSpeed = 4.5, "Paginated RowList subclasses retain both vertical and horizontal speeds")
 
     row.parent = legacy
     horizontal.scrollSpeed = 3.0

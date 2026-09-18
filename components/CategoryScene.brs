@@ -37,6 +37,8 @@ sub init()
     m.browseClipsList.observeField("itemSelected", "onBrowseClipsItemSelect")
     m.browseList.observeField("rowItemFocused", "onGridFocus")
     m.browseClipsList.observeField("rowItemFocused", "onGridFocus")
+    m.browseList.observeField("navigationRow", "onGridFocus")
+    m.browseClipsList.observeField("navigationRow", "onGridFocus")
     m.top.observeField("visible", "onGetFocus")
     m.streamsCategory = ""
     m.clipsCategory = ""
