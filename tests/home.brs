@@ -65,6 +65,7 @@ sub setup()
     m.followingButton = m.actualBrowseButtons[2]
     m.searchLabel = m.actualBrowseButtons[3]
     m.loggedUserName = m.actualBrowseButtons[4]
+    m.loggedUserName.font = {size: 18}
     m.loggedUserGroup = node()
     m.profileImage = node()
     m.profileImage.uri = ""
@@ -140,6 +141,12 @@ sub main()
     check(onKeyEvent("right",true) and m.currentlyFocusedButton = 4, "Account follows Search without settings")
     check(onKeyEvent("OK",true) and m.top.buttonPressed = "login", "Account click keeps the MainScene account action")
     check(m.accountBackground.color = "0xF4F4F7FF" and not m.headerCursor.visible, "Focused account uses its chip instead of a long underline")
+    check(m.loggedUserName.font.size = 22 and m.accountBackground.height = 44 and m.profileImage.width = 34, "Selected account renders larger text and avatar at native size")
+    selectedCenter = m.loggedUserGroup.translation[0] + m.accountBackground.width / 2
+    m.currentlyFocusedButton = 3
+    updateHeaderFocus()
+    check(m.loggedUserName.font.size = 18 and m.accountBackground.height = 36 and m.loggedUserName.color = "0xFFFFFFFF", "Unselected account restores its original size and opaque white text")
+    check(m.loggedUserGroup.translation[0] + m.accountBackground.width / 2 = selectedCenter and m.loggedUserGroup.translation[1] = 43, "Focus growth preserves the account center")
     layoutHeader()
     check(m.liveLine.width = m.liveButton.localBoundingRect().width, "Channels underline matches rendered glyph extent")
     check(m.categoryLine.width = m.categoryButton.localBoundingRect().width, "Games underline uses its own rendered extent")

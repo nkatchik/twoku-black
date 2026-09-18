@@ -635,7 +635,8 @@ sub updateHeaderFocus()
         m.headerCursor.translation = [label.translation[0],75]
         m.headerCursor.width = label.localBoundingRect().width
     end if
-    applyButtonFocus(m.loggedUserGroup, m.accountBackground, m.loggedUserName, accountFocused)
+    applyButtonColors(m.accountBackground, m.loggedUserName, accountFocused)
+    layoutAccount()
     m.profileCover.blendColor = m.accountBackground.color
 end sub
 
@@ -741,22 +742,43 @@ sub layoutHeader()
 end sub
 
 sub layoutAccount()
-    ' Measure the rendered Label after clearing its old width constraint.
+    ' Rasterize at each actual font size: scaling this compact Label distorts glyphs on Roku.
+    m.loggedUserName.font.size = 18
     m.loggedUserName.width = 0
     width = m.loggedUserName.localBoundingRect().width
     if width > 180 then width = 180
-    m.loggedUserName.width = width
     avatar = m.profileImage.uri <> ""
+    baseWidth = width + 8
+    if avatar then baseWidth += 32
+
+    padding = 4
+    avatarSize = 28
+    height = 36
+    if m.browseButtons.hasFocus() and m.currentlyFocusedButton = 4
+        padding = 5
+        avatarSize = 34
+        height = 44
+        m.loggedUserName.font.size = 22
+        width = m.loggedUserName.localBoundingRect().width
+        if width > 220 then width = 220
+    end if
+    m.loggedUserName.width = width
+    m.loggedUserName.height = height
     m.profileImage.visible = avatar
     m.profileCover.visible = avatar
-    textX = 4
-    if avatar then textX = 36
+    for each image in [m.profileImage, m.profileCover]
+        image.translation = [padding,padding]
+        image.width = avatarSize
+        image.height = avatarSize
+    end for
+    textX = padding
+    if avatar then textX += avatarSize + padding
     m.loggedUserName.translation = [textX,0]
-    rightPadding = 4
-    chipWidth = textX + width + rightPadding
+    chipWidth = textX + width + padding
     m.accountBackground.width = chipWidth
-    m.loggedUserGroup.translation = [1237 - chipWidth,43]
-    m.loggedUserGroup.scaleRotateCenter = [chipWidth / 2,18]
+    m.accountBackground.height = height
+    ' Preserve the resting center as the font, avatar and padding grow by about 22%.
+    m.loggedUserGroup.translation = [1237 - baseWidth / 2 - chipWidth / 2,61 - height / 2]
 end sub
 
 sub onFollowingItemSelected()
