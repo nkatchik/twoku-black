@@ -1,5 +1,11 @@
 function testCreateObject(kind, name)
     result = node()
+    result.observeField = sub(field, callback)
+    end sub
+    result.replaceChild = function(child, index)
+        m.children[index] = child
+        return true
+    end function
     result.getChild = function(index)
         return m.children[index]
     end function
@@ -42,6 +48,9 @@ sub main()
     m.channelLoading = false
     m.playbackPending = false
     m.liveItem = invalid
+    m.liveStatusTimer = node()
+    m.channelLiveTask = invalid
+    m.channelLiveRequestId = 0
     m.getLivePlayback = node()
     m.getVodPlayback = node()
     m.playbackRequestId = 0
@@ -108,6 +117,7 @@ sub main()
     check(channelFollowerLabel(0) = "0 followers" and channelFollowerLabel(invalid) = "", "Unknown follower count is distinct from real zero")
     testVideoPreload()
     testReloadChannel()
+    testChannelStatusPolling()
     print "PASS follower labels, ancestor focus, VOD grid, focus after loading, pagination deduplication, stale channel and playback guards"
 end sub
 
@@ -151,4 +161,70 @@ sub testVideoPreload()
     onGetVideos()
     onVideosStopped()
     check(not m.videosPending and m.getVideos.pagination = "vod3" and m.pastBroadcastsList.hasFocus(), "Failed VOD preloading preserves cards, focus, and a retryable cursor without looping")
+end sub
+
+sub testChannelStatusPolling()
+    m.channelLoading = false
+    m.reloadPending = false
+    m.playbackPending = false
+    m.userId = "123"
+    m.getUserChannel.state = "stop"
+    m.getVideos.state = "stop"
+    m.getVideos.pagination = "preserve-cursor"
+    m.videoItems = []
+    m.liveItem = invalid
+    for index = 0 to 7
+        item = testCreateObject("roSGNode", "ContentNode")
+        item.Rating = index.ToStr()
+        m.videoItems.Push(item)
+    end for
+    renderChannelItems()
+    m.pastBroadcastsList.rowItemFocused = [1, 1]
+    onGetFocus()
+    check(m.liveStatusTimer.control = "start" and m.channelLiveTask = invalid, "Visible profile schedules its first check without duplicating initial metadata requests")
+    onChannelLivePoll()
+    task = m.channelLiveTask
+    task.state = "run"
+    onChannelLivePoll()
+    check(task.testId = m.channelLiveTask.testId and task.login = "channel", "Profile status checks coalesce and request only the visible channel")
+    task.state = "stop"
+    task.liveStatus = "live"
+    task.liveStream = {type:"live",title:"Live now",user_name:"Channel",user_login:"channel",game_name:"Game",viewer_count:1234}
+    onChannelLiveStatus()
+    check(m.liveItem <> invalid and m.pastBroadcastsList.jumpToRowItem[0] = 1 and m.pastBroadcastsList.jumpToRowItem[1] = 2, "New live card keeps the same VOD selected after its index shifts")
+    check(m.videoItems.Count() = 8 and m.getVideos.pagination = "preserve-cursor", "Status update retains loaded VODs and pagination")
+    original = m.pastBroadcastsList.content
+    m.pastBroadcastsList.jumpToRowItem = invalid
+    task.liveStream.title = "Updated title"
+    task.liveStream.viewer_count = 4321
+    onChannelLiveStatus()
+    check(original.testId = m.pastBroadcastsList.content.testId and m.pastBroadcastsList.jumpToRowItem = invalid, "Live metadata update preserves grid identity and cursor")
+    check(original.getChild(0).getChild(0).Title = "Updated title" and m.liveItem.ShortDescriptionLine2 = "4.3K", "Existing card receives fresh title and viewers")
+    task.liveStatus = "unknown"
+    onChannelLiveStatus()
+    check(m.liveItem <> invalid, "Failed status request preserves the last confirmed live card")
+    m.pastBroadcastsList.rowItemFocused = [1, 2]
+    task.liveStatus = "offline"
+    onChannelLiveStatus()
+    check(m.liveItem = invalid and m.pastBroadcastsList.jumpToRowItem[0] = 1 and m.pastBroadcastsList.jumpToRowItem[1] = 1, "Removing live card retains the selected recording")
+    onChannelLivePoll()
+    task = m.channelLiveTask
+    task.state = "run"
+    m.top.parentVisible = false
+    onGetFocus()
+    check(m.liveStatusTimer.control = "stop" and task.cancelRequested, "Entering player or leaving profile stops its timer and cancels the in-flight query")
+    task.state = "stop"
+    task.liveStatus = "live"
+    task.liveStream = {type: "live"}
+    onChannelLiveStatus()
+    check(m.liveItem = invalid, "Hidden profile ignores late status results")
+    m.top.parentVisible = true
+    onChannelLiveStatus()
+    check(m.liveItem = invalid, "Reopening profile cannot accept a cancelled response")
+    m.pastBroadcastsList.setFocus(true)
+    m.videoItems = []
+    m.liveItem = channelLiveItem({type: "live", title: "Only live card"})
+    renderChannelItems()
+    updateChannelLiveItem(invalid)
+    check(m.emptyLabel.visible and m.top.hasFocus(), "Ending the only live card leaves the empty profile reachable by remote")
 end sub

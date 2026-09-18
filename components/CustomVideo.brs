@@ -4,6 +4,8 @@ sub init()
     m.liveStatusTask = invalid
     m.liveCheckId = 0
     m.liveCheckPending = false
+    m.liveCheckClock = invalid
+    m.liveCheckLogin = ""
     m.top.focusable = true
     m.video = m.top.findNode("video")
     if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
@@ -31,6 +33,8 @@ sub init()
     m.pauseIndicator = m.top.findNode("pauseIndicator")
     m.overlayTimer = m.top.findNode("overlayTimer")
     m.watchdog = m.top.findNode("watchdog")
+    m.endedStatusTimer = m.top.findNode("endedStatusTimer")
+    m.endedStatusTimer.observeField("fire", "onEndedStatusPoll")
     m.seekTimer = m.top.findNode("seekTimer")
     m.seekRepeatTimer = m.top.findNode("seekRepeatTimer")
     m.heldSeekKey = ""
@@ -44,7 +48,7 @@ sub init()
     m.top.observeField("playbackInfo", "onPlaybackInfo")
     m.top.observeField("chatIsVisible", "onChatVisibilityChange")
     m.top.observeField("chatEnabled", "refreshControls")
-    for each field in ["channelAvatar", "channelUsername", "videoTitle", "gameName", "viewerText", "contentKind"]
+    for each field in ["channelAvatar", "channelUsername", "videoTitle", "gameName", "viewerText", "contentKind", "liveStatus"]
         m.top.observeField(field, "onMetadataChange")
     end for
     m.overlayTimer.observeField("fire", "hideOverlay")
@@ -113,6 +117,10 @@ sub onMetadataChange()
     end if
     m.top.findNode("kindLabel").text = kind
     m.top.findNode("kindBackground").color = color
+    showBadge = m.top.contentKind <> "live" or m.top.liveStatus = "live"
+    m.top.findNode("kindLabel").visible = showBadge
+    m.top.findNode("kindBackground").visible = showBadge
+    m.top.findNode("viewerLabel").visible = showBadge
     refreshControls()
 end sub
 
@@ -142,6 +150,9 @@ sub onChatVisibilityChange()
 end sub
 
 sub onPlaybackInfo()
+    m.liveCheckClock = invalid
+    m.liveCheckLogin = ""
+    m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     m.top.streamEnded = false
     cancelPlaybackReload()
@@ -149,6 +160,8 @@ sub onPlaybackInfo()
     m.variants = []
     m.capabilities = invalid
     info = m.top.playbackInfo
+    m.top.liveStatus = "unknown"
+    applyPlaybackLiveStatus(info)
     if type(info) = "roAssociativeArray"
         if type(info.variants) = "roArray" then m.variants = info.variants
         if type(info.capabilities) = "roAssociativeArray" then m.capabilities = info.capabilities
@@ -369,6 +382,7 @@ sub onVideoStateChange()
         handlePlaybackTerminal(state)
     else if state = "playing"
         cancelLiveStatusCheck()
+        if m.top.contentKind = "live" then applyLiveStatus("live")
         m.attemptStarted = true
         m.attemptPlayed = true
         m.terminalTicks = 0
@@ -549,6 +563,13 @@ function beginLiveStatusCheck(reason as String) as Boolean
     if m.liveStatusTask <> invalid
         if m.liveStatusTask.state = "run" then return false
     end if
+    ' A run of failing variants must not issue one status request per quality.
+    if reason <> "ended-poll" and reason <> "reload-failed" and m.liveCheckClock <> invalid
+        if m.liveCheckLogin = info.login and m.liveCheckClock.TotalMilliseconds() < 15000 then return false
+    end if
+    m.liveCheckClock = CreateObject("roTimespan")
+    m.liveCheckClock.Mark()
+    m.liveCheckLogin = info.login
     cancelLiveStatusCheck()
     m.liveStatusTask = CreateObject("roSGNode", "GetLiveStatus")
     m.liveStatusTask.login = LCase(info.login)
@@ -558,7 +579,7 @@ function beginLiveStatusCheck(reason as String) as Boolean
     m.liveCheckReason = reason
     m.liveCheckTicks = 0
     m.liveCheckPending = true
-    showPlayerBusy()
+    if reason <> "ended-poll" then showPlayerBusy()
     m.watchdog.control = "start"
     m.liveStatusTask.control = "RUN"
     return true
@@ -578,15 +599,48 @@ sub onLiveStatusStopped()
     reason = m.liveCheckReason
     status = m.liveStatusTask.liveStatus
     m.liveCheckPending = false
-    finishLiveStatusCheck(status, reason)
+    viewers = invalid
+    if type(m.liveStatusTask.liveStream) = "roAssociativeArray" then viewers = m.liveStatusTask.liveStream.viewer_count
+    finishLiveStatusCheck(status, reason, viewers)
 end sub
 
-sub finishLiveStatusCheck(status as String, reason as String)
+sub applyLiveStatus(status, viewers = invalid)
+    if status <> "live" and status <> "offline" then return
+    m.top.liveStatus = status
     if status = "offline"
+        if m.top.viewerText <> "" then m.top.viewerText = ""
+    else if viewers <> invalid
+        count = playerSeconds(viewers)
+        label = Int(count).ToStr().Trim()
+        if count >= 1000000
+            label = (Int(count / 100000) / 10).ToStr().Trim() + "M"
+        else if count >= 1000
+            label = (Int(count / 100) / 10).ToStr().Trim() + "K"
+        end if
+        if m.top.viewerText <> label then m.top.viewerText = label
+    end if
+end sub
+
+sub applyPlaybackLiveStatus(info)
+    if m.top.contentKind <> "live" or type(info) <> "roAssociativeArray" then return
+    applyLiveStatus(info.liveStatus, info.viewerCount)
+end sub
+
+sub onEndedStatusPoll()
+    if not m.top.visible or not m.top.streamEnded or m.reloadPending then return
+    beginLiveStatusCheck("ended-poll")
+end sub
+
+sub finishLiveStatusCheck(status as String, reason as String, viewers = invalid)
+    applyLiveStatus(status, viewers)
+    if reason = "ended-poll"
+        m.watchdog.control = "stop"
+        renderEndedStatus()
+    else if status = "offline"
         showStreamEnded()
     else if reason = "reload-failed"
         if status = "unknown" and m.top.streamEnded
-            showStreamEnded()
+            showEndedScreen()
         else
             showPlaybackError(m.reloadError)
         end if
@@ -596,13 +650,28 @@ sub finishLiveStatusCheck(status as String, reason as String)
 end sub
 
 sub showStreamEnded()
+    applyLiveStatus("offline")
+    showEndedScreen()
+end sub
+
+sub showEndedScreen()
     stopPlayback()
     m.top.playbackError = ""
-    m.statusText.text = "Stream ended"
-    m.top.findNode("statusHint").text = "Refresh to try again"
-    m.statusBox.visible = true
-    ' Notify the scene once; a failed Refresh must not reopen or reset chat.
+    ' Notify the scene once; polling and failed Refresh must not reset chat.
     m.top.streamEnded = true
+    renderEndedStatus()
+    if m.top.visible then m.endedStatusTimer.control = "start"
+end sub
+
+sub renderEndedStatus()
+    if m.top.liveStatus = "live"
+        m.statusText.text = "Stream is live"
+        m.top.findNode("statusHint").text = "Refresh to watch"
+    else
+        m.statusText.text = "Stream ended"
+        m.top.findNode("statusHint").text = "Refresh to try again"
+    end if
+    m.statusBox.visible = true
 end sub
 
 sub recordPlaybackDiagnostic(reason as String, measuredBps = 0)
@@ -665,6 +734,7 @@ sub onDownloadedSegment()
 end sub
 
 sub showPlaybackError(message as String)
+    m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     m.top.streamEnded = false
     cancelCompatibility()
@@ -726,6 +796,7 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     cancelPlaybackReload()
     stopSeekHold()
@@ -1202,9 +1273,19 @@ sub onPlaybackReloadStopped()
         message = m.reloadTask.errorMessage
         if message = "" then message = "Could not reload this video. Press the reload button to retry."
         m.reloadError = message
+        applyPlaybackLiveStatus(info)
+        if m.top.contentKind = "live" and type(info) = "roAssociativeArray"
+            if info.liveStatus = "offline"
+                showStreamEnded()
+                return
+            else if info.liveStatus = "live"
+                showPlaybackError(message)
+                return
+            end if
+        end if
         if beginLiveStatusCheck("reload-failed") then return
         if m.top.streamEnded
-            showStreamEnded()
+            showEndedScreen()
             return
         end if
         showPlaybackError(message)

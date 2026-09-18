@@ -32,8 +32,8 @@ sub updateChatHeader()
     m.avatar.uri = m.top.channelAvatar
     ' Numeric formatting can reserve a leading space for the sign.
     m.viewers.text = m.top.viewerText.Trim()
-    m.liveBadge.visible = not m.top.streamEnded
-    m.viewers.visible = not m.top.streamEnded
+    m.liveBadge.visible = m.top.liveStatus = "live"
+    m.viewers.visible = m.liveBadge.visible
 end sub
 
 sub reloadContent()

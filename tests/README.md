@@ -47,16 +47,28 @@ chat reconnected and delivered messages. A paused VOD reloaded from 60.033 to
 a pending reload left the decoder closed after the request completed. Temporary
 tracing is excluded from the installed production build.
 
-Live termination has a separate ended state. Only a successful empty Twitch
-stream lookup confirms offline; network/authentication failures and malformed
-responses keep ordinary playback recovery. Status checks run only after a
-playback failure or stall, with a six-second player-side deadline and cancellation
-on Back, Refresh, resumed playback, or a new video. Tests cover decoder shutdown,
-ignored playback inputs, repeat Refresh while offline, successful restart,
-stale replies, VOD completion, and profile-only refresh on player exit. Chat
-starts closed for every new video, opens when a stream ends, and keeps its
-connection and messages through player Refresh. The ended header hides its
-LIVE badge and old viewer count.
+Broadcast status is shared by the player and chat; it is independent of the
+stopped-playback state. The existing playback-token query includes live status
+and viewer count. A confirmed offline response skips HLS resolution; missing,
+malformed, or partially failed responses never prove offline. Refresh reuses
+that status instead of issuing another lookup.
+
+Healthy playback has no periodic status requests. Failure checks have a
+six-second player-side deadline and a fifteen-second cooldown between failing
+qualities. While the ended screen is visible, one status check runs every
+15 seconds. A returning broadcast restores both LIVE badges and shows “Stream
+is live / Refresh to watch”; playback stays stopped until Refresh. Unknown
+responses preserve the last confirmed status. Back, Refresh, resumed playback,
+and new content reject stale replies and stop obsolete polling. Chat opens on
+stream end and keeps its connection and messages through checks and Refresh.
+
+Visible channel pages check status every 60 seconds, reusing each response to
+update the live card and viewer count. Adding or removing the card preserves
+the selected recording, loaded VODs, and pagination; metadata-only changes keep
+the existing grid. Hidden pages cancel polling. Deterministic tests cover these
+transitions, request coalescing, timeouts, unknown/stale responses, bundled
+playback status, decoder shutdown, ignored playback inputs, successful restart,
+VOD isolation, and profile-only refresh on player exit.
 
 On 2026-09-18, Roxton K806X / Roku OS 15.3.4 checks used a temporary
 terminal-event fixture while a real stream was playing. Its status lookup used
@@ -69,6 +81,16 @@ connection across both retries. A new playback session started with chat closed.
 Returning to Channels caused no content reload; returning from a profile's live
 card or a recording refreshed profile metadata and recordings. Test hooks and tracing are
 excluded from the production archive.
+
+The status-polling follow-up on the same device recorded ended-screen requests
+15 seconds apart and a profile check 60 seconds after initial metadata. Both
+badges followed confirmed offline/online results; the native decoder remained
+closed when the broadcast returned, then restarted only on Refresh. One chat
+connection survived the checks and both offline/online Refresh attempts. A
+controlled profile status change removed and restored the live card: the same
+recording moved from `[1,2]` to `[1,1]` and back, with all 24 VODs retained.
+These transitions use temporary fixtures, not a naturally observed broadcast
+ending. The final installed archive contains no fixture hooks or tracing.
 
 Landscape grids use 288-by-162 thumbnails with 14-pixel horizontal gaps:
 four cards and three gaps fill the 1194-pixel content width exactly. This leaves

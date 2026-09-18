@@ -4,6 +4,7 @@ end sub
 
 sub checkLiveStatus()
     m.top.liveStatus = "unknown"
+    m.top.liveStream = invalid
     login = m.top.login
     requestId = m.top.requestId
     if login = "" or m.top.cancelRequested then return
@@ -18,6 +19,9 @@ sub checkLiveStatus()
     else
         stream = response.data[0]
         if type(stream) <> "roAssociativeArray" then return
-        if stream.user_login = login and stream.type = "live" then m.top.liveStatus = "live"
+        if stream.user_login = login and stream.type = "live"
+            m.top.liveStream = stream
+            m.top.liveStatus = "live"
+        end if
     end if
 end sub

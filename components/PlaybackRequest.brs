@@ -7,14 +7,14 @@ function playbackTokenPayload(login as String, videoId as String, isVod as Boole
         query = "query PlaybackAccessToken($vodid: ID!) { videoPlaybackAccessToken(id: $vodid, " + params + ") { value signature } }"
         variables = {vodid: videoId}
     else
-        query = "query PlaybackAccessToken($login: String!) { streamPlaybackAccessToken(channelName: $login, " + params + ") { value signature } }"
+        query = "query PlaybackAccessToken($login: String!) { user(login: $login) { id stream { id viewersCount } } streamPlaybackAccessToken(channelName: $login, " + params + ") { value signature } }"
         variables = {login: login}
     end if
     return {operationName: "PlaybackAccessToken", query: query, variables: variables}
 end function
 
 function requestPlayback(login as String, videoId as String, isVod as Boolean) as Object
-    result = {masterUrl: "", variants: [], isLive: not isVod, login: login, videoId: videoId, initialIndex: -1, url: "", error: ""}
+    result = {masterUrl: "", variants: [], isLive: not isVod, login: login, videoId: videoId, initialIndex: -1, url: "", error: "", liveStatus: "unknown"}
     if m.top.cancelRequested then return result
     payload = playbackTokenPayload(login, videoId, isVod)
     transfer = createHttpUrl()
@@ -28,6 +28,15 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
         return result
     end if
     data = ParseJson(response.body)
+    if not isVod
+        result.liveStatus = playbackResponseLiveStatus(data)
+        if result.liveStatus = "offline"
+            result.error = "This stream is offline."
+            return result
+        else if result.liveStatus = "live"
+            result.viewerCount = data.data.user.stream.viewersCount
+        end if
+    end if
     token = invalid
     if type(data) = "roAssociativeArray"
         if type(data.data) = "roAssociativeArray"
@@ -78,4 +87,23 @@ function requestPlayback(login as String, videoId as String, isVod as Boolean) a
     end if
     result.url = variants[selected].url
     return result
+end function
+
+function playbackResponseLiveStatus(response) as String
+    if type(response) <> "roAssociativeArray" then return "unknown"
+    ' Partial GraphQL failures can null a field without proving offline.
+    if response.errors <> invalid
+        if type(response.errors) <> "roArray" then return "unknown"
+        if response.errors.Count() > 0 then return "unknown"
+    end if
+    if type(response.data) <> "roAssociativeArray" then return "unknown"
+    if not response.data.DoesExist("user") then return "unknown"
+    user = response.data.user
+    if user = invalid then return "offline"
+    if type(user) <> "roAssociativeArray" then return "unknown"
+    if not nonEmptyString(user.id) or not user.DoesExist("stream") then return "unknown"
+    if user.stream = invalid then return "offline"
+    if type(user.stream) <> "roAssociativeArray" then return "unknown"
+    if nonEmptyString(user.stream.id) then return "live"
+    return "unknown"
 end function

@@ -5,6 +5,7 @@
         <field id="requestId" type="integer" />
         <field id="cancelRequested" type="boolean" value="false" />
         <field id="liveStatus" type="string" value="unknown" />
+        <field id="liveStream" type="assocarray" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/GetLiveStatus.brs" />
     <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />

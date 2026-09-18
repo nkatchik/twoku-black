@@ -45,6 +45,8 @@ sub resetPlayer()
     m.liveStatusTask = invalid
     m.liveCheckId = 0
     m.liveCheckPending = false
+    m.liveCheckClock = invalid
+    m.liveCheckLogin = ""
     setSeekTime(0)
     m.compatibility = invalid
     m.compatRequestId = 0
@@ -56,6 +58,9 @@ sub resetPlayer()
     m.top.chatIsVisible = false
     m.top.playbackError = ""
     m.top.streamEnded = false
+    m.top.liveStatus = "unknown"
+    m.top.videoTitle = "Title"
+    m.top.gameName = ""
     m.top.playbackDiagnostics = {}
     m.top.visible = true
     m.top.thumbnailInfo = invalid
@@ -86,6 +91,7 @@ sub resetPlayer()
     m.pauseIndicator = playerNode()
     m.overlayTimer = playerNode()
     m.watchdog = playerNode()
+    m.endedStatusTimer = playerNode()
     m.seekTimer = playerNode()
     m.seekRepeatTimer = playerNode()
     m.heldSeekKey = ""
@@ -244,6 +250,7 @@ end sub
 
 sub main()
     testLiveEnd()
+    testStatusPolling()
     testControlFocus()
     resetPlayer()
     m.video.position = invalid
@@ -1058,4 +1065,81 @@ sub testLiveEnd()
     m.video.duration = 120
     onVideoStateChange()
     check(not m.liveCheckPending and not m.top.streamEnded and m.top.back, "Completed recordings retain normal return behavior without live status requests")
+end sub
+
+sub testStatusPolling()
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    onMetadataChange()
+    check(not m.top.findNode("kindLabel").visible and not m.top.findNode("viewerLabel").visible, "Unknown status never fabricates LIVE or a viewer count")
+    applyLiveStatus("live", 1234)
+    onMetadataChange()
+    check(m.top.findNode("kindBackground").visible and m.top.viewerText = "1.2K", "Confirmed live status displays the badge with fresh viewers")
+    showStreamEnded()
+    onMetadataChange()
+    check(m.endedStatusTimer.control = "start" and not m.top.findNode("kindLabel").visible and m.top.viewerText = "", "Ended state starts polling and clears both live indicators")
+    onEndedStatusPoll()
+    task = m.liveStatusTask
+    task.state = "run"
+    requestId = task.requestId
+    onEndedStatusPoll()
+    check(m.liveStatusTask.requestId = requestId and m.liveCheckPending, "Repeated timer events coalesce into one status request")
+    check(not m.busy.active and m.statusBox.visible and m.statusText.text = "Stream ended", "Background status checks do not replace the ended screen with a spinner")
+    task.liveStream = {viewer_count: 321}
+    completeLiveCheck("live")
+    check(m.top.liveStatus = "live" and m.top.viewerText = "321" and m.statusText.text = "Stream is live", "Returning broadcast updates status and invites Refresh")
+    check(m.top.streamEnded and not m.playbackActive and m.video.control = "stop" and m.endedStatusTimer.control = "start", "Online polling never restarts playback or stops watching broadcast status")
+    check(onKeyEvent("play", true) and m.video.control = "stop", "Returning broadcast still ignores Play until Refresh")
+    onEndedStatusPoll()
+    completeLiveCheck("unknown")
+    check(m.top.liveStatus = "live" and m.statusText.text = "Stream is live", "Unknown status preserves the last confirmed broadcast state")
+    onEndedStatusPoll()
+    completeLiveCheck("offline")
+    check(m.top.liveStatus = "offline" and m.top.viewerText = "" and m.statusText.text = "Stream ended", "A broadcast going offline again clears stale live metadata")
+    onEndedStatusPoll()
+    m.liveStatusTask.state = "run"
+    for tick = 1 to 6
+        checkPlaybackProgress()
+    end for
+    check(m.statusText.text = "Stream ended" and m.endedStatusTimer.control = "start" and not m.liveCheckPending, "Timed-out background checks retain the screen and subsequent poll schedule")
+    completeLiveCheck("live")
+    check(m.top.liveStatus = "offline", "Late timed-out results cannot restore LIVE")
+    stopPlayback()
+    m.top.visible = false
+    onEndedStatusPoll()
+    check(m.endedStatusTimer.control = "stop" and not m.liveCheckPending, "Hidden ended player stops polling")
+
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    check(beginLiveStatusCheck("native-error"), "First failure checks broadcast status")
+    completeLiveCheck("live")
+    check(not beginLiveStatusCheck("native-error"), "Failing quality ladder reuses its recent status check")
+    setSeekTime(15000)
+    check(beginLiveStatusCheck("native-error"), "Another status request is allowed after fifteen seconds")
+    completeLiveCheck("live")
+    m.top.playbackInfo = {login: "another"}
+    check(beginLiveStatusCheck("native-error"), "A new channel never inherits the previous channel cooldown")
+
+    for each status in ["live", "offline"]
+        resetPlayer()
+        m.top.playbackInfo = {login: "channel"}
+        showStreamEnded()
+        reloadContent()
+        m.reloadTask.state = "stop"
+        m.reloadTask.streamUrl = ""
+        m.reloadTask.errorMessage = "Download failed"
+        m.reloadTask.playbackInfo = {liveStatus: status, viewerCount: 900}
+        onPlaybackReloadStopped()
+        check(m.liveStatusTask = invalid and m.top.liveStatus = status, "Refresh reuses token-response status without a separate lookup")
+        if status = "offline"
+            check(m.top.streamEnded and m.endedStatusTimer.control = "start", "Offline token response resumes ended polling")
+        else
+            check(not m.top.streamEnded and m.top.playbackError = "Download failed", "Live token response distinguishes playback failure from stream end")
+        end if
+    end for
+    resetPlayer()
+    m.top.contentKind = "vod"
+    onMetadataChange()
+    check(m.top.findNode("kindLabel").visible and m.top.findNode("kindLabel").text = "VOD", "Recordings retain their badge independent of live status")
+    check(not beginLiveStatusCheck("native-error"), "Recordings never issue live status requests")
 end sub

@@ -28,6 +28,7 @@
     <script type="text/brightscript" uri="pkg:/components/GridPagination.brs" />
 
     <children>
+        <Timer id="liveStatusTimer" duration="60" repeat="true" />
         <Rectangle width="1280" height="720" color="0x08080AFF" />
         <Group id="header" translation="[43,36]">
             <Group id="profileImageMask">

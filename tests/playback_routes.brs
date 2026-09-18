@@ -144,15 +144,24 @@ sub testEndAndReturnRoutes()
     beginPlayback("https://video/live", {login: "streamer", variants: []}, "hls")
     check(not m.chatOpen and not m.chat.visible and not m.videoPlayer.chatIsVisible, "Opening another stream always resets chat to closed")
     m.videoPlayer.streamEnded = true
+    m.videoPlayer.liveStatus = "offline"
+    onPlayerLiveStatus()
     onPlayerStreamEnded()
     check(m.chatOpen and m.chat.visible and m.videoPlayer.chatIsVisible, "Confirmed stream end opens its chat")
-    check(m.chat.streamEnded, "End state reaches the chat header")
+    check(m.chat.liveStatus = "offline", "End state reaches the chat header")
     check(m.chat.channel = "streamer" and m.videoPlayer.hasFocus(), "Ended chat uses the same channel while the player keeps remote input")
+    m.videoPlayer.liveStatus = "live"
+    m.videoPlayer.viewerText = "123"
+    onPlayerLiveStatus()
+    check(m.chat.liveStatus = "live" and m.chat.viewerText = "123" and m.videoPlayer.streamEnded, "Return detection updates chat independently of the stopped playback latch")
+    check(m.chat.visible and m.chat.calls.Count() = 0, "Status changes preserve the chat session")
     reloadVisibleContent()
     check(m.chat.visible and m.chat.calls.Count() = 0, "Refreshing an ended stream leaves chat connected")
     m.videoPlayer.streamEnded = false
+    m.videoPlayer.liveStatus = "live"
+    onPlayerLiveStatus()
     onPlayerStreamEnded()
-    check(not m.chat.streamEnded and m.chat.visible and m.chat.calls.Count() = 0, "Successful Refresh restores live header without resetting chat")
+    check(m.chat.liveStatus = "live" and m.chat.visible and m.chat.calls.Count() = 0, "Successful Refresh restores live header without resetting chat")
     closePlayback()
     check(m.homeScene.calls.Count() = 1 and m.homeScene.calls[0] = "focusContent", "Returning to ordinary home grids preserves content and cursor")
     onPlayerStreamEnded()

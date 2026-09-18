@@ -6,7 +6,7 @@
         <field id="channelUsername" type="string" onChange="updateChatHeader" />
         <field id="channelAvatar" type="string" onChange="updateChatHeader" />
         <field id="viewerText" type="string" onChange="updateChatHeader" />
-        <field id="streamEnded" type="boolean" value="false" onChange="updateChatHeader" />
+        <field id="liveStatus" type="string" value="unknown" onChange="updateChatHeader" />
         <field id="control" type="boolean" onChange="onVideoChange" value="false" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/Chat.brs" />

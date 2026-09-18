@@ -20,9 +20,11 @@ sub main()
     checkLiveStatus()
     check(m.top.liveStatus = "live", "Matching live stream is confirmed online")
     check(m.requestUrl = "https://api.twitch.tv/helix/streams?user_login=channel", "Status lookup is limited to the current channel")
+    check(m.top.liveStream.user_login = "channel", "The same request supplies live-card metadata")
     m.response = {data: []}
     checkLiveStatus()
     check(m.top.liveStatus = "offline", "Successful empty stream list confirms offline")
+    check(m.top.liveStream = invalid, "Offline clears the previous live metadata")
     m.cancelDuringRequest = true
     checkLiveStatus()
     check(m.top.liveStatus = "unknown", "Cancellation rejects an offline response arriving after Back or Refresh")

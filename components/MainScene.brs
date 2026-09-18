@@ -32,6 +32,8 @@ function init()
     m.videoPlayer.observeField("channelRequested", "onPlayerChannelRequested")
     m.videoPlayer.observeField("qualityPreference", "onQualityPreference")
     m.videoPlayer.observeField("streamEnded", "onPlayerStreamEnded")
+    m.videoPlayer.observeField("liveStatus", "onPlayerLiveStatus")
+    m.videoPlayer.observeField("viewerText", "onPlayerLiveStatus")
 
     m.top.backgroundColor = "0x08080AFF"
     m.top.backgroundUri = ""
@@ -395,10 +397,14 @@ sub onToggleChat()
 end sub
 
 sub onPlayerStreamEnded()
-    m.chat.streamEnded = m.videoPlayer.streamEnded
     if not m.videoPlayer.visible or not m.videoPlayer.streamEnded or m.playbackKind <> "live" then return
     m.chatOpen = true
     onToggleStreamLayout()
+end sub
+
+sub onPlayerLiveStatus()
+    m.chat.liveStatus = m.videoPlayer.liveStatus
+    m.chat.viewerText = m.videoPlayer.viewerText
 end sub
 
 sub onToggleStreamLayout()
@@ -479,7 +485,7 @@ sub beginPlayback(url as String, info as Dynamic, streamFormat as String)
     m.playbackFromProfile = m.homeScene.visible and m.homeScene.channelPageVisible
     m.chatOpen = false
     m.chat.visible = false
-    m.chat.streamEnded = false
+    m.videoPlayer.liveStatus = "unknown"
     m.videoPlayer.chatIsVisible = false
     m.homeScene.visible = false
     m.categoryScene.visible = false

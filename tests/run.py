@@ -61,7 +61,7 @@ suites = {
     'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'categorypage': (ROOT / 'components/CategoryScene.brs').read_text(),
     'channelpage': (ROOT / 'components/ChannelPage.brs').read_text(),
-    'playback_routes': functions('MainScene.brs', ['onKeyEvent', 'closeLoginPage', 'reloadVisibleContent', 'reloadFollowing', 'onUserStopped', 'beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onPlayerStreamEnded', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
+    'playback_routes': functions('MainScene.brs', ['onKeyEvent', 'closeLoginPage', 'reloadVisibleContent', 'reloadFollowing', 'onUserStopped', 'beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onPlayerStreamEnded', 'onPlayerLiveStatus', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:

@@ -4,6 +4,10 @@ sub init()
     m.playbackRequestId = 0
     m.playbackPending = false
     m.liveItem = invalid
+    m.channelLiveTask = invalid
+    m.channelLiveRequestId = 0
+    m.liveStatusTimer = m.top.findNode("liveStatusTimer")
+    m.liveStatusTimer.observeField("fire", "onChannelLivePoll")
     m.playbackStatus = m.top.findNode("playbackStatus")
     m.top.focusable = true
     m.avatar = m.top.findNode("avatar")
@@ -47,6 +51,7 @@ end function
 sub reloadContent()
     if not channelVisible() then return
     m.reloadPending = true
+    cancelChannelLiveCheck()
     cancelPlaybackRequest()
     m.busy.active = true
     tryReloadContent()
@@ -76,11 +81,17 @@ end sub
 sub onGetFocus()
     m.busy.enabled = channelVisible()
     if not channelVisible() then m.reloadPending = false
-    if not channelVisible() then cancelPlaybackRequest()
+    if not channelVisible()
+        cancelPlaybackRequest()
+        cancelChannelLiveCheck()
+    else if m.userId <> ""
+        m.liveStatusTimer.control = "start"
+    end if
     focusContent()
 end sub
 
 sub onSelectedStreamerChange()
+    cancelChannelLiveCheck()
     cancelPlaybackRequest()
     m.username.text = m.top.streamerSelectedName
     m.avatar.uri = ""
@@ -137,6 +148,7 @@ sub onGetUserInfo()
     m.followers.text = channelFollowerLabel(user.followers)
     m.top.streamDurationSeconds = m.getUserChannel.streamDurationSeconds
     m.liveItem = channelLiveItem(user.live_stream)
+    if channelVisible() then m.liveStatusTimer.control = "start"
     renderChannelItems()
     getVideos()
 end sub
@@ -293,7 +305,13 @@ sub onGetLiveUrl()
     m.playbackPending = false
     m.busy.active = false
     if not channelVisible() or m.videoLogin <> m.top.streamerSelectedName then return
-    if m.getLivePlayback.streamUrl = "" then return
+    if m.getLivePlayback.streamUrl = ""
+        info = m.getLivePlayback.playbackInfo
+        if type(info) = "roAssociativeArray"
+            if info.liveStatus = "offline" then updateChannelLiveItem(invalid)
+        end if
+        return
+    end if
     m.top.playbackInfo = m.getLivePlayback.playbackInfo
     m.top.streamUrl = m.getLivePlayback.streamUrl
 end sub
@@ -357,3 +375,67 @@ end function
 function channelVisible() as Boolean
     return m.top.visible and m.top.parentVisible
 end function
+
+sub cancelChannelLiveCheck()
+    m.liveStatusTimer.control = "stop"
+    m.channelLiveRequestId += 1
+    if m.channelLiveTask <> invalid then m.channelLiveTask.cancelRequested = true
+end sub
+
+sub onChannelLivePoll()
+    if not channelVisible() or m.userId = "" then return
+    if m.channelLoading or m.reloadPending or m.playbackPending then return
+    if m.getUserChannel.state = "run" then return
+    if m.channelLiveTask <> invalid
+        if m.channelLiveTask.state = "run" then return
+    end if
+    m.channelLiveRequestId += 1
+    m.channelLiveTask = CreateObject("roSGNode", "GetLiveStatus")
+    m.channelLiveTask.login = LCase(m.top.streamerSelectedName)
+    m.channelLiveTask.requestId = m.channelLiveRequestId
+    m.channelLiveTask.cancelRequested = false
+    m.channelLiveTask.observeField("state", "onChannelLiveStatus")
+    m.channelLiveTask.control = "RUN"
+end sub
+
+sub onChannelLiveStatus()
+    task = m.channelLiveTask
+    if task = invalid or not channelVisible() then return
+    if task.state <> "stop" or task.cancelRequested then return
+    if task.requestId <> m.channelLiveRequestId or task.login <> LCase(m.top.streamerSelectedName) then return
+    if task.liveStatus = "live"
+        updateChannelLiveItem(task.liveStream)
+    else if task.liveStatus = "offline"
+        updateChannelLiveItem(invalid)
+    end if
+end sub
+
+sub updateChannelLiveItem(stream)
+    previous = m.liveItem
+    m.liveItem = channelLiveItem(stream)
+    if previous = invalid and m.liveItem = invalid then return
+    if previous <> invalid and m.liveItem <> invalid
+        ' Metadata changes leave the grid and its current scroll position intact.
+        m.pastBroadcastsList.content.getChild(0).replaceChild(m.liveItem, 0)
+        return
+    end if
+    ' Adding/removing the leading live card shifts VOD indexes by one. Keep the
+    ' same recording selected and leave its pagination/request state untouched.
+    index = 0
+    position = m.pastBroadcastsList.rowItemFocused
+    if position.Count() = 2 then index = position[0] * 4 + position[1]
+    if previous = invalid
+        if m.videoItems.Count() > 0 then index += 1
+    else if index > 0
+        index -= 1
+    end if
+    renderChannelItems()
+    count = m.videoItems.Count()
+    if m.liveItem <> invalid then count += 1
+    if count > 0
+        if index >= count then index = count - 1
+        m.pastBroadcastsList.jumpToRowItem = [Int(index / 4), index MOD 4]
+    else if channelVisible()
+        focusContent()
+    end if
+end sub

@@ -48,6 +48,7 @@ sub resetRequests()
 end sub
 
 sub main()
+    testBundledLiveStatus()
     resetRequests()
     g = GetGlobalAA()
     q = Chr(34)
@@ -118,4 +119,26 @@ sub main()
     result = requestPlayback("demo", "", false)
     check(g.requests.Count() = 1 and result.url = "", "canceled playback cannot publish or continue resolution")
     print "PASS bounded anonymous playback requests, raw query variables, failures and cancellation"
+end sub
+
+sub testBundledLiveStatus()
+    resetRequests()
+    g = GetGlobalAA()
+    query = playbackTokenPayload("channel", "", false)
+    check(Instr(1, query.query, "user(login: $login)") > 0 and Instr(1, query.query, "viewersCount") > 0, "Existing token request also fetches broadcast status and viewers")
+    for each user in [invalid, {id: "123", stream: invalid}]
+        resetRequests()
+        g.responses = [{code: 200, body: FormatJson({data: {user: user}}), error: ""}]
+        result = requestPlayback("channel", "", false)
+        check(result.liveStatus = "offline" and result.url = "" and g.requests.Count() = 1, "Confirmed offline avoids both a separate status query and the HLS master request")
+    end for
+    for each response in [invalid, {}, {data: {}}, {data: {user: {}}}, {data: {user: {id: "1"}}}, {data: {user: {id: "1", stream: {}}}}, {errors: [{message: "Failed"}], data: {user: invalid}}, {errors: "invalid", data: {user: invalid}}]
+        check(playbackResponseLiveStatus(response) = "unknown", "Missing, malformed and partially failed responses never prove offline")
+    end for
+    resetRequests()
+    live = {user: {id: "1", stream: {id: "2", viewersCount: 123}}, streamPlaybackAccessToken: {value: "token", signature: "sig"}}
+    g.responses = [{code: 200, body: FormatJson({data: live}), error: ""}, {code: 503, body: "", error: "HTTP 503"}]
+    result = requestPlayback("channel", "", false)
+    check(result.liveStatus = "live" and result.viewerCount = 123 and result.url = "", "Master failure retains authoritative live status and viewers from the token response")
+    check(g.requests.Count() = 2, "Live status adds no network request to token and master resolution")
 end sub
