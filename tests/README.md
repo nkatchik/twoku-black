@@ -104,11 +104,18 @@ returning to the header when there is no content. These tests do not validate
 Roku scheduling, rendering, remote input delivery, or playback.
 
 QR checks cover the exact prefilled activation link, preserved query parameters,
-local rendering, integer module sizes, the four-module quiet zone, image allocation
-failure, and hiding expired or cancelled codes. The emitted pixels match frozen
+local rendering, integer module sizes, the three-module white border, rounded card
+corners with partial alpha coverage and no excess white padding, image allocation
+failure, and hiding expired or cancelled codes. The code modules match frozen
 Nayuki qrcodegen 1.8.0 reference matrices. For an independent decoder check, install `pillow` and
 `zxing-cpp` in an isolated environment, run the suites, then run
 `python tests/verify_qr.py /tmp/twoku-qr-test-output.txt --decode`.
+On Roxton K806X / Roku OS 15.3.4, the rounded card reduced the current activation
+code's border from 48 to 24 pixels. This slimmer three-module margin is below the
+usual four-module recommendation; independent decoding covers full and half size.
+Native screenshots confirmed blended corner edges, and an independent decoder
+read the prefilled Twitch activation link. The temporary login preview preserved
+the saved account and is excluded from the installed production build.
 
 Login suites cover device grant validation, approval polling, slow-down, expiry,
 cancellation during polling and validation, late task results, retry, validated

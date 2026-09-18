@@ -30,11 +30,13 @@ sub main()
     for each uri in urls
         filename = createLoginQr(uri, "tmp:/test-qr.png")
         check(filename = "tmp:/test-qr.png", "Activation QR is rendered locally")
-        check(g.draws[0][2] = 360 and g.draws[0][4] = &hFFFFFFFF, "Opaque white background surrounds the code")
+        check(g.draws[0][2] = 360 and g.draws[0][4] = &hFFFFFF00, "Unused canvas is transparent")
         for index = 1 to g.draws.count() - 1
             rect = g.draws[index]
-            check(rect[0] >= rect[2] * 4 and rect[1] >= rect[3] * 4, "At least four white modules before the code")
-            check(rect[0] + rect[2] * 5 <= 360 and rect[1] + rect[3] * 5 <= 360, "At least four white modules after the code")
+            if rect[4] = &h000000FF
+                check(rect[0] >= rect[2] * 3 and rect[1] >= rect[3] * 3, "At least three white modules before the code")
+                check(rect[0] + rect[2] * 4 <= 360 and rect[1] + rect[3] * 4 <= 360, "At least three white modules after the code")
+            end if
         end for
         print "QR_FIXTURE " + FormatJson({url: uri, draws: g.draws})
     end for
