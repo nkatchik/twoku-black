@@ -255,7 +255,7 @@ sub testControlFocus()
 end sub
 
 sub main()
-    testPlaybackQualityBadge()
+    testPlaybackQualityButton()
     testManualRetries()
     testLiveEnd()
     testStatusPolling()
@@ -1238,53 +1238,80 @@ sub testManualRetries()
     check(m.top.back and not m.playbackActive and m.pendingContent = invalid and m.video.control <> "play", "Back cancels a queued manual retry before it can restart")
 end sub
 
-sub testPlaybackQualityBadge()
+function qualityButtonText() as String
+    button = m.buttonNodes[m.buttonNodes.Count() - 1]
+    return button.children[0].text
+end function
+
+sub testPlaybackQualityButton()
     resetPlayer()
     m.top.viewerText = "12.3K"
     onMetadataChange()
-    badge = m.top.findNode("playingQualityBadge")
-    label = m.top.findNode("playingQualityLabel")
-    check(not badge.visible, "No quality is advertised before the decoder plays")
+    check(qualityButtonText() = "Quality", "No quality is advertised before the decoder plays")
     m.video.state = "playing"
     onVideoStateChange()
-    check(badge.visible and label.text = "720p" and m.preference = "Auto", "Badge shows the actual rendition while Auto is selected")
+    check(qualityButtonText() = "Auto · 720p" and m.preference = "Auto", "Quality button shows the actual rendition while Auto is selected")
     m.top.viewerText = "12.4K"
     onMetadataChange()
-    check(label.text = "720p" and m.top.findNode("viewerLabel").text = "12.4K" and m.top.viewerText = "12.4K", "Quality badge stays separate from viewer and chat metadata")
+    check(qualityButtonText() = "Auto · 720p" and m.top.findNode("viewerLabel").text = "12.4K" and m.top.viewerText = "12.4K", "Playing quality stays separate from viewer and chat metadata")
     showQuality()
     m.qualityIndex = 1
     renderQuality()
-    check(label.text = "720p", "Browsing the quality menu cannot change the reported playing variant")
+    check(qualityButtonText() = "Auto · 720p" and m.qualityName.text = "1080p60 (source)", "Browsing the menu preserves its source designation without changing the playing quality")
     recoverPlayback("native-error", true)
-    check(not badge.visible and m.playingIndex = 2, "Auto switching hides the old rendition while the new decoder is pending")
+    check(qualityButtonText() = "Quality" and m.playingIndex = 2, "Auto switching hides the old rendition while the new decoder is pending")
     finishDecoderStop()
     m.video.state = "playing"
     onVideoStateChange()
-    check(badge.visible and label.text = "480p", "Automatic fallback updates the actual quality when playback starts")
-    m.video.state = "paused"
+    check(qualityButtonText() = "Auto · 480p", "Automatic fallback updates the actual quality when playback starts")
+    for each state in ["paused", "buffering", "stopped"]
+        m.video.state = state
+        onVideoStateChange()
+        check(qualityButtonText() = "Quality", "Non-playing states show the plain Quality control")
+    end for
+    m.video.state = "playing"
     onVideoStateChange()
-    check(m.activeQualityName = "480p", "Pausing preserves the current rendition")
+    check(qualityButtonText() = "Auto · 480p", "Resuming playback restores the actual quality")
     showPlaybackError("Failed")
-    check(not badge.visible and m.activeQualityName = "", "Terminal playback failure hides stale playing quality")
+    check(qualityButtonText() = "Quality" and m.activeQualityName = "", "Terminal playback failure clears stale playing quality")
+
+    for each kind in ["live", "vod", "clip"]
+        resetPlayer()
+        m.top.contentKind = kind
+        m.video.state = "playing"
+        onVideoStateChange()
+        check(qualityButtonText() = "Auto · 720p", "Every media kind displays its playing quality")
+        m.qualityIndex = 1
+        applyQuality()
+        finishDecoderStop()
+        m.video.state = "playing"
+        onVideoStateChange()
+        check(qualityButtonText() = "1080p60", "Manual playback omits Auto and the source suffix from the control")
+        showQuality()
+        check(m.qualityName.text = "1080p60 (source)", "Source remains visible in the selection menu")
+        m.preference = "Auto"
+        refreshControls()
+        check(qualityButtonText() = "Auto · 1080p60", "Auto playback also omits the source suffix")
+        button = m.buttonNodes[m.buttonNodes.Count() - 1]
+        label = button.children[0]
+        check(button.width >= label.localBoundingRect().width + 40 and label.translation[0] = button.width / 2, "Long quality names have symmetric padding and stay centered in the button")
+        expectedX = 148
+        if kind = "live" then expectedX = 296
+        check(button.translation[0] = expectedX and m.qualityPanel.translation[0] = 42 + expectedX, "Quality menu stays anchored to the control with or without Chat")
+        stopPlayback()
+        check(qualityButtonText() = "Quality", "Stopping playback clears quality for the next video")
+    end for
 
     resetPlayer()
-    m.top.contentKind = "vod"
     m.video.state = "playing"
     onVideoStateChange()
-    check(m.top.findNode("playingQualityLabel").text = "720p", "Recordings display their playing quality too")
-    m.qualityIndex = 1
-    applyQuality()
-    finishDecoderStop()
-    m.video.state = "playing"
-    onVideoStateChange()
-    check(m.top.findNode("playingQualityLabel").text = "1080p60 (source)", "Manual quality changes report the playing source label")
-    stopPlayback()
-    check(not m.top.findNode("playingQualityBadge").visible, "Stopping playback hides quality for the next video")
-
-    resetPlayer()
     m.variants = []
     m.playingIndex = -1
-    m.video.state = "playing"
     onVideoStateChange()
-    check(not m.top.findNode("playingQualityBadge").visible, "Missing quality information never fabricates an Auto or unknown badge")
+    check(qualityButtonText() = "Quality", "Missing quality information cannot retain a previous rendition")
+    for each unknown in [invalid, "", "   "]
+        m.activeQualityName = unknown
+        refreshControls()
+        check(qualityButtonText() = "Quality", "Unknown quality never fabricates an Auto label")
+    end for
 end sub

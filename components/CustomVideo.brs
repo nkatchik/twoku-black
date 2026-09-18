@@ -126,16 +126,16 @@ sub onMetadataChange()
     refreshControls()
 end sub
 
-sub renderPlaybackQuality()
-    badge = m.top.findNode("playingQualityBadge")
-    badge.visible = m.activeQualityName <> ""
-    label = m.top.findNode("playingQualityLabel")
-    label.text = m.activeQualityName
-    if not badge.visible then return
-    width = label.localBoundingRect().width + 24
-    m.top.findNode("playingQualityBackground").width = width
-    label.translation = [width / 2,18]
-end sub
+function playbackQualityLabel() as String
+    if not m.playbackActive or m.video.state <> "playing" then return "Quality"
+    if GetInterface(m.activeQualityName, "ifString") = invalid then return "Quality"
+    label = m.activeQualityName.Trim()
+    ' Keep Twitch's source designation in the menu, not the compact control.
+    if Right(LCase(label), 9) = " (source)" then label = Left(label, Len(label) - 9).Trim()
+    if label = "" then return "Quality"
+    if m.preference = "Auto" then label = "Auto · " + label
+    return label
+end function
 
 sub onChatVisibilityChange()
     surfaceWidth = 1280
@@ -164,7 +164,7 @@ end sub
 
 sub onPlaybackInfo()
     m.activeQualityName = ""
-    renderPlaybackQuality()
+    refreshControls()
     m.liveCheckClock = invalid
     m.liveCheckLogin = ""
     m.endedStatusTimer.control = "stop"
@@ -212,7 +212,7 @@ end sub
 
 sub onRequestedContent()
     m.activeQualityName = ""
-    renderPlaybackQuality()
+    refreshControls()
     cancelCompatibility()
     m.pendingContent = m.top.content
     m.startRequested = false
@@ -378,6 +378,7 @@ end sub
 
 sub onVideoStateChange()
     state = m.video.state
+    if state <> "playing" then refreshControls()
     ' Shutdown completion must be consumed even after Back hides this component.
     if m.decoderStopPending and state = "stopped"
         m.decoderStopPending = false
@@ -403,10 +404,11 @@ sub onVideoStateChange()
         if m.top.contentKind = "live" then applyLiveStatus("live")
         m.attemptStarted = true
         m.attemptPlayed = true
+        m.activeQualityName = ""
         if m.playingIndex >= 0 and m.playingIndex < m.variants.Count()
             m.activeQualityName = m.variants[m.playingIndex].name
-            renderPlaybackQuality()
         end if
+        refreshControls()
         m.terminalTicks = 0
         rememberPlaybackPosition()
         m.bufferTicks = 0
@@ -771,7 +773,7 @@ end sub
 
 sub showPlaybackError(message as String)
     m.activeQualityName = ""
-    renderPlaybackQuality()
+    refreshControls()
     m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     m.top.streamEnded = false
@@ -794,7 +796,7 @@ end sub
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
     m.activeQualityName = ""
-    renderPlaybackQuality()
+    refreshControls()
     cancelLiveStatusCheck()
     stopSeekHold()
     selected = m.variants[index]
@@ -837,7 +839,7 @@ end sub
 
 sub stopPlayback()
     m.activeQualityName = ""
-    renderPlaybackQuality()
+    refreshControls()
     m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     cancelPlaybackReload()
@@ -909,31 +911,31 @@ sub refreshControls()
         labels.Push("Chat")
     end if
     m.controlActions.Push("quality")
-    labels.Push("Quality")
+    labels.Push(playbackQualityLabel())
     if m.controlIndex >= labels.Count() then m.controlIndex = labels.Count() - 1
     if m.controlIndex < 0 then m.controlIndex = 0
     x = 0
     for index = 0 to labels.Count() - 1
         button = CreateObject("roSGNode", "Rectangle")
         button.translation = [x, 0]
-        button.width = 132
         button.height = 40
         label = CreateObject("roSGNode", "SimpleLabel")
-        ' Offset the system font's extra descent to center the visible text.
-        label.translation = [66, 22]
         label.horizOrigin = "center"
         label.vertOrigin = "center"
         label.text = labels[index]
         label.fontUri = "font:BoldSystemFontFile"
         label.fontSize = 17
+        button.width = 132
+        textWidth = label.localBoundingRect().width + 40
+        if textWidth > button.width then button.width = textWidth
+        ' Offset the system font's extra descent to center the visible text.
+        label.translation = [button.width / 2, 22]
         applyButtonFocus(button, button, label, index = m.controlIndex and m.overlayFocus = "buttons")
         button.appendChild(label)
         m.controls.appendChild(button)
         m.buttonNodes.Push(button)
-        x += 148
+        x += button.width + 16
     end for
-    ' Last button ends at x - 16; leave a 24px gap before the informational badge.
-    m.top.findNode("playingQualityBadge").translation = [42 + x + 8,658]
     m.progress.visible = seekable
     m.seekFocus.visible = m.overlayFocus = "seek" and seekable
 end sub
@@ -947,7 +949,7 @@ end sub
 
 sub showQuality()
     for index = 0 to m.controlActions.Count() - 1
-        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + index * 148,454]
+        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + m.buttonNodes[index].translation[0],454]
     end for
     m.qualityIndex = 0
     if m.preference <> "Auto"

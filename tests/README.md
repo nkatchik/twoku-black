@@ -59,11 +59,18 @@ the retry budget. Brief successful playback does not replenish it. Tests cover
 native errors, buffering/stall timeouts, relay failures, decoder shutdown, VOD/clip
 position, a single available variant, confirmed stream endings, and Back cancellation.
 
-The player quality badge follows the decoder's playing variant, including Auto
-fallback and manual changes. Browsing the quality menu does not change the badge.
-It stays beside the available player buttons and hides before playback starts,
-during variant changes, when quality metadata is absent, and after playback stops.
-Viewer/chat metadata stays separate. Font checks include the menu's ▲/▼ glyphs.
+The Quality button follows the decoder's playing variant, including Auto fallback
+and manual changes. It displays `Auto · 1080p60` or `1080p60`, with the source
+suffix retained only in the selection menu. Browsing the menu does not change the
+button's quality. Non-playing states and missing metadata show `Quality`. Tests
+cover live/VOD/clip playback, transitions, centered text with room to grow, and
+menu alignment with and without Chat. Viewer/chat metadata stays separate.
+Font checks include the menu's ▲/▼ glyphs. Native Roxton checks on 2026-09-18
+confirmed the narrower menu and enlarged arrows with the full source label,
+manual `1080p60`, Auto fallback from `Auto · 1080p60` to `Auto · 720p60`, and
+`Quality` while switching or a VOD is paused. ECP confirmed live/VOD playback
+and native pause. Temporary fallback hooks and preference-write suppression
+were confined to the validation ZIP.
 
 On 2026-09-18, a temporary Roxton fixture supplied an unreachable native playback
 URL for the selected quality. Console traces confirmed exactly three attempts,
