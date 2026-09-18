@@ -82,8 +82,10 @@ sub resetPlayer()
     m.decoderStopPending = false
     m.overlay = playerNode()
     m.qualityPanel = playerNode()
+    m.top.findNode("qualityBackground").width = 376
     m.qualityName = playerNode()
     m.controls = playerNode()
+    m.controls.translation = [42,654]
     m.progress = playerNode()
     m.progressTrack = playerNode()
     m.progressFill = playerNode()
@@ -1297,9 +1299,15 @@ sub testPlaybackQualityButton()
         check(button.width >= label.localBoundingRect().width + 40 and label.translation[0] = button.width / 2, "Long quality names have symmetric padding and stay centered in the button")
         expectedX = 148
         if kind = "live" then expectedX = 296
-        check(button.translation[0] = expectedX and m.qualityPanel.translation[0] = 42 + expectedX, "Quality menu stays anchored to the control with or without Chat")
+        buttonCenter = m.controls.translation[0] + expectedX + button.width / 2
+        panelCenter = m.qualityPanel.translation[0] + m.top.findNode("qualityBackground").width / 2
+        check(button.translation[0] = expectedX and panelCenter = buttonCenter, "Open quality menu stays centered when the button grows, with or without Chat")
         stopPlayback()
         check(qualityButtonText() = "Quality", "Stopping playback clears quality for the next video")
+        button = m.buttonNodes[m.buttonNodes.Count() - 1]
+        buttonCenter = m.controls.translation[0] + expectedX + button.width / 2
+        panelCenter = m.qualityPanel.translation[0] + m.top.findNode("qualityBackground").width / 2
+        check(panelCenter = buttonCenter, "Quality menu follows the center when the button shrinks")
     end for
 
     resetPlayer()

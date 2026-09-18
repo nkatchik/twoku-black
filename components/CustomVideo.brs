@@ -934,6 +934,11 @@ sub refreshControls()
         button.appendChild(label)
         m.controls.appendChild(button)
         m.buttonNodes.Push(button)
+        if m.controlActions[index] = "quality"
+            ' Keep the popup centered as the playing quality changes the button width.
+            panelWidth = m.top.findNode("qualityBackground").width
+            m.qualityPanel.translation = [m.controls.translation[0] + x + (button.width - panelWidth) / 2,454]
+        end if
         x += button.width + 16
     end for
     m.progress.visible = seekable
@@ -948,9 +953,6 @@ sub renderQuality()
 end sub
 
 sub showQuality()
-    for index = 0 to m.controlActions.Count() - 1
-        if m.controlActions[index] = "quality" then m.qualityPanel.translation = [42 + m.buttonNodes[index].translation[0],454]
-    end for
     m.qualityIndex = 0
     if m.preference <> "Auto"
         for index = 0 to m.variants.Count() - 1
