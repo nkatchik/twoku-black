@@ -95,6 +95,16 @@ Channel was visibly selected on entry and the controls remained responsive.
 Native screenshots also verified player button and LIVE badge centering in the
 player, profile, and chat, with the red avatar backing removed from chat.
 
+Account/header and player controls share a centered 10% focus enlargement.
+The account page keeps its former 260-by-64 Log Out size as the selected size,
+with smaller resting buttons and Back selected initially. Account navigation
+checks cover Up/Down, OK on each action, ignored key releases, and Back preserving
+credentials and authentication state. On 2026-09-18, Roxton screenshots verified
+header enlargement, selection moving between player buttons, both account
+button states, and compact profile duration badges. Activating the new Back
+button returned to browsing with the account still signed in; Log Out itself
+was exercised only by the deterministic tests.
+
 Font coverage and packaging references have a separate asset check:
 `python tests/fonts.py` with `fonttools==4.65.0`. See
 [fonts/README.md](../fonts/README.md) for setup and reproducible generation.
@@ -188,11 +198,11 @@ token refresh, playback, and the revised layout still need their own verificatio
 3. Switch tabs while loading; try an empty result and a category with fewer than
    seven entries. Confirm rows render and the header remains reachable.
 4. Return from Search to Home and confirm focus reaches the header or grid.
-5. Select Login and scan the QR with your phone. Confirm Twitch opens with the
+5. Select Log In and scan the QR with your phone. Confirm Twitch opens with the
    code already filled in, then approve Twellie. Also check manual code entry.
    Confirm Home shows your username, Following shows live/offline follows. An account with no live
    followed channels should retain usable header or offline-grid focus.
-6. Press Back while awaiting approval, then reopen Login. Confirm the cancelled
+6. Press Back while awaiting approval, then reopen Log In. Confirm the cancelled
    attempt cannot complete the new one and a fresh code appears. Let a code expire
    and press OK to retry. Try login with the network disconnected: an error must
    replace the waiting state, never HTML in the code label.

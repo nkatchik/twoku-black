@@ -10,7 +10,7 @@ end sub
 function getSearchResults() as Object
     identity = restoreUserSession()
     if identity = invalid
-        m.top.errorMessage = "Could not restore your Twitch session. Open Login to sign in again."
+        m.top.errorMessage = "Could not restore your Twitch session. Open Log In to sign in again."
         return invalid
     end if
     result = {id: identity.user_id, login: identity.login, display_name: identity.login, profile_image_url: "", followed_users: []}

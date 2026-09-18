@@ -24,6 +24,7 @@ function init()
     m.categoryScene.observeField("clipUrl", "onClipChange")
 
     m.loginPage.observeField("finished", "onLoginFinish")
+    m.loginPage.observeField("backRequested", "onLoginBack")
     m.loginPage.observeField("logoutRequested", "onLogoutRequested")
 
     m.videoPlayer.observeField("back", "onVideoPlayerBack")
@@ -119,6 +120,17 @@ sub onLoginFinish()
         focusHome()
         m.loginPage.finished = false
     end if
+end sub
+
+sub onLoginBack()
+    if m.loginPage.visible and m.loginPage.backRequested then closeLoginPage()
+end sub
+
+sub closeLoginPage()
+    m.loginPage.backRequested = false
+    m.loginPage.visible = false
+    m.homeScene.visible = true
+    focusHome()
 end sub
 
 sub startAuthentication()
@@ -420,9 +432,7 @@ function onKeyEvent(key, press) as Boolean
         return false
     end if
     if m.loginPage.visible and key = "back"
-        m.loginPage.visible = false
-        m.homeScene.visible = true
-        focusHome()
+        closeLoginPage()
         return true
     end if
     if (m.keyboardGroup.visible or m.categoryScene.visible) and key = "back"

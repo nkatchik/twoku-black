@@ -3,6 +3,10 @@ sub init()
     m.pendingView = m.top.findNode("pendingView")
     m.accountView = m.top.findNode("accountView")
     m.accountLabel = m.top.findNode("accountLabel")
+    m.logoutButton = m.top.findNode("logoutButton")
+    m.logoutLabel = m.top.findNode("logoutLabel")
+    m.backButton = m.top.findNode("backButton")
+    m.backLabel = m.top.findNode("backLabel")
     m.busy = m.top.findNode("busy")
     m.code = m.top.findNode("code")
     m.qr = m.top.findNode("qr")
@@ -85,6 +89,7 @@ sub onVisible()
     m.busy.enabled = m.top.visible
     if m.top.visible
         m.top.logoutRequested = false
+        m.top.backRequested = false
         if m.top.accountName <> ""
             showAccount()
         else
@@ -109,12 +114,34 @@ sub showAccount()
     m.pendingView.visible = false
     m.accountView.visible = true
     m.accountLabel.text = "Logged in as " + m.top.accountName
+    m.accountIndex = 1
+    updateAccountFocus()
+end sub
+
+sub updateAccountFocus()
+    ' The existing 260-by-64 button is the selected size on this page.
+    applyButtonFocus(m.logoutButton, m.logoutButton, m.logoutLabel, m.accountIndex = 0, 1.0)
+    applyButtonFocus(m.backButton, m.backButton, m.backLabel, m.accountIndex = 1, 1.0)
 end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if m.top.accountName <> ""
-        if press and key = "OK" then m.top.logoutRequested = true
-        return key <> "back"
+        if press
+            if key = "up"
+                m.accountIndex = 0
+                updateAccountFocus()
+            else if key = "down"
+                m.accountIndex = 1
+                updateAccountFocus()
+            else if key = "OK"
+                if m.accountIndex = 0
+                    m.top.logoutRequested = true
+                else
+                    m.top.backRequested = true
+                end if
+            end if
+        end if
+        return key <> "back" and key <> "home"
     end if
     if press and key = "OK" and m.getAuth.state <> "run"
         startLogin()

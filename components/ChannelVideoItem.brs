@@ -6,6 +6,7 @@ sub init()
     m.itemTitle = m.top.findNode("itemTitle")
     m.itemStreamer = m.top.findNode("itemStreamer")
     m.itemDuration = m.top.findNode("itemDuration")
+    m.durationBadge = m.top.findNode("durationBadge")
     m.itemPosted = m.top.findNode("itemPosted")
 end sub
 
@@ -25,6 +26,12 @@ sub showContent()
     m.itemTitle.text = content.Title
     m.itemStreamer.text = content.Description
     m.itemDuration.text = itemCategoryText(content.Categories)
+    width = Int(m.itemDuration.localBoundingRect().width + 0.5) + 10
+    m.durationBadge.width = width
+    m.durationBadge.translation = [280 - width,132]
+    m.durationBadge.visible = m.itemDuration.text <> ""
+    ' Compensate for the system font's descent to center the visible digits.
+    m.itemDuration.translation = [width / 2,13]
     m.itemPosted.text = content.ReleaseDate
 end sub
 

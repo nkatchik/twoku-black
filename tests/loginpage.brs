@@ -4,6 +4,14 @@ sub resetPage()
     m.pendingView = node()
     m.accountView = node()
     m.accountLabel = node()
+    m.logoutButton = node()
+    m.logoutButton.width = 260
+    m.logoutButton.height = 64
+    m.logoutLabel = node()
+    m.backButton = node()
+    m.backButton.width = 260
+    m.backButton.height = 64
+    m.backLabel = node()
     m.busy = node()
     m.qr = node()
     m.qrHelp = node()
@@ -64,7 +72,17 @@ sub main()
     check(m.accountView.visible and not m.pendingView.visible, "Signed-in chip shows the account view")
     check(m.getAuth.control = "" and m.getAuth.cancelRequested, "Viewing account never starts device authorization")
     check(m.accountLabel.text = "Logged in as ExampleViewer" and not m.busy.active, "Account view identifies current user without a loading spinner")
-    check(onKeyEvent("OK", true) and m.top.logoutRequested, "Focused Log out action emits logout request")
+    check(onKeyEvent("OK", true) and m.top.backRequested and not m.top.logoutRequested, "Account initially selects Back and returns without logging out")
+    m.top.backRequested = false
+    check(onKeyEvent("up", true) and m.accountIndex = 0, "Up selects Log Out")
+    onKeyEvent("OK", false)
+    check(not m.top.logoutRequested, "Releasing OK cannot activate Log Out")
+    check(onKeyEvent("OK", true) and m.top.logoutRequested, "Selected Log Out emits logout request")
+    m.top.logoutRequested = false
+    check(onKeyEvent("down", true) and m.accountIndex = 1, "Down returns selection to Back")
+    onKeyEvent("up", true)
+    onVisible()
+    check(m.accountIndex = 1 and not m.top.backRequested, "Reopening the account resets selection and stale Back requests")
     m.getAuth.finished = true
     whenFinished()
     check(not m.top.finished, "Old authorization cannot replace account view")

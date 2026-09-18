@@ -69,6 +69,8 @@ sub setup()
     m.profileImage.uri = ""
     m.profileCover = node()
     m.accountBackground = node()
+    m.accountBackground.width = 117
+    m.accountBackground.height = 36
     m.headerCursor = node()
     m.categoryLine = node()
     m.liveLine = node()
@@ -144,7 +146,7 @@ sub main()
     layoutHeader()
     check(m.liveLine.width = 61.125 and m.categoryButton.translation[0] = 95 + 61.125 + 24, "Font metrics changes update underline and neighboring position together")
     check(m.loggedUserGroup.translation[0] + m.accountBackground.width = 1237, "Account chip remains flush with the right page edge")
-    check(m.accountBackground.width = m.loggedUserName.localBoundingRect().width + 8, "Short Login chip has only measured text and balanced padding")
+    check(m.accountBackground.width = m.loggedUserName.localBoundingRect().width + 8, "Short Log In chip has only measured text and balanced padding")
     m.profileImage.uri = "avatar"
     m.loggedUserName.measuredWidth = 400
     layoutAccount()

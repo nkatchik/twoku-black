@@ -805,20 +805,15 @@ sub refreshControls()
         button.translation = [x, 0]
         button.width = 132
         button.height = 40
-        button.color = "0x323239FF"
         label = CreateObject("roSGNode", "SimpleLabel")
         ' Offset the system font's extra descent to center the visible text.
         label.translation = [66, 22]
         label.horizOrigin = "center"
         label.vertOrigin = "center"
         label.text = labels[index]
-        label.color = "0xEFF1F6FF"
         label.fontUri = "font:BoldSystemFontFile"
         label.fontSize = 17
-        if index = m.controlIndex and m.overlayFocus = "buttons"
-            button.color = "0xF4F4F7FF"
-            label.color = "0x111318FF"
-        end if
+        applyButtonFocus(button, button, label, index = m.controlIndex and m.overlayFocus = "buttons")
         button.appendChild(label)
         m.controls.appendChild(button)
         m.buttonNodes.Push(button)

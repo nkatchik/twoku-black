@@ -42,6 +42,7 @@
         <field id="streamDurationSeconds" type="Integer" alias="channelPage.streamDurationSeconds" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/HomeScene.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ButtonFocus.brs" />
     <script type="text/brightscript" uri="pkg:/components/GridPagination.brs" />
     <children>
         <Rectangle width="1280" height="720" color="0x08080AFF" />
@@ -59,7 +60,7 @@
                     <Rectangle id="accountBackground" width="117" height="36" color="0x323239FF" />
                     <Poster id="profileImage" translation="[4,4]" width="28" height="28" loadDisplayMode="scaleToFill" visible="false" />
                     <Poster id="profileCover" translation="[4,4]" width="28" height="28" uri="pkg:/images/twellie-avatar-cover.png" blendColor="0x323239FF" visible="false" />
-                    <Label id="loggedUserName" translation="[4,0]" height="36" text="Login" color="0xFFFFFFFF" vertAlign="center">
+                    <Label id="loggedUserName" translation="[4,0]" height="36" text="Log In" color="0xFFFFFFFF" vertAlign="center">
                         <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="18" />
                     </Label>
                 </Group>

@@ -50,6 +50,12 @@ sub main()
     onHeaderButtonPress()
     check(m.loginPage.visible and m.loginPage.accountName = "Viewer", "Signed-in chip opens current account")
     check(m.global.sessionVersion = 4 and m.global.userToken = "token", "Account view preserves active authentication and refresh generation")
+    m.loginPage.backRequested = true
+    onLoginBack()
+    check(not m.loginPage.visible and m.homeScene.visible and g.homeFocused, "Selectable account Back restores Home focus")
+    check(m.global.sessionVersion = 4 and m.global.userToken = "token" and g.registry.RefreshToken = "refresh", "Account Back preserves authentication and saved credentials")
+    m.homeScene.buttonPressed = "login"
+    onHeaderButtonPress()
     m.loginPage.logoutRequested = true
     onLogoutRequested()
     check(m.global.sessionVersion = 5 and m.global.userToken = "" and m.login = "", "Logout invalidates refresh generation before clearing identity")

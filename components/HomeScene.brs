@@ -184,7 +184,7 @@ sub onNewUser()
     if m.loggedUserName = invalid then return
     m.loggedIn = m.top.loggedInUserName <> ""
     m.loggedUserName.text = m.top.loggedInUserName
-    if m.loggedUserName.text = "" then m.loggedUserName.text = "Login"
+    if m.loggedUserName.text = "" then m.loggedUserName.text = "Log In"
     m.profileImage.uri = m.top.loggedInUserProfileImage
     layoutAccount()
     updateHeaderFocus()
@@ -631,14 +631,8 @@ sub updateHeaderFocus()
         m.headerCursor.translation = [label.translation[0],75]
         m.headerCursor.width = label.localBoundingRect().width
     end if
-    color = "0x323239FF"
-    m.loggedUserName.color = "0xFFFFFFFF"
-    if accountFocused
-        color = "0xF4F4F7FF"
-        m.loggedUserName.color = "0x111318FF"
-    end if
-    m.accountBackground.color = color
-    m.profileCover.blendColor = color
+    applyButtonFocus(m.loggedUserGroup, m.accountBackground, m.loggedUserName, accountFocused)
+    m.profileCover.blendColor = m.accountBackground.color
 end sub
 
 sub playLiveItem(item as Object)
@@ -683,7 +677,7 @@ sub updateFollowingLayout()
             m.followingView.callFunc("focusContent")
         end if
     else if not m.loggedIn
-        showLoadStatus("Sign in to see followed channels. Select Login in the header.")
+        showLoadStatus("Sign in to see followed channels. Select Log In in the header.")
     else if m.top.followingError <> ""
         showLoadStatus(m.top.followingError)
     else if m.offlinePending
@@ -755,6 +749,7 @@ sub layoutAccount()
     chipWidth = textX + width + rightPadding
     m.accountBackground.width = chipWidth
     m.loggedUserGroup.translation = [1237 - chipWidth,43]
+    m.loggedUserGroup.scaleRotateCenter = [chipWidth / 2,18]
 end sub
 
 sub onFollowingItemSelected()

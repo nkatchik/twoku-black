@@ -37,6 +37,7 @@
         <function name="stopPlayback" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/CustomVideo.brs" />
+    <script type="text/brightscript" uri="pkg:/components/ButtonFocus.brs" />
     <script type="text/brightscript" uri="pkg:/components/Playback.brs" />
     <children>
         <PlaybackCompatibility id="compatibility" />
