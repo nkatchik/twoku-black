@@ -18,12 +18,13 @@ function testCreateObject(kind, subtype = invalid)
 end function
 
 sub resetChat()
-    m.top = {visible: false, channel: "alpha", channelUsername: "Alpha", channelAvatar: "avatar.png", viewerText: "12 viewers", control: false}
+    m.top = {visible: false, channel: "alpha", channelUsername: "Alpha", channelAvatar: "avatar.png", viewerText: "12 viewers", control: false, streamEnded: false}
     m.chat = {state: "stop", channel: "", control: "", cancelRequested: false, readyForNextComment: true, connecting: false, statusMessage: ""}
     m.chatPanel = testCreateObject("roSGNode", "Group")
     m.name = node()
     m.avatar = node()
     m.viewers = node()
+    m.liveBadge = node()
     m.status = node()
     m.busy = node()
     m.rows = []
@@ -69,6 +70,13 @@ sub main()
     m.chat.nextComment = {channel: "alpha", nick: "Viewer", text: "hello", color: "0xFFFFFFFF"}
     onNewComment()
     check(m.rows.Count() = 1 and m.chat.readyForNextComment, "Visible matching message renders and acknowledges")
+    m.top.streamEnded = true
+    updateChatHeader()
+    check(not m.liveBadge.visible and not m.viewers.visible, "Ended stream hides the LIVE badge and stale viewer count")
+    check(m.rows.Count() = 1 and not m.chat.cancelRequested and m.chat.control = "", "Ended header preserves the chat connection and messages")
+    m.top.streamEnded = false
+    updateChatHeader()
+    check(m.liveBadge.visible and m.viewers.visible, "Successful playback refresh restores live metadata without reconnecting chat")
     for i = 1 to 100
         onNewComment()
     end for

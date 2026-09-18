@@ -30,6 +30,7 @@
         <field id="streamDurationSeconds" type="integer" value="0" />
         <field id="playbackInfo" type="assocarray" alwaysNotify="true" />
         <field id="playbackError" type="string" value="" />
+        <field id="streamEnded" type="boolean" value="false" />
         <field id="playbackDiagnostics" type="assocarray" />
         <field id="qualityPreference" type="string" value="Auto" alwaysNotify="true" />
         <function name="focusContent" />

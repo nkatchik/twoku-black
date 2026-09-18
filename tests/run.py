@@ -36,6 +36,7 @@ suites = {
     'session': functions('UrlFunctions.brs', ['twitchClientId', 'nonEmptyString', 'validTokenPair', 'createHttpUrl', 'oauthUrl', 'oauthPost', 'validateUserToken', 'restoreUserSession', 'getRefreshToken', 'saveLogin']),
     'loginpage': functions('LoginPage.brs', ['startLogin', 'onVisible', 'onKeyEvent', 'onAuthUpdate', 'whenFinished', 'onAuthStopped', 'clearLoginQr', 'showAccount']),
     'account': functions('MainScene.brs', ['onHeaderButtonPress','onLogoutRequested','focusHome']) + '\n\n' + functions('Logout.brs', ['revokeSession']),
+    'livestatus': (ROOT / 'components/GetLiveStatus.brs').read_text(),
     'channelinfo': (ROOT / 'components/GetUserChannel.brs').read_text(),
     'loading': (ROOT / 'components/LoadingIndicator.brs').read_text() + '\n\n' + functions('CategoryScene.brs', ['updateCategoryBusy','startCategoryStreams','onStreamsStopped','onClipsStopped','onClipsLoad','categoryHasRows','onPlaybackStopped','onGridFocus','getMoreChannels','getMoreClips']) + '\n\n' + functions('KeyboardGroup.brs', ['updateSearchBusy','onSearchTextChange','onSearchStopped','onChannelSearchResultChange','onCategorySearchResultChange','onSearchResultChange']),
     'follows': functions('GetUser.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
@@ -60,7 +61,7 @@ suites = {
     'clips': functions('GetClipPlayback.brs', ['getClipPlayback', 'requestClipPlayback', 'clipPlaybackVariants']) + '\n\n' + (ROOT / 'components/Playback.brs').read_text() + '\n\n' + functions('UrlFunctions.brs', ['nonEmptyString']),
     'categorypage': (ROOT / 'components/CategoryScene.brs').read_text(),
     'channelpage': (ROOT / 'components/ChannelPage.brs').read_text(),
-    'playback_routes': functions('MainScene.brs', ['onKeyEvent', 'reloadVisibleContent', 'reloadFollowing', 'onUserStopped', 'beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
+    'playback_routes': functions('MainScene.brs', ['onKeyEvent', 'reloadVisibleContent', 'reloadFollowing', 'onUserStopped', 'beginPlayback', 'closePlayback', 'onToggleStreamLayout', 'onToggleChat', 'onPlayerStreamEnded', 'onVideoPlayerBack', 'onQualityPreference', 'onStreamChange', 'onStreamChangeFromChannelPage', 'onPlayerChannelRequested', 'onStreamerSelected']),
     'startup': functions('MainScene.brs', ['startAuthentication', 'onTokenStateChanged', 'refreshFollows', 'onUserLogin', 'onUserStopped', 'focusHome', 'onScreenShown']),
 }
 with tempfile.TemporaryDirectory(prefix='twoku-tests-') as directory:

@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It compiles the app and runs 34 BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 35 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
@@ -33,7 +33,7 @@ results are discarded before a fresh request resets pagination. The circular-arr
 key routes through the player controls and quality menu; held presses are coalesced.
 Live streams, VODs, and clips acquire fresh playback URLs through their existing
 tasks. Tests check decoder stop acknowledgement, recording position and pause
-state, quality preference, cancellation on Back, and visible-chat reconnection.
+state, quality preference, cancellation on Back, and preservation of the chat session.
 These suites run off-device and do not prove native remote delivery.
 
 On 2026-09-17, Roxton K806X / Roku OS 15.3.4 device checks used ECP
@@ -44,6 +44,29 @@ chat reconnected and delivered messages. A paused VOD reloaded from 60.033 to
 60.049 seconds and stayed paused; a paused clip also resumed paused. Back during
 a pending reload left the decoder closed after the request completed. Temporary
 tracing is excluded from the installed production build.
+
+Live termination has a separate ended state. Only a successful empty Twitch
+stream lookup confirms offline; network/authentication failures and malformed
+responses keep ordinary playback recovery. Status checks run only after a
+playback failure or stall, with a six-second player-side deadline and cancellation
+on Back, Refresh, resumed playback, or a new video. Tests cover decoder shutdown,
+ignored playback inputs, repeat Refresh while offline, successful restart,
+stale replies, VOD completion, and profile-only refresh on player exit. Chat
+starts closed for every new video, opens when a stream ends, and keeps its
+connection and messages through player Refresh. The ended header hides its
+LIVE badge and old viewer count.
+
+On 2026-09-18, Roxton K806X / Roku OS 15.3.4 checks used a temporary
+terminal-event fixture while a real stream was playing. Its status lookup used
+an offline test channel; this verifies the end transition, not a naturally
+observed broadcast ending. The decoder closed, “Stream ended” appeared, chat
+opened and delivered messages, and Play/OK/Options left playback stopped.
+Repeated offline Refresh preserved the end screen; restoring the real channel
+and refreshing restarted native playback. Console traces showed one chat
+connection across both retries. A new playback session started with chat closed.
+Returning to Channels caused no content reload; returning from a profile's live
+card or a recording refreshed profile metadata and recordings. Test hooks and tracing are
+excluded from the production archive.
 
 Landscape grids use 288-by-162 thumbnails with 14-pixel horizontal gaps:
 four cards and three gaps fill the 1194-pixel content width exactly. This leaves
@@ -362,7 +385,8 @@ Device acceptance for this build:
 1. Compare Channels, Games, Following, Search, Login, and the channel/VOD page
    to Twellie. Confirm four-column grids, white focus, no side rails or Settings.
 2. Open a live card directly. With chat disabled, confirm full-screen video and
-   no chat connection. Toggle Chat on and off; relaunch and check persistence.
+   no chat connection. Toggle Chat on, leave playback, and open another video;
+   chat must start closed again.
 3. Open Quality using the on-screen button or `*`. Select 480p, then another
    available quality, then Auto. Verify the selected quality persists across
    streams; Auto steps down when the decoder stalls.

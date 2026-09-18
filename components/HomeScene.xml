@@ -2,6 +2,7 @@
 <component name="HomeScene" extends="Group">
     <interface>
         <function name="reloadContent" />
+        <field id="channelPageVisible" type="boolean" alias="channelPage.visible" />
         <field id="reloadFollowingRequested" type="boolean" alwaysNotify="true" />
         <function name="focusContent" />
         <function name="clearAccount" />

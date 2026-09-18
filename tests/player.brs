@@ -42,6 +42,9 @@ end function
 sub resetPlayer()
     m.reloadPending = false
     m.reloadTask = invalid
+    m.liveStatusTask = invalid
+    m.liveCheckId = 0
+    m.liveCheckPending = false
     setSeekTime(0)
     m.compatibility = invalid
     m.compatRequestId = 0
@@ -52,6 +55,7 @@ sub resetPlayer()
     m.top.chatEnabled = true
     m.top.chatIsVisible = false
     m.top.playbackError = ""
+    m.top.streamEnded = false
     m.top.playbackDiagnostics = {}
     m.top.visible = true
     m.top.thumbnailInfo = invalid
@@ -186,7 +190,11 @@ sub testReloadPlayer()
     m.reloadTask.errorMessage = "Offline"
     m.reloadTask.playbackInfo = {error: "Offline"}
     onPlaybackReloadStopped()
-    check(m.top.playbackError = "Offline" and not m.busy.active, "Reload failure leaves a retryable player error")
+    check(m.liveCheckPending and m.busy.active, "Failed live reload verifies whether the stream ended")
+    m.liveStatusTask.state = "stop"
+    m.liveStatusTask.liveStatus = "live"
+    onLiveStatusStopped()
+    check(m.top.playbackError = "Offline" and not m.busy.active, "Live lookup failure leaves a retryable player error")
     reloadContent()
     check(m.reloadPending and m.reloadTask.control = "RUN", "Reload retries after a failed lookup")
 end sub
@@ -235,6 +243,7 @@ sub testControlFocus()
 end sub
 
 sub main()
+    testLiveEnd()
     testControlFocus()
     resetPlayer()
     m.video.position = invalid
@@ -933,4 +942,120 @@ sub testDecoderLifecycle()
         onDeferredPlaybackStart()
         check(m.video.control = "stop" and m.video.content = invalid, "Back between shutdown and restart cancels the queued load")
     end for
+end sub
+
+sub completeLiveCheck(status)
+    m.liveStatusTask.state = "stop"
+    m.liveStatusTask.liveStatus = status
+    onLiveStatusStopped()
+end sub
+
+sub testLiveEnd()
+    for each state in ["finished", "error"]
+        resetPlayer()
+        m.top.playbackInfo = {login: "Channel"}
+        m.video.state = state
+        m.attemptStarted = true
+        m.attemptPlayed = true
+        onVideoStateChange()
+        check(m.liveCheckPending and m.liveStatusTask.login = "channel", "Live terminal states check channel status before switching quality")
+        check(m.playingIndex = 1 and m.top.playbackError = "", "Status lookup does not prematurely report a variant failure")
+        completeLiveCheck("offline")
+        check(m.top.streamEnded and not m.playbackActive and m.video.control = "stop", "Confirmed offline stops native playback and enters ended state")
+        check(m.statusText.text = "Stream ended" and m.statusBox.visible and m.top.playbackError = "", "Stream end has a short message separate from playback errors")
+        check(not m.busy.active and not m.overlay.visible and m.watchdog.control = "stop", "Ending clears spinner, controls and recovery timers")
+        for each key in ["play", "OK", "left", "right", "up", "down", "options", "fastforward", "rewind"]
+            check(onKeyEvent(key, true), "Ended player consumes playback inputs")
+            onKeyEvent(key, false)
+        end for
+        m.top.control = "play"
+        onRequestedControl()
+        m.top.control = "pause"
+        onRequestedControl()
+        check(m.video.control = "stop" and not m.overlay.visible and not m.qualityPanel.visible, "Keys and requested controls cannot restart or pause an ended stream")
+        check(not onKeyEvent("replay", true), "Refresh still bubbles to the scene after stream end")
+        onKeyEvent("back", true)
+        check(m.top.back = true, "Back immediately exits an ended stream")
+    end for
+
+    for each status in ["live", "unknown"]
+        resetPlayer()
+        m.top.playbackInfo = {login: "channel"}
+        recoverPlayback("decoder-error")
+        completeLiveCheck(status)
+        check(not m.top.streamEnded and m.playingIndex = 2, "Online or unknown status preserves automatic quality recovery")
+    end for
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    m.preference = "720p"
+    recoverPlayback("decoder-error")
+    completeLiveCheck("live")
+    check(not m.top.streamEnded and m.top.playbackError <> "", "Manual quality failures remain ordinary playback errors")
+
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel"}
+    recoverPlayback("playback-stalled")
+    task = m.liveStatusTask
+    task.state = "run"
+    for tick = 1 to 6
+        checkPlaybackProgress()
+    end for
+    check(task.cancelRequested and not m.liveCheckPending and m.playingIndex = 2, "Status timeout falls back without blocking recovery")
+    completeLiveCheck("offline")
+    check(not m.top.streamEnded, "Late offline response after timeout is ignored")
+
+    for each action in ["back", "refresh", "new-content", "resumed"]
+        resetPlayer()
+        m.top.playbackInfo = {login: "channel", variants: m.variants}
+        recoverPlayback("playback-stalled")
+        task = m.liveStatusTask
+        task.state = "run"
+        if action = "back"
+            stopPlayback()
+            m.top.visible = false
+        else if action = "refresh"
+            reloadContent()
+        else if action = "new-content"
+            onPlaybackInfo()
+        else
+            m.video.state = "playing"
+            onVideoStateChange()
+        end if
+        completeLiveCheck("offline")
+        check(task.cancelRequested and not m.top.streamEnded, "Navigation, Refresh, new playback or recovery cancels stale end detection")
+    end for
+
+    resetPlayer()
+    m.top.playbackInfo = {login: "channel", variants: m.variants}
+    showStreamEnded()
+    for each status in ["offline", "unknown"]
+        reloadContent()
+        check(m.reloadPending and m.top.streamEnded, "Ended stream permits Refresh without clearing its ended marker")
+        m.reloadTask.state = "stop"
+        m.reloadTask.streamUrl = ""
+        m.reloadTask.errorMessage = "Offline"
+        onPlaybackReloadStopped()
+        completeLiveCheck(status)
+        check(m.top.streamEnded and m.statusText.text = "Stream ended", "Offline or unavailable Refresh keeps the graceful end screen")
+    end for
+    reloadContent()
+    m.reloadTask.state = "stop"
+    m.reloadTask.streamUrl = "https://fresh-url"
+    m.reloadTask.playbackInfo = {login: "channel", variants: m.variants, initialIndex: 1}
+    onPlaybackReloadStopped()
+    onPlaybackInfo()
+    onRequestedContent()
+    onRequestedControl()
+    check(not m.top.streamEnded and m.startRequested and m.pendingContent <> invalid, "Successful Refresh re-enables playback through the normal decoder handoff")
+
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.top.playbackInfo = {login: "channel"}
+    m.video.state = "finished"
+    m.attemptStarted = true
+    m.attemptPlayed = true
+    m.video.position = 120
+    m.video.duration = 120
+    onVideoStateChange()
+    check(not m.liveCheckPending and not m.top.streamEnded and m.top.back, "Completed recordings retain normal return behavior without live status requests")
 end sub

@@ -31,7 +31,7 @@
 - **Keep up with your favorites.** Sign in to see followed channels, with live streams and offline profiles in one scrolling view.
 - **Explore a channel.** Open its profile for follower counts, the current live stream, and past broadcasts.
 - **Catch up later.** Watch recordings and recent category clips, with pause, seeking, and quality selection.
-- **Follow the conversation.** Show or hide live chat beside the video. Your chat preference is remembered.
+- **Follow the conversation.** Show or hide live chat beside the video. Chat starts closed each time you open a video.
 - **Choose your quality.** Use Auto or select any available video quality, including 60 fps when offered. Switching quality keeps your place in recordings.
 
 ## Install on your Roku
@@ -50,11 +50,13 @@ Keep your computer and Roku on the same network.
 | **D-pad** | Move between cards and tabs; **Up** from the first row reaches the header. | Reveal and navigate controls. On recordings, **Left / Right** seeks when the progress bar is selected or controls are hidden. |
 | **OK** | Open the selected item. | Activate a control; pause or resume a recording when the progress bar is selected. |
 | **Options (`*`)** | Open the selected channel's profile where available. | Open the quality menu. |
-| **Reload (circular arrow)** | Refresh the current grid or profile. | Reload the video and visible chat. Recordings and clips keep their position. |
+| **Reload (circular arrow)** | Refresh the current grid or profile. | Reload the video without interrupting chat. Recordings and clips keep their position. |
 | **Play / Pause** | — | Pause or resume a recording or clip. |
 | **Rewind / Fast-forward** | — | Seek backward or forward in 10-second steps. |
 | **Back** | Return to the previous view. | Dismiss the quality menu, controls, or chat, then return to browsing. During loading or an error, return immediately. |
 | **Home** | Return to Roku Home. | Return to Roku Home. |
+
+When a live stream ends, playback stops and chat opens. **Reload** retries the video.
 
 The player also has **Channel**, **Chat** for live streams, and **Quality** controls. In the quality menu, use **Up / Down** to choose and **OK** to apply.
 

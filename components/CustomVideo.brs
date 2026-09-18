@@ -1,6 +1,9 @@
 sub init()
     m.reloadPending = false
     m.reloadTask = invalid
+    m.liveStatusTask = invalid
+    m.liveCheckId = 0
+    m.liveCheckPending = false
     m.top.focusable = true
     m.video = m.top.findNode("video")
     if m.video.hasField("asyncStopSemantics") then m.video.asyncStopSemantics = true
@@ -82,6 +85,7 @@ end sub
 sub onVisible()
     m.busy.enabled = m.top.visible
     if m.top.visible
+        m.top.streamEnded = false
         m.controlIndex = 0
         m.overlayFocus = "buttons"
         focusContent()
@@ -138,6 +142,8 @@ sub onChatVisibilityChange()
 end sub
 
 sub onPlaybackInfo()
+    cancelLiveStatusCheck()
+    m.top.streamEnded = false
     cancelPlaybackReload()
     cancelCompatibility()
     m.variants = []
@@ -196,6 +202,7 @@ end sub
 
 sub onRequestedControl()
     command = m.top.control
+    if m.top.streamEnded and command <> "stop" then return
     if command = "stop"
         stopPlayback()
     else if command = "play"
@@ -361,6 +368,7 @@ sub onVideoStateChange()
         if not m.attemptStarted then return
         handlePlaybackTerminal(state)
     else if state = "playing"
+        cancelLiveStatusCheck()
         m.attemptStarted = true
         m.attemptPlayed = true
         m.terminalTicks = 0
@@ -388,7 +396,17 @@ sub onVideoStateChange()
 end sub
 
 sub checkPlaybackProgress()
-    if not m.top.visible or not m.playbackActive then return
+    if not m.top.visible then return
+    if m.liveCheckPending = true
+        m.liveCheckTicks += 1
+        if m.liveCheckTicks >= 6
+            reason = m.liveCheckReason
+            cancelLiveStatusCheck()
+            finishLiveStatusCheck("unknown", reason)
+        end if
+        return
+    end if
+    if not m.playbackActive then return
     if m.seekInFlight <> invalid
         m.seekWaitTicks += 1
         if m.seekWaitTicks >= 8
@@ -497,8 +515,11 @@ sub handlePlaybackTerminal(state as String)
     recoverPlayback(reason)
 end sub
 
-sub recoverPlayback(reason = "playback-failed")
+sub recoverPlayback(reason = "playback-failed", statusChecked = false)
     if not m.playbackActive then return
+    if not statusChecked
+        if beginLiveStatusCheck(reason) then return
+    end if
     recordPlaybackDiagnostic(reason)
     nextIndex = -1
     if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried, m.capabilities)
@@ -515,6 +536,73 @@ sub recoverPlayback(reason = "playback-failed")
         end if
         showPlaybackError(message)
     end if
+end sub
+
+function beginLiveStatusCheck(reason as String) as Boolean
+    if m.top.contentKind <> "live" or not m.top.visible then return false
+    if m.liveCheckPending = true then return true
+    info = m.top.playbackInfo
+    if type(info) <> "roAssociativeArray" then return false
+    if GetInterface(info.login, "ifString") = invalid then return false
+    if info.login = "" then return false
+    ' Do not overlap a cancelled request that is still leaving its HTTP wait.
+    if m.liveStatusTask <> invalid
+        if m.liveStatusTask.state = "run" then return false
+    end if
+    cancelLiveStatusCheck()
+    m.liveStatusTask = CreateObject("roSGNode", "GetLiveStatus")
+    m.liveStatusTask.login = LCase(info.login)
+    m.liveStatusTask.requestId = m.liveCheckId
+    m.liveStatusTask.cancelRequested = false
+    m.liveStatusTask.observeField("state", "onLiveStatusStopped")
+    m.liveCheckReason = reason
+    m.liveCheckTicks = 0
+    m.liveCheckPending = true
+    showPlayerBusy()
+    m.watchdog.control = "start"
+    m.liveStatusTask.control = "RUN"
+    return true
+end function
+
+sub cancelLiveStatusCheck()
+    if m.liveCheckId = invalid then m.liveCheckId = 0
+    m.liveCheckId += 1
+    m.liveCheckPending = false
+    if m.liveStatusTask <> invalid then m.liveStatusTask.cancelRequested = true
+end sub
+
+sub onLiveStatusStopped()
+    if m.liveCheckPending <> true or not m.top.visible then return
+    if m.liveStatusTask.state <> "stop" then return
+    if m.liveStatusTask.requestId <> m.liveCheckId or m.liveStatusTask.cancelRequested then return
+    reason = m.liveCheckReason
+    status = m.liveStatusTask.liveStatus
+    m.liveCheckPending = false
+    finishLiveStatusCheck(status, reason)
+end sub
+
+sub finishLiveStatusCheck(status as String, reason as String)
+    if status = "offline"
+        showStreamEnded()
+    else if reason = "reload-failed"
+        if status = "unknown" and m.top.streamEnded
+            showStreamEnded()
+        else
+            showPlaybackError(m.reloadError)
+        end if
+    else
+        recoverPlayback(reason, true)
+    end if
+end sub
+
+sub showStreamEnded()
+    stopPlayback()
+    m.top.playbackError = ""
+    m.statusText.text = "Stream ended"
+    m.top.findNode("statusHint").text = "Refresh to try again"
+    m.statusBox.visible = true
+    ' Notify the scene once; a failed Refresh must not reopen or reset chat.
+    m.top.streamEnded = true
 end sub
 
 sub recordPlaybackDiagnostic(reason as String, measuredBps = 0)
@@ -537,6 +625,7 @@ end sub
 sub onDownloadedSegment()
     ' Loopback throughput measures local delivery, not the upstream connection.
     if m.compatMode = "split" then return
+    if m.liveCheckPending = true then return
     if not m.playbackActive or not m.top.visible or m.pendingContent <> invalid then return
     if m.video.state <> "playing" and m.video.state <> "buffering" then return
     if m.playingIndex < 0 or m.playingIndex >= m.variants.Count() then return
@@ -576,6 +665,8 @@ sub onDownloadedSegment()
 end sub
 
 sub showPlaybackError(message as String)
+    cancelLiveStatusCheck()
+    m.top.streamEnded = false
     cancelCompatibility()
     m.busy.active = false
     m.pendingContent = invalid
@@ -586,6 +677,7 @@ sub showPlaybackError(message as String)
     requestDecoderStop()
     m.top.playbackError = message
     m.statusText.text = message
+    m.top.findNode("statusHint").text = "Options: quality · Back: return"
     m.statusBox.visible = true
     m.pauseIndicator.visible = false
     showOverlay()
@@ -593,6 +685,7 @@ end sub
 
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
+    cancelLiveStatusCheck()
     stopSeekHold()
     selected = m.variants[index]
     showPlayerBusy()
@@ -633,6 +726,7 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    cancelLiveStatusCheck()
     cancelPlaybackReload()
     stopSeekHold()
     cancelCompatibility()
@@ -968,6 +1062,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         return true
     end if
     if m.reloadPending = true then return true
+    if m.top.streamEnded then return key <> "home"
     if m.qualityPanel.visible
         if key = "up" and m.qualityIndex > 0
             m.qualityIndex -= 1
@@ -1111,6 +1206,12 @@ sub onPlaybackReloadStopped()
     if type(info) <> "roAssociativeArray" or m.reloadTask.streamUrl = ""
         message = m.reloadTask.errorMessage
         if message = "" then message = "Could not reload this video. Press the reload button to retry."
+        m.reloadError = message
+        if beginLiveStatusCheck("reload-failed") then return
+        if m.top.streamEnded
+            showStreamEnded()
+            return
+        end if
         showPlaybackError(message)
         return
     end if

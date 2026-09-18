@@ -3,6 +3,7 @@ sub init()
     m.name = m.top.findNode("channelName")
     m.avatar = m.top.findNode("channelAvatar")
     m.viewers = m.top.findNode("viewers")
+    m.liveBadge = m.top.findNode("liveBadge")
     m.status = m.top.findNode("status")
     m.busy = m.top.findNode("busy")
     m.busy.enabled = m.top.visible
@@ -31,6 +32,8 @@ sub updateChatHeader()
     m.avatar.uri = m.top.channelAvatar
     ' Numeric formatting can reserve a leading space for the sign.
     m.viewers.text = m.top.viewerText.Trim()
+    m.liveBadge.visible = not m.top.streamEnded
+    m.viewers.visible = not m.top.streamEnded
 end sub
 
 sub reloadContent()

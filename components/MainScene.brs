@@ -30,6 +30,7 @@ function init()
     m.videoPlayer.observeField("toggleChat", "onToggleChat")
     m.videoPlayer.observeField("channelRequested", "onPlayerChannelRequested")
     m.videoPlayer.observeField("qualityPreference", "onQualityPreference")
+    m.videoPlayer.observeField("streamEnded", "onPlayerStreamEnded")
 
     m.top.backgroundColor = "0x08080AFF"
     m.top.backgroundUri = ""
@@ -71,13 +72,8 @@ function init()
     if quality = invalid or quality = "" then quality = "Auto"
     m.global.addFields({preferredQuality: quality})
 
-    ' Chat preference is applied when a live stream actually starts.
-    chatOption = checkRegistrySection("VideoSettings", "ChatOption")
-    if chatOption <> invalid and chatOption = "true"
-        m.global.addFields({chatOption: true})
-    else
-        m.global.addFields({chatOption: false})
-    end if
+    m.chatOpen = false
+    m.playbackFromProfile = false
 
     videoBookmarks = checkRegistrySection("VideoSettings", "VideoBookmarks")
     if videoBookmarks <> invalid
@@ -382,15 +378,19 @@ sub onToggleChat()
     if not m.videoPlayer.toggleChat then return
     m.videoPlayer.toggleChat = false
     if m.playbackKind <> "live" then return
-    m.global.chatOption = not m.global.chatOption
-    preference = "false"
-    if m.global.chatOption then preference = "true"
-    setRegistrySection("VideoSettings", "ChatOption", preference)
+    m.chatOpen = not m.chatOpen
+    onToggleStreamLayout()
+end sub
+
+sub onPlayerStreamEnded()
+    m.chat.streamEnded = m.videoPlayer.streamEnded
+    if not m.videoPlayer.visible or not m.videoPlayer.streamEnded or m.playbackKind <> "live" then return
+    m.chatOpen = true
     onToggleStreamLayout()
 end sub
 
 sub onToggleStreamLayout()
-    showChat = m.videoPlayer.visible and m.playbackKind = "live" and m.global.chatOption
+    showChat = m.videoPlayer.visible and m.playbackKind = "live" and m.chatOpen
     m.videoPlayer.chatIsVisible = showChat
     if showChat
         m.chat.channel = m.playerChannel
@@ -446,8 +446,6 @@ end function
 sub reloadVisibleContent()
     if m.videoPlayer.visible
         m.videoPlayer.callFunc("reloadContent")
-        if m.chat.visible then m.chat.callFunc("reloadContent")
-        requestPlayerInfo()
     else if m.loginPage.visible
         return
     else if m.keyboardGroup.visible
@@ -468,7 +466,11 @@ end sub
 
 
 sub beginPlayback(url as String, info as Dynamic, streamFormat as String)
+    m.playbackFromProfile = m.homeScene.visible and m.homeScene.channelPageVisible
+    m.chatOpen = false
     m.chat.visible = false
+    m.chat.streamEnded = false
+    m.videoPlayer.chatIsVisible = false
     m.homeScene.visible = false
     m.categoryScene.visible = false
     m.keyboardGroup.visible = false
@@ -487,7 +489,7 @@ sub beginPlayback(url as String, info as Dynamic, streamFormat as String)
     requestPlayerInfo()
 end sub
 
-sub closePlayback()
+sub closePlayback(refreshProfile = true)
     ' Restore UI immediately; cancellation/decoder shutdown do not gate navigation.
     m.chat.visible = false
     m.videoPlayer.visible = false
@@ -502,15 +504,19 @@ sub closePlayback()
         m.keyboardGroup.callFunc("focusContent")
     else
         m.homeScene.visible = true
+        if refreshProfile and m.playbackFromProfile and m.homeScene.channelPageVisible
+            m.homeScene.callFunc("reloadContent")
+        end if
         focusHome()
     end if
+    m.playbackFromProfile = false
 end sub
 
 sub onPlayerChannelRequested()
     if not m.videoPlayer.channelRequested then return
     m.videoPlayer.channelRequested = false
     channel = m.playerChannel
-    closePlayback()
+    closePlayback(false)
     if channel = "" then return
     m.categoryScene.visible = false
     m.keyboardGroup.visible = false
