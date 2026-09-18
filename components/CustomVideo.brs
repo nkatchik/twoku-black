@@ -62,6 +62,7 @@ sub init()
     m.qualityIndex = 0
     m.playingIndex = -1
     m.preference = "Auto"
+    m.manualRetries = 0
     m.tried = {}
     m.pendingContent = invalid
     m.startRequested = false
@@ -182,6 +183,7 @@ sub onPlaybackInfo()
             m.playingIndex = index
         end if
     end if
+    m.manualRetries = 0
     m.tried = {}
     if m.playingIndex >= 0 then m.tried[m.playingIndex.ToStr()] = true
     m.qualityPanel.visible = false
@@ -536,7 +538,21 @@ sub recoverPlayback(reason = "playback-failed", statusChecked = false)
     end if
     recordPlaybackDiagnostic(reason)
     nextIndex = -1
-    if m.preference = "Auto" then nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried, m.capabilities)
+    if m.preference <> "Auto"
+        if m.manualRetries < 2 and m.playingIndex >= 0 and m.playingIndex < m.variants.Count()
+            m.manualRetries += 1
+            nextIndex = m.playingIndex
+        else
+            ' Three failed manual attempts enter Auto for this playback only.
+            ' Keep the saved preference, and do not revisit the exhausted quality.
+            m.preference = "Auto"
+            m.qualityIndex = 0
+            renderQuality()
+            nextIndex = playbackAutoIndex(m.variants, m.capabilities, m.tried)
+        end if
+    else
+        nextIndex = playbackFallbackIndex(m.variants, m.playingIndex, m.tried, m.capabilities)
+    end if
     if nextIndex >= 0
         showPlayerBusy()
         switchVariant(nextIndex)
@@ -931,6 +947,7 @@ sub applyQuality()
     m.preference = preference
     m.global.preferredQuality = m.preference
     m.top.qualityPreference = m.preference
+    m.manualRetries = 0
     m.tried = {}
     m.qualityPanel.visible = false
     if index >= 0 then switchVariant(index)

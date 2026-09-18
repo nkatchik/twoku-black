@@ -50,6 +50,23 @@ tasks. Tests check decoder stop acknowledgement, recording position and pause
 state, quality preference, cancellation on Back, and preservation of the chat session.
 These suites run off-device and do not prove native remote delivery.
 
+Explicit playback qualities get two same-quality retries (three attempts total).
+After the third failure, that playback switches to Auto's best untried variant,
+then follows the existing downward fallback policy. The exhausted manual quality
+is skipped, and an error appears only when Auto has no candidate left. The saved
+preference is retained; Refresh, reopening, or an explicit quality selection resets
+the retry budget. Brief successful playback does not replenish it. Tests cover
+native errors, buffering/stall timeouts, relay failures, decoder shutdown, VOD/clip
+position, a single available variant, confirmed stream endings, and Back cancellation.
+
+On 2026-09-18, a temporary Roxton fixture supplied an unreachable native playback
+URL for the selected quality. Console traces confirmed exactly three attempts,
+each separated by decoder stop acknowledgement, followed by working Auto playback.
+The quality menu showed Auto while the saved preference stayed intact. Forcing the
+remaining Auto variants to fail produced one final error after each had been tried
+once, without revisiting the exhausted manual quality. The production ZIP excludes
+these URL overrides and test controls.
+
 On 2026-09-17, Roxton K806X / Roku OS 15.3.4 device checks used ECP
 `InstantReplay` input and temporary console tracing to confirm fresh results in
 Channels, Games, Following, game streams/clips, profiles, and channel search.

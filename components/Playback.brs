@@ -113,13 +113,17 @@ function parsePlaybackMaster(text as String, masterUrl as String) as Object
     return variants
 end function
 
-function playbackAutoIndex(variants as Object, capabilities = invalid) as Integer
+function playbackAutoIndex(variants as Object, capabilities = invalid, tried = invalid) as Integer
     best = -1
     for index = 0 to variants.Count() - 1
-        if best < 0
-            best = index
-        else if playbackHigherPriority(variants[index], variants[best], capabilities)
-            best = index
+        available = true
+        if tried <> invalid then available = not tried.DoesExist(index.ToStr())
+        if available
+            if best < 0
+                best = index
+            else if playbackHigherPriority(variants[index], variants[best], capabilities)
+                best = index
+            end if
         end if
     end for
     return best

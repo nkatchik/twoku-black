@@ -109,6 +109,7 @@ sub resetPlayer()
         m.capabilities.supported[variant.url] = true
     end for
     m.preference = "Auto"
+    m.manualRetries = 0
     m.qualityIndex = 0
     m.playingIndex = 1
     m.tried = {"1": true}
@@ -249,6 +250,7 @@ sub testControlFocus()
 end sub
 
 sub main()
+    testManualRetries()
     testLiveEnd()
     testStatusPolling()
     testControlFocus()
@@ -373,7 +375,7 @@ sub main()
     onVideoStateChange()
     checkPlaybackProgress()
     checkPlaybackProgress()
-    check(m.top.back <> true and m.top.playbackError <> "", "instant native error stays in the player")
+    check(m.top.back <> true and m.top.playbackError = "" and m.manualRetries = 1 and m.pendingContent.url = "https://example/720", "instant native error retries the selected quality inside the player")
     check(m.top.playbackDiagnostics.errorCode = -5 and m.top.playbackDiagnostics.category = "mediaerror", "native diagnostics retain useful numeric/category evidence")
     check(Instr(1, FormatJson(m.top.playbackDiagnostics), "secret") = 0, "native diagnostic output never includes error text or signed URLs")
     showQuality()
@@ -506,12 +508,12 @@ sub main()
     m.preference = "1080p60 (source)"
     m.playingIndex = 0
     recoverPlayback()
-    check(m.playingIndex = 0 and m.top.playbackError <> "", "manual quality does not silently change")
+    check(m.playingIndex = 0 and m.top.playbackError = "" and m.manualRetries = 1, "manual quality retries before changing")
     showQuality()
     m.qualityIndex = 3
     applyQuality()
     check(m.global.preferredQuality = "480p" and m.top.qualityPreference = "480p", "explicit quality emits persisted preference")
-    check(m.playingIndex = 2, "quality picker applies selected variant")
+    check(m.playingIndex = 2 and m.manualRetries = 0, "quality picker applies selected variant with a fresh retry budget")
 
     resetPlayer()
     m.top.contentKind = "vod"
@@ -850,7 +852,7 @@ sub testCompatibilityRouting()
         if preference = "Auto"
             check(m.playingIndex = 2 and m.pendingContent.url = m.variants[2].url, "active relay failure uses finite Auto recovery")
         else
-            check(m.pendingContent = invalid and m.statusBox.visible and m.top.playbackError <> "", "manual relay failure retains quality controls and actionable error")
+            check(m.pendingContent.url = m.variants[1].url and m.manualRetries = 1 and m.top.playbackError = "", "manual relay failure retries the same quality through decoder shutdown")
         end if
     end for
 
@@ -879,7 +881,7 @@ sub testCompatibilityRouting()
     m.compatibility.state = "stop"
     onCompatibilityState()
     onDeferredPlaybackStart()
-    check(m.video.control <> "play" and m.statusBox.visible and m.pendingContent = invalid, "relay stopping before deferred play reports failure without loading a dead local URL")
+    check(m.video.control <> "play" and m.pendingContent.url = m.variants[1].url and m.manualRetries = 1, "relay stopping before deferred play retries the original quality without loading the dead local URL")
 
     resetPlayer()
     m.compatibility = {state: "init", cancelRequested: true}
@@ -997,7 +999,7 @@ sub testLiveEnd()
     m.preference = "720p"
     recoverPlayback("decoder-error")
     completeLiveCheck("live")
-    check(not m.top.streamEnded and m.top.playbackError <> "", "Manual quality failures remain ordinary playback errors")
+    check(not m.top.streamEnded and m.top.playbackError = "" and m.manualRetries = 1 and m.playingIndex = 1, "Online status allows a manual retry without an early error")
 
     resetPlayer()
     m.top.playbackInfo = {login: "channel"}
@@ -1142,4 +1144,90 @@ sub testStatusPolling()
     onMetadataChange()
     check(m.top.findNode("kindLabel").visible and m.top.findNode("kindLabel").text = "VOD", "Recordings retain their badge independent of live status")
     check(not beginLiveStatusCheck("native-error"), "Recordings never issue live status requests")
+end sub
+
+sub testManualRetries()
+    for each kind in ["live", "vod", "clip"]
+        resetPlayer()
+        m.top.contentKind = kind
+        m.qualityIndex = 3
+        applyQuality()
+        finishDecoderStop()
+        for failure = 1 to 3
+            m.video.state = "playing"
+            m.video.position = 120
+            onVideoStateChange()
+            if failure = 1
+                m.video.state = "error"
+                onVideoStateChange()
+            else if failure = 2
+                m.video.state = "buffering"
+                m.bufferTicks = 14
+                checkPlaybackProgress()
+            else
+                m.lastPosition = 120
+                m.stalledTicks = 19
+                checkPlaybackProgress()
+            end if
+            check(m.top.playbackError = "" and m.playbackActive, "Manual failures cannot show an error while retries or Auto candidates remain")
+            if failure < 3
+                check(m.preference = "480p" and m.playingIndex = 2 and m.manualRetries = failure, "First two failures retry the same explicit quality")
+            else
+                check(m.preference = "Auto" and m.playingIndex = 0 and m.qualityIndex = 0, "Third failure starts Auto at its best untried quality even above the manual choice")
+                check(m.qualityName.text = "Auto" and m.global.preferredQuality = "480p" and m.top.qualityPreference = "480p", "Automatic recovery updates the menu without overwriting the saved preference")
+            end if
+            if kind <> "live" then check(m.pendingContent.playStart = 120, "Manual retries and Auto handoff retain recording position")
+            check(m.video.control = "stop" and m.decoderStopPending, "Every retry waits for native decoder release")
+            finishDecoderStop()
+            check(m.video.control = "play" and m.pendingContent = invalid, "Retry starts only after decoder stop acknowledgement")
+        end for
+        ' Auto descends once per remaining quality, skipping the exhausted manual one.
+        for each expected in [1,3,-1]
+            m.video.state = "buffering"
+            onVideoStateChange()
+            m.video.state = "error"
+            onVideoStateChange()
+            if expected >= 0
+                check(m.playingIndex = expected and m.top.playbackError = "", "Auto fallback skips the three-times-failed manual variant")
+                finishDecoderStop()
+            else
+                check(not m.playbackActive and m.top.playbackError <> "" and m.pendingContent = invalid, "Failure message appears only after Auto also exhausts its candidates")
+            end if
+        end for
+        m.top.playbackInfo = {variants: m.variants, capabilities: m.capabilities}
+        onPlaybackInfo()
+        check(m.preference = "480p" and m.manualRetries = 0, "Fresh playback metadata from Refresh or reopening restores saved quality and retries")
+    end for
+
+    resetPlayer()
+    m.variants = [m.variants[1]]
+    m.qualityIndex = 1
+    applyQuality()
+    finishDecoderStop()
+    for failure = 1 to 3
+        m.video.state = "buffering"
+        onVideoStateChange()
+        m.video.state = "error"
+        onVideoStateChange()
+        if failure < 3
+            check(m.top.playbackError = "" and m.playingIndex = 0, "A single-variant stream still gets both manual retries")
+            finishDecoderStop()
+        else
+            check(m.preference = "Auto" and m.top.playbackError <> "" and not m.playbackActive, "No fourth attempt when the only variant has failed three times")
+        end if
+    end for
+
+    resetPlayer()
+    m.preference = "720p"
+    m.top.playbackInfo = {login: "channel"}
+    recoverPlayback("native-error")
+    completeLiveCheck("offline")
+    check(m.top.streamEnded and m.manualRetries = 0 and m.pendingContent = invalid, "Confirmed stream end bypasses manual retries")
+
+    resetPlayer()
+    m.preference = "720p"
+    recoverPlayback("native-error")
+    onKeyEvent("back", true)
+    finishDecoderStop()
+    check(m.top.back and not m.playbackActive and m.pendingContent = invalid and m.video.control <> "play", "Back cancels a queued manual retry before it can restart")
 end sub

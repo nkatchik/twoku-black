@@ -87,6 +87,8 @@ sub main()
     capabilities.maxFrameRate = 59.94
     check(not playbackVariantRecommended(candidates[0],capabilities) and playbackAutoIndex(candidates,capabilities) = 2, "Unmatched FPS stays unconfirmed while Auto still attempts the best available video")
     check(playbackAutoIndex([],capabilities) = -1, "An empty ladder has no playable index")
+    check(playbackAutoIndex(variants, invalid, {"0":true}) = 1, "Auto handoff selects the best remaining variant without retrying the exhausted one")
+    check(playbackAutoIndex(variants, invalid, {"0":true,"1":true,"2":true,"3":true,"4":true}) = -1, "Exhausted candidates cannot restart an Auto loop")
     unknown = testVariant(480,30,1400000)
     unknown.codecs = "avc1"
     capabilities = playbackDeviceCapabilities([unknown],capabilityDevice("1080p",41,true))
