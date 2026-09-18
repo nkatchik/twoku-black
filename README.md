@@ -4,7 +4,6 @@
 
 <h1 align="center">Twoku Black (A <a href="https://github.com/worldreboot/twitch-reloaded-roku">Twoku</a> fork)</h1>
 <p align="center">
-
   <b>Live streams, chat, and past broadcasts on Roku.</b><br />
   Browse Twitch from the couch with an interface built for your TV remote.
 </p>
@@ -22,7 +21,8 @@
 </p>
 
 <p align="center">
-  Twoku Black is an unofficial community project with no affiliation to Twitch, Amazon, or Roku.
+  Twoku Black is an unofficial community project.<br />
+  <strong>Not affiliated with Twitch, Amazon, or Roku.</strong>
 </p>
 
 ## What you can do
