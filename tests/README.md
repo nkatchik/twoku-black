@@ -22,7 +22,9 @@ npm install --prefix /tmp/twoku-validation --no-audit --no-fund brs@0.45.0 brigh
 
 Release packaging checks verify the requested Git commit, manifest version,
 archive contents, and checksum while preserving the checkout. The release workflow
-takes major/minor integers and uses `github.run_number` for the build number;
+accepts an optional commit hash; leaving it blank uses the selected branch's latest
+commit when the run is dispatched. It takes major/minor integers and uses
+`github.run_number` for the build number;
 retries keep the same version. Only the packaged manifest is stamped, with the
 build padded to at least five digits. Tags use `vMAJOR.MINOR.BUILD` without padding.
 The checks also cover repeatable builds, advancing run numbers, and invalid inputs.

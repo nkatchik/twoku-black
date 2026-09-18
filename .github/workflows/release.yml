@@ -1,12 +1,12 @@
 name: Release
-run-name: Release ${{ inputs.major }}.${{ inputs.minor }}.${{ github.run_number }} from ${{ inputs.commit }}
+run-name: Release ${{ inputs.major }}.${{ inputs.minor }}.${{ github.run_number }} from ${{ inputs.commit || github.sha }}
 
 on:
   workflow_dispatch:
     inputs:
       commit:
-        description: Commit hash to release (full or at least 7 characters)
-        required: true
+        description: Commit hash (7+ characters); leave blank for the selected branch's latest commit
+        required: false
         type: string
       major:
         description: Major version (non-negative integer)
@@ -42,7 +42,7 @@ jobs:
       - name: Package requested commit
         id: package
         env:
-          COMMIT_HASH: ${{ inputs.commit }}
+          COMMIT_HASH: ${{ inputs.commit || github.sha }}
           RELEASE_MAJOR: ${{ inputs.major }}
           RELEASE_MINOR: ${{ inputs.minor }}
           # A new release run advances the build; retries keep the same version.
