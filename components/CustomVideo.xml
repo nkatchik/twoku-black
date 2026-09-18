@@ -70,22 +70,19 @@
                 </Label>
             </Group>
             <Group id="controls" translation="[42,654]" />
+            <Group id="playingQualityBadge" translation="[494,658]" visible="false">
+                <Rectangle id="playingQualityBackground" height="32" color="0x242429FF" />
+                <SimpleLabel id="playingQualityLabel" horizOrigin="center" vertOrigin="center" color="0xD9DCE4FF" fontUri="font:SystemFontFile" fontSize="16" />
+            </Group>
         </Group>
         <Group id="qualityPanel" translation="[42,454]" visible="false">
-            <Rectangle translation="[-2,-2]" width="322" height="188" color="0xF4F4F7FF" />
-            <Rectangle width="318" height="184" color="0x18181BFF" />
-            <Label translation="[22,22]" width="274" height="24" text="QUALITY" color="0xAEB5C3FF">
-                <Font role="font" uri="font:BoldSystemFontFile" size="16" />
-            </Label>
-            <Rectangle translation="[22,60]" width="274" height="76" color="0x2F2F36FF" />
-            <Poster translation="[32,89]" width="18" height="18" uri="pkg:/images/arrow-up.png" loadDisplayMode="scaleToFit" />
-            <Label id="qualityName" translation="[58,60]" width="202" height="76" vertAlign="center" horizAlign="center">
-                <Font role="font" uri="font:BoldSystemFontFile" size="25" />
-            </Label>
-            <Poster translation="[266,89]" width="18" height="18" uri="pkg:/images/arrow-down.png" loadDisplayMode="scaleToFit" />
-            <Label id="qualityHint" translation="[22,148]" width="274" height="22" text="OK to apply · Back to close" color="0xAEB5C3FF">
-                <Font role="font" uri="font:SystemFontFile" size="13" />
-            </Label>
+            <Rectangle width="400" height="184" color="0x101012FF" />
+            <SimpleLabel translation="[200,35]" text="QUALITY" horizOrigin="center" vertOrigin="center" color="0xAEB5C3FF" fontUri="font:BoldSystemFontFile" fontSize="16" />
+            <Rectangle translation="[22,60]" width="356" height="76" color="0x2F2F36FF" />
+            <SimpleLabel translation="[41,98]" text="▲" horizOrigin="center" vertOrigin="center" fontUri="pkg:/fonts/TwokuUnicode-Regular.ttf" fontSize="18" />
+            <SimpleLabel id="qualityName" translation="[200,100]" horizOrigin="center" vertOrigin="center" fontUri="font:BoldSystemFontFile" fontSize="25" />
+            <SimpleLabel translation="[359,98]" text="▼" horizOrigin="center" vertOrigin="center" fontUri="pkg:/fonts/TwokuUnicode-Regular.ttf" fontSize="18" />
+            <SimpleLabel id="qualityHint" translation="[200,160]" text="OK to apply · Back to close" horizOrigin="center" vertOrigin="center" color="0xAEB5C3FF" fontUri="font:SystemFontFile" fontSize="13" />
         </Group>
         <LoadingIndicator id="busy" translation="[608,328]" size="64" />
         <Group id="statusBox" translation="[400,268]" visible="false">

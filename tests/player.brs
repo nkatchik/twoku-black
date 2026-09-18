@@ -21,6 +21,9 @@ end sub
 
 function playerNode()
     return {
+        localBoundingRect: function()
+            return {width: Len(m.text) * 8, height: 18}
+        end function,
         observeField: sub(field, callback)
         end sub,
         width: 0, height: 0, translation: [0, 0], visible: false, children: [], state: "none", position: 0, duration: 0,
@@ -60,6 +63,7 @@ sub resetPlayer()
     m.top.streamEnded = false
     m.top.liveStatus = "unknown"
     m.top.videoTitle = "Title"
+    m.top.viewerText = ""
     m.top.gameName = ""
     m.top.playbackDiagnostics = {}
     m.top.visible = true
@@ -112,6 +116,7 @@ sub resetPlayer()
     m.manualRetries = 0
     m.qualityIndex = 0
     m.playingIndex = 1
+    m.activeQualityName = ""
     m.tried = {"1": true}
     m.pendingContent = invalid
     m.startRequested = false
@@ -250,6 +255,7 @@ sub testControlFocus()
 end sub
 
 sub main()
+    testPlaybackQualityBadge()
     testManualRetries()
     testLiveEnd()
     testStatusPolling()
@@ -1230,4 +1236,55 @@ sub testManualRetries()
     onKeyEvent("back", true)
     finishDecoderStop()
     check(m.top.back and not m.playbackActive and m.pendingContent = invalid and m.video.control <> "play", "Back cancels a queued manual retry before it can restart")
+end sub
+
+sub testPlaybackQualityBadge()
+    resetPlayer()
+    m.top.viewerText = "12.3K"
+    onMetadataChange()
+    badge = m.top.findNode("playingQualityBadge")
+    label = m.top.findNode("playingQualityLabel")
+    check(not badge.visible, "No quality is advertised before the decoder plays")
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(badge.visible and label.text = "720p" and m.preference = "Auto", "Badge shows the actual rendition while Auto is selected")
+    m.top.viewerText = "12.4K"
+    onMetadataChange()
+    check(label.text = "720p" and m.top.findNode("viewerLabel").text = "12.4K" and m.top.viewerText = "12.4K", "Quality badge stays separate from viewer and chat metadata")
+    showQuality()
+    m.qualityIndex = 1
+    renderQuality()
+    check(label.text = "720p", "Browsing the quality menu cannot change the reported playing variant")
+    recoverPlayback("native-error", true)
+    check(not badge.visible and m.playingIndex = 2, "Auto switching hides the old rendition while the new decoder is pending")
+    finishDecoderStop()
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(badge.visible and label.text = "480p", "Automatic fallback updates the actual quality when playback starts")
+    m.video.state = "paused"
+    onVideoStateChange()
+    check(m.activeQualityName = "480p", "Pausing preserves the current rendition")
+    showPlaybackError("Failed")
+    check(not badge.visible and m.activeQualityName = "", "Terminal playback failure hides stale playing quality")
+
+    resetPlayer()
+    m.top.contentKind = "vod"
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(m.top.findNode("playingQualityLabel").text = "720p", "Recordings display their playing quality too")
+    m.qualityIndex = 1
+    applyQuality()
+    finishDecoderStop()
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(m.top.findNode("playingQualityLabel").text = "1080p60 (source)", "Manual quality changes report the playing source label")
+    stopPlayback()
+    check(not m.top.findNode("playingQualityBadge").visible, "Stopping playback hides quality for the next video")
+
+    resetPlayer()
+    m.variants = []
+    m.playingIndex = -1
+    m.video.state = "playing"
+    onVideoStateChange()
+    check(not m.top.findNode("playingQualityBadge").visible, "Missing quality information never fabricates an Auto or unknown badge")
 end sub

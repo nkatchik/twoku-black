@@ -59,6 +59,12 @@ the retry budget. Brief successful playback does not replenish it. Tests cover
 native errors, buffering/stall timeouts, relay failures, decoder shutdown, VOD/clip
 position, a single available variant, confirmed stream endings, and Back cancellation.
 
+The player quality badge follows the decoder's playing variant, including Auto
+fallback and manual changes. Browsing the quality menu does not change the badge.
+It stays beside the available player buttons and hides before playback starts,
+during variant changes, when quality metadata is absent, and after playback stops.
+Viewer/chat metadata stays separate. Font checks include the menu's ▲/▼ glyphs.
+
 On 2026-09-18, a temporary Roxton fixture supplied an unreachable native playback
 URL for the selected quality. Console traces confirmed exactly three attempts,
 each separated by decoder stop acknowledgement, followed by working Auto playback.

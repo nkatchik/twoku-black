@@ -25,7 +25,7 @@ class FontTests(unittest.TestCase):
         examples = [
             "café Español français Tiếng Việt Ελληνικά Привет Україна",
             "日本語 中文 한국어 ไทย العربية עברית हिन्दी",
-            "♥ ★ 😀 🎮 🔴 🔥 😂 💜 👍 🥰 🚀",
+            "♥ ★ 😀 🎮 🔴 🔥 😂 💜 👍 🥰 🚀 ▲ ▼",
         ]
         for text in examples:
             for character in text.replace(" ", ""):

@@ -61,6 +61,7 @@ sub init()
     m.capabilities = invalid
     m.qualityIndex = 0
     m.playingIndex = -1
+    m.activeQualityName = ""
     m.preference = "Auto"
     m.manualRetries = 0
     m.tried = {}
@@ -125,6 +126,17 @@ sub onMetadataChange()
     refreshControls()
 end sub
 
+sub renderPlaybackQuality()
+    badge = m.top.findNode("playingQualityBadge")
+    badge.visible = m.activeQualityName <> ""
+    label = m.top.findNode("playingQualityLabel")
+    label.text = m.activeQualityName
+    if not badge.visible then return
+    width = label.localBoundingRect().width + 24
+    m.top.findNode("playingQualityBackground").width = width
+    label.translation = [width / 2,18]
+end sub
+
 sub onChatVisibilityChange()
     surfaceWidth = 1280
     if m.top.chatIsVisible
@@ -151,6 +163,8 @@ sub onChatVisibilityChange()
 end sub
 
 sub onPlaybackInfo()
+    m.activeQualityName = ""
+    renderPlaybackQuality()
     m.liveCheckClock = invalid
     m.liveCheckLogin = ""
     m.endedStatusTimer.control = "stop"
@@ -197,6 +211,8 @@ sub onPlaybackInfo()
 end sub
 
 sub onRequestedContent()
+    m.activeQualityName = ""
+    renderPlaybackQuality()
     cancelCompatibility()
     m.pendingContent = m.top.content
     m.startRequested = false
@@ -387,6 +403,10 @@ sub onVideoStateChange()
         if m.top.contentKind = "live" then applyLiveStatus("live")
         m.attemptStarted = true
         m.attemptPlayed = true
+        if m.playingIndex >= 0 and m.playingIndex < m.variants.Count()
+            m.activeQualityName = m.variants[m.playingIndex].name
+            renderPlaybackQuality()
+        end if
         m.terminalTicks = 0
         rememberPlaybackPosition()
         m.bufferTicks = 0
@@ -750,6 +770,8 @@ sub onDownloadedSegment()
 end sub
 
 sub showPlaybackError(message as String)
+    m.activeQualityName = ""
+    renderPlaybackQuality()
     m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     m.top.streamEnded = false
@@ -771,6 +793,8 @@ end sub
 
 sub switchVariant(index as Integer)
     if index < 0 or index >= m.variants.Count() then return
+    m.activeQualityName = ""
+    renderPlaybackQuality()
     cancelLiveStatusCheck()
     stopSeekHold()
     selected = m.variants[index]
@@ -812,6 +836,8 @@ sub switchVariant(index as Integer)
 end sub
 
 sub stopPlayback()
+    m.activeQualityName = ""
+    renderPlaybackQuality()
     m.endedStatusTimer.control = "stop"
     cancelLiveStatusCheck()
     cancelPlaybackReload()
@@ -906,6 +932,8 @@ sub refreshControls()
         m.buttonNodes.Push(button)
         x += 148
     end for
+    ' Last button ends at x - 16; leave a 24px gap before the informational badge.
+    m.top.findNode("playingQualityBadge").translation = [42 + x + 8,658]
     m.progress.visible = seekable
     m.seekFocus.visible = m.overlayFocus = "seek" and seekable
 end sub
