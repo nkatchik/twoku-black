@@ -14,6 +14,13 @@ sub init()
     m.clipButton = m.top.findNode("clipButton")
     m.clipLine = m.top.findNode("clipLine")
     m.emptyLabel = m.top.findNode("emptyLabel")
+    m.categoryHeader = m.top.findNode("categoryHeader")
+    m.categoryHeader.content = CreateObject("roSGNode", "ContentNode")
+    m.categoryDescription = ""
+    m.categoryInfoVersion = 0
+    m.categoryInfoPending = false
+    m.getCategoryInfo = CreateObject("roSGNode", "GetCategoryInfo")
+    m.getCategoryInfo.observeField("state", "onCategoryInfoStopped")
     m.getStreams = CreateObject("roSGNode", "GetStreams")
     m.getStreams.observeField("searchResults", "onSearchResultChange")
     m.getStreams.observeField("state", "onStreamsStopped")
@@ -41,18 +48,56 @@ sub init()
 end sub
 
 sub updateCategoryHeader()
-    name = m.top.findNode("categoryName")
-    cover = m.top.findNode("categoryCover")
-    if name = invalid or cover = invalid then return
-    name.text = m.top.currentCategoryName
-    if name.text = "" then name.text = "Live channels"
-    cover.uri = m.top.currentCategoryImage
+    if m.categoryHeader = invalid then return
+    headers = [m.categoryHeader.content]
+    for each list in [m.browseList, m.browseClipsList]
+        if categoryHasRows(list) then headers.Push(list.content.getChild(0))
+    end for
+    for each header in headers
+        header.Title = m.top.currentCategoryName
+        header.HDPosterUrl = m.top.currentCategoryImage
+        header.Description = m.categoryDescription
+    end for
+end sub
+
+sub requestCategoryDescription()
+    if m.getCategoryInfo = invalid then return
+    m.categoryInfoVersion += 1
+    m.getCategoryInfo.cancelRequested = true
+    m.categoryInfoPending = true
+    startCategoryDescription()
+end sub
+
+sub startCategoryDescription()
+    if not m.categoryInfoPending or m.getCategoryInfo.state = "run" then return
+    m.categoryInfoPending = false
+    m.getCategoryInfo.categoryId = m.top.currentCategory
+    m.getCategoryInfo.requestId = m.categoryInfoVersion
+    m.getCategoryInfo.cancelRequested = false
+    m.getCategoryInfo.info = {}
+    m.getCategoryInfo.control = "RUN"
+end sub
+
+sub onCategoryInfoStopped()
+    if m.getCategoryInfo.state <> "stop" then return
+    if m.categoryInfoPending
+        startCategoryDescription()
+        return
+    end if
+    if m.getCategoryInfo.cancelRequested or m.getCategoryInfo.requestId <> m.categoryInfoVersion then return
+    if m.getCategoryInfo.categoryId <> m.top.currentCategory then return
+    info = m.getCategoryInfo.info
+    if type(info) <> "roAssociativeArray" then return
+    if info.id <> m.top.currentCategory then return
+    m.categoryDescription = info.description
+    updateCategoryHeader()
 end sub
 
 sub reloadContent()
     if not m.top.visible then return
     m.reloadPending = true
     cancelPlaybackRequest()
+    requestCategoryDescription()
     m.busy.active = true
     tryReloadContent()
 end sub
@@ -129,6 +174,7 @@ sub onCategoryChange()
     m.seenClips = {}
     m.browseList.content = invalid
     m.browseClipsList.content = invalid
+    m.categoryDescription = ""
     m.pendingGridFocus = "live"
     m.liveLine.visible = true
     m.clipLine.visible = false
@@ -142,6 +188,7 @@ sub onCategoryChange()
     m.clipsLoading = false
     updateCategoryBusy()
     updateCategoryHeader()
+    requestCategoryDescription()
     startCategoryStreams()
 end sub
 
@@ -227,6 +274,8 @@ sub onSearchResultChange()
         end for
     end if
     appendGridItems(m.browseList, items)
+    updateCategoryHeader()
+    updateCategoryBusy()
     finishGridPage(m.getStreams, m.streamsCursor, items.Count())
     completeCategoryFocus("live")
     if m.liveLine.visible
@@ -258,6 +307,8 @@ sub insertClips()
         end for
     end if
     appendGridItems(m.browseClipsList, items)
+    updateCategoryHeader()
+    updateCategoryBusy()
     finishGridPage(m.getClips, m.clipsCursor, items.Count())
     completeCategoryFocus("clips")
     if m.clipLine.visible
@@ -446,6 +497,12 @@ end sub
 
 sub updateCategoryBusy()
     if m.busy = invalid then return
+    if m.categoryHeader <> invalid
+        list = m.browseList
+        if m.clipLine.visible then list = m.browseClipsList
+        ' Before the first row arrives (or for an empty feed), show the same header.
+        m.categoryHeader.visible = not categoryHasRows(list)
+    end if
     loading = false
     if m.liveLine.visible and m.streamsLoading and not categoryHasRows(m.browseList) then loading = true
     if m.clipLine.visible and m.clipsLoading and not categoryHasRows(m.browseClipsList) then loading = true

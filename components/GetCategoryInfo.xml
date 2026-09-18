@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="GetCategoryInfo" extends="Task">
+    <interface>
+        <field id="categoryId" type="string" />
+        <field id="requestId" type="integer" />
+        <field id="cancelRequested" type="boolean" value="false" />
+        <field id="info" type="assocarray" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/GetCategoryInfo.brs" />
+    <script type="text/brightscript" uri="pkg:/components/UrlFunctions.brs" />
+</component>

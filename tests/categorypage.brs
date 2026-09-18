@@ -107,6 +107,7 @@ sub main()
     testClipPreload()
     testReloadCategory()
     testQuietCategoryPlayback()
+    testCategoryDescriptions()
     print "PASS category grid packing, empty focus, SG metadata, cancelled playback"
 end sub
 
@@ -191,4 +192,66 @@ sub testQuietCategoryPlayback()
         end if
         check(m.playbackStatus.text = "Unavailable" and not m.playbackLoading and not m.busy.active, "Game playback failures reach the timed error label")
     end for
+end sub
+
+sub testCategoryDescriptions()
+    m.top.currentCategory = "game-a"
+    m.top.currentCategoryName = "Game A"
+    m.top.currentCategoryImage = "cover-a"
+    m.categoryDescription = ""
+    m.categoryInfoVersion = 0
+    m.categoryInfoPending = false
+    m.getCategoryInfo = node()
+    m.categoryHeader = node()
+    m.categoryHeader.content = node()
+    m.browseList = node()
+    m.browseClipsList = node()
+    m.liveLine.visible = true
+    m.clipLine.visible = false
+    m.playbackLoading = false
+    m.streamsLoading = true
+    updateCategoryHeader()
+    updateCategoryBusy()
+    check(m.categoryHeader.visible and m.categoryHeader.content.Title = "Game A", "Game header appears before the first grid page arrives")
+    check(m.categoryHeader.content.Description = "", "Unknown description has no generic placeholder")
+    appendGridItems(m.browseList, [node(),node(),node(),node(),node()])
+    appendGridItems(m.browseClipsList, [node()])
+    updateCategoryHeader()
+    updateCategoryBusy()
+    liveHeader = m.browseList.content.getChild(0)
+    clipHeader = m.browseClipsList.content.getChild(0)
+    check(not m.categoryHeader.visible and liveHeader.Title = "Game A" and clipHeader.HDPosterUrl = "cover-a", "Both native grids own their game header once content arrives")
+    check(m.browseList.content.getChildCount() = 2 and liveHeader.getChildCount() = 4, "Header metadata adds no selectable row or stream offset")
+    m.browseList.rowItemFocused = [1,0]
+    m.browseList.jumpToRowItem = invalid
+    requestCategoryDescription()
+    check(m.getCategoryInfo.control = "RUN" and m.getCategoryInfo.categoryId = "game-a", "Game entry requests its own description")
+    m.getCategoryInfo.info = {id: "game-a", description: "Actual game A summary"}
+    onCategoryInfoStopped()
+    check(liveHeader.Description = "Actual game A summary" and clipHeader.Description = liveHeader.Description, "A late description updates both native row headers")
+    check(m.browseList.rowItemFocused[0] = 1 and m.browseList.jumpToRowItem = invalid, "Metadata arrival preserves selection and scroll")
+    m.getCategoryInfo.state = "run"
+    m.top.currentCategory = "game-b"
+    m.top.currentCategoryName = "Game B"
+    m.top.currentCategoryImage = "cover-b"
+    m.categoryDescription = ""
+    updateCategoryHeader()
+    requestCategoryDescription()
+    check(m.categoryInfoPending and m.getCategoryInfo.cancelRequested and m.getCategoryInfo.categoryId = "game-a", "A new game queues behind and cancels the old description request")
+    m.getCategoryInfo.state = "stop"
+    onCategoryInfoStopped()
+    check(m.getCategoryInfo.categoryId = "game-b" and not m.categoryInfoPending and liveHeader.Description = "", "Old metadata cannot leak into a newly selected game")
+    m.getCategoryInfo.info = {id: "game-a", description: "Wrong game"}
+    onCategoryInfoStopped()
+    check(liveHeader.Description = "", "Mismatched result identity is rejected")
+    m.getCategoryInfo.info = {id: "game-b", description: "Actual game B summary"}
+    onCategoryInfoStopped()
+    check(liveHeader.Description = "Actual game B summary" and liveHeader.Title = "Game B", "Next game gets its own description")
+    m.getCategoryInfo.info = {}
+    onCategoryInfoStopped()
+    check(liveHeader.Description = "Actual game B summary", "A failed same-game refresh preserves known metadata")
+    m.browseList.content = invalid
+    m.streamsLoading = false
+    updateCategoryBusy()
+    check(m.categoryHeader.visible and m.categoryHeader.content.Description = "Actual game B summary", "An empty feed still shows its real game header")
 end sub

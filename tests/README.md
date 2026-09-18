@@ -283,6 +283,19 @@ remain pending until performed on the affected device.
 
 ## Twellie interface and playback regressions
 
+Game-page checks cover Twitch's per-game description, a single bounded anonymous
+metadata request, absent descriptions, malformed responses, cancellation, and
+rapid changes between game IDs. Header updates preserve existing grid nodes,
+selection, and pagination; the native first-row title contains the cover, name,
+and description without adding a selectable item. Empty/loading feeds use the
+same header component. Live channels and Clips each retain their own scroll.
+Roxton checks on 2026-09-18 confirmed a real League of Legends description and
+no placeholder for Just Chatting, header removal/restoration during scrolling
+in both feeds, horizontal navigation, pagination past the initial page, switching
+between feeds, and Refresh returning to the first stream with its header intact.
+The installed production ZIP contained no test hooks or runtime errors.
+
+
 The combined runner also executes the two chat suites. New checks cover
 four-column packing, removal of the Settings navigation slot, offline-only
 Following focus, category/channel return routes, stale stream/VOD callbacks,

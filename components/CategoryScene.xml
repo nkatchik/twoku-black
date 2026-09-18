@@ -36,24 +36,23 @@
             <SimpleLabel id="clipButton" translation="[160,61]" vertOrigin="center" text="Clips" color="0xA9A9B2FF" fontSize="20" fontUri="font:SystemFontFile" />
             <Rectangle id="clipLine" width="1" height="3" color="0xF4F4F7FF" translation="[160,75]" visible="false" />
         </Group>
-        <Group translation="[43,120]">
-            <Rectangle width="108" height="144" color="0x18181BFF" />
-            <Poster id="categoryCover" width="108" height="144" loadDisplayMode="scaleToFill" />
-            <Label id="categoryName" translation="[132,0]" width="1045" height="42" color="0xFFFFFFFF">
-                <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="32" />
-            </Label>
-            <Label translation="[132,52]" width="1000" text="Discover live streams and clips" color="0xC8C8CFFF">
-                <Font role="font" uri="font:SystemFontFile" size="18" />
-            </Label>
+        <CategoryHeader id="categoryHeader" translation="[43,120]" />
+        <Group clippingRect="[35,112,1210,608]">
+            <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
+                rowTitleComponentName="CategoryHeader" showRowLabel="[true,false]" showRowCounter="[false]"
+                rowLabelOffset="[[0,30],[0,0]]" rowHeights="[421,247]"
+                rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
+                focusBitmapUri="pkg:/images/twellie-focus.9.png"
+                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00"
+                vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus" />
+            <RowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,120]" numRows="3"
+                rowTitleComponentName="CategoryHeader" showRowLabel="[true,false]" showRowCounter="[false]"
+                rowLabelOffset="[[0,30],[0,0]]" rowHeights="[421,247]"
+                rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
+                focusBitmapUri="pkg:/images/twellie-focus.9.png"
+                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00"
+                vertFocusAnimationStyle="fixedFocus" rowFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>
-        <RowList id="browseList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
-            rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
-            focusBitmapUri="pkg:/images/twellie-focus.9.png"
-                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" />
-        <RowList id="browseClipsList" itemComponentName="BrowseChannelItem" translation="[43,294]" numRows="2"
-            rowItemSize="[[288,162]]" rowItemSpacing="[[14,0]]" itemSize="[1194,247]"
-            focusBitmapUri="pkg:/images/twellie-focus.9.png"
-                focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" visible="false" />
         <Label id="emptyLabel" translation="[43,380]" width="1194" height="100" horizAlign="center" color="0x5C5C66FF" text="" visible="false">
             <Font role="font" uri="font:SystemFontFile" size="28" />
         </Label>

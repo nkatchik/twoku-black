@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="CategoryHeader" extends="Group">
+    <interface>
+        <field id="content" type="node" onChange="onContentChanged" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/CategoryHeader.brs" />
+    <children>
+        <Rectangle width="108" height="144" color="0x18181BFF" />
+        <Poster id="cover" width="108" height="144" loadDisplayMode="scaleToFill" />
+        <Label id="name" translation="[132,0]" width="1045" height="42" color="0xFFFFFFFF">
+            <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="32" />
+        </Label>
+        <Label id="description" translation="[132,52]" width="1045" height="92" wrap="true" maxLines="4" color="0xC8C8CFFF">
+            <Font role="font" uri="pkg:/fonts/TwokuUnicode-Regular.ttf" size="18" />
+        </Label>
+    </children>
+</component>
