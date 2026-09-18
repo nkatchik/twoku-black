@@ -26,7 +26,8 @@
             <Font role="font" uri="font:SystemFontFile" size="21" />
         </Label>
         <Group id="chatPanel" translation="[932,104]" />
-        <LoadingIndicator id="busy" translation="[1076,144]" size="48" />
+        <!-- Center within the message area, y=104..708. -->
+        <LoadingIndicator id="busy" translation="[1076,382]" size="48" />
         <Label id="status" text="" visible="false" width="336" height="604" wrap="true" horizAlign="center" vertAlign="center" translation="[932,104]" color="0xa9a9b2FF">
             <Font role="font" uri="font:SystemFontFile" size="17" />
         </Label>

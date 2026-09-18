@@ -75,7 +75,8 @@
                 focusBitmapUri="pkg:/images/twellie-focus.9.png"
                 focusFootprintBitmapUri="pkg:/images/twellie-focus.9.png" focusFootprintBlendColor="0xFFFFFF00" rowFocusAnimationStyle="floatingFocus" />
             <FollowingView id="followingView" translation="[43,114]" visible="false" />
-            <LoadingIndicator id="busy" translation="[612,332]" size="56" />
+            <!-- Center within the browse viewport below the header, y=120..720. -->
+            <LoadingIndicator id="busy" translation="[612,392]" size="56" />
             <Label id="loadStatus" translation="[43,300]" width="1194" height="120" wrap="true" horizAlign="center" vertAlign="center" color="0xA9A9B2FF" visible="false">
                 <Font role="font" uri="font:SystemFontFile" size="26" />
             </Label>
