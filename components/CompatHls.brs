@@ -3,11 +3,12 @@
 function compatParseMedia(text as String, baseUrl as String) as Object
     result = {valid: false, error: "", entries: [], lines: [], hasMap: false,
         firstInitUrl: "", targetDuration: 0, mediaSequence: 0, endList: false}
-    if Len(text) > 262144 then return compatMediaError(result, "Media playlist is too large.")
+    ' Archives describe the entire recording, not the short rolling live window.
+    if Len(text) > compatMaxPlaylistBytes() then return compatMediaError(result, "Media playlist is too large.")
     if not compatUpstreamUrlAllowed(baseUrl) then return compatMediaError(result, "Unsupported media host.")
     rawLines = text.Split(Chr(10))
     if rawLines.Count() = 0 then return compatMediaError(result, "Empty media playlist.")
-    if rawLines.Count() > 4096 then return compatMediaError(result, "Media playlist contains too many lines.")
+    if rawLines.Count() > 65536 then return compatMediaError(result, "Media playlist contains too many lines.")
     if rawLines[0].Trim() <> "#EXTM3U" then return compatMediaError(result, "Invalid media playlist header.")
     result.lines.Push({kind: "line", text: "#EXTM3U"})
     ' fMP4 EXT-X-MAP requires HLS version 6; one fixed version also avoids
@@ -16,6 +17,7 @@ function compatParseMedia(text as String, baseUrl as String) as Object
     pendingDuration = -1.0
     initUrl = ""
     segmentCount = 0
+    mapCount = 0
     unmappedSegments = false
     for index = 1 to rawLines.Count() - 1
         line = rawLines[index].Trim()
@@ -36,7 +38,7 @@ function compatParseMedia(text as String, baseUrl as String) as Object
                 result.entries.Push(entry)
                 result.lines.Push(entry)
                 segmentCount += 1
-                if segmentCount > 512 then return compatMediaError(result, "Media playlist contains too many segments.")
+                if segmentCount > 20000 then return compatMediaError(result, "Media playlist contains too many segments.")
                 pendingDuration = -1.0
             else if tag = "#EXTINF"
                 if pendingDuration >= 0 then return compatMediaError(result, "Media segment URL is missing.")
@@ -47,6 +49,8 @@ function compatParseMedia(text as String, baseUrl as String) as Object
                 ' EXTINF titles are unnecessary and may contain upstream URLs.
                 result.lines.Push({kind: "line", text: "#EXTINF:" + durationText + ","})
             else if tag = "#EXT-X-MAP"
+                mapCount += 1
+                if mapCount > 512 then return compatMediaError(result, "Media playlist contains too many resources.")
                 attrs = compatHlsAttributes(value)
                 if attrs = invalid then return compatMediaError(result, "Invalid initialization map.")
                 if attrs.BYTERANGE <> invalid then return compatMediaError(result, "Byte-range media requires direct playback.")
@@ -89,8 +93,7 @@ function compatParseMedia(text as String, baseUrl as String) as Object
             ' Drop partial segments, preload/prefetch hints, server-control and
             ' rendition reports. Only completed EXTINF segments are advertised.
             ' Unknown tags are omitted rather than leaking a URI attribute.
-            if result.entries.Count() > 512 then return compatMediaError(result, "Media playlist contains too many resources.")
-            if result.lines.Count() > 2048 then return compatMediaError(result, "Media playlist contains too many declarations.")
+            if result.lines.Count() > 65536 then return compatMediaError(result, "Media playlist contains too many declarations.")
         end if
     end for
     if pendingDuration >= 0 then return compatMediaError(result, "Media segment URL is missing.")
@@ -101,6 +104,10 @@ function compatParseMedia(text as String, baseUrl as String) as Object
     return result
 end function
 
+function compatMaxPlaylistBytes() as Integer
+    return 2097152
+end function
+
 function compatMediaError(result as Object, message as String) as Object
     result.valid = false
     result.error = message
@@ -108,27 +115,32 @@ function compatMediaError(result as Object, message as String) as Object
 end function
 
 function compatRewriteMedia(text as String, baseUrl as String, track as String, registry as Object) as Object
-    result = compatParseMedia(text, baseUrl)
-    result.text = ""
-    result.resourceIds = []
+    return compatRewriteParsedMedia(compatParseMedia(text, baseUrl), track, registry)
+end function
+
+function compatRewriteParsedMedia(parsed as Object, track as String, registry as Object) as Object
+    result = {valid: parsed.valid, error: parsed.error, text: "", resourceIds: []}
     if not result.valid then return result
     if track <> "audio" and track <> "video" then return compatMediaError(result, "Invalid media track.")
-    if not result.hasMap then return compatMediaError(result, "Media playlist does not need container repair.")
-    for each entry in result.lines
+    if not parsed.hasMap then return compatMediaError(result, "Media playlist does not need container repair.")
+    output = []
+    for each entry in parsed.lines
         if entry.kind = "line"
-            result.text += entry.text + Chr(10)
+            output.Push(entry.text)
         else
-            localUrl = compatRegisterResource(registry, entry.url, entry.kind, entry.initUrl, track)
+            ' The shared parse already validated every URL and initialization.
+            localUrl = compatRegisterValidatedResource(registry, entry.url, entry.kind, entry.initUrl, track)
             if localUrl = "" then return compatMediaError(result, "Invalid local media registry.")
             id = Mid(localUrl, Len(registry.baseUrl) + 11)
             result.resourceIds.Push(id)
             if entry.kind = "init"
-                result.text += "#EXT-X-MAP:URI=" + Chr(34) + localUrl + Chr(34) + Chr(10)
+                output.Push("#EXT-X-MAP:URI=" + Chr(34) + localUrl + Chr(34))
             else
-                result.text += localUrl + Chr(10)
+                output.Push(localUrl)
             end if
         end if
     end for
+    result.text = output.Join(Chr(10)) + Chr(10)
     return result
 end function
 
@@ -137,6 +149,10 @@ function compatRegisterResource(registry as Object, url as String, kind as Strin
     if initUrl <> "" and not compatUpstreamUrlAllowed(initUrl) then return ""
     if kind <> "init" and kind <> "segment" then return ""
     if track <> "audio" and track <> "video" then return ""
+    return compatRegisterValidatedResource(registry, url, kind, initUrl, track)
+end function
+
+function compatRegisterValidatedResource(registry as Object, url as String, kind as String, initUrl as String, track as String) as String
     if registry.baseUrl = invalid or registry.baseUrl = "" then return ""
     if registry.resources = invalid then registry.resources = {}
     if registry.idmap = invalid then registry.idmap = {}
@@ -229,10 +245,7 @@ end function
 function compatAbsoluteUrl(baseUrl as String, reference as String) as String
     if reference = "" then return ""
     if Instr(1, reference, Chr(92)) > 0 then return ""
-    for index = 1 to Len(reference)
-        code = Asc(Mid(reference, index, 1))
-        if code <= 32 or code = 127 then return ""
-    end for
+    if compatUrlHasControls(reference) then return ""
     if Left(reference, 2) = "//"
         url = "https:" + reference
     else if Instr(1, reference, "://") > 0
@@ -288,10 +301,7 @@ end function
 function compatUpstreamUrlAllowed(url as String) as Boolean
     if LCase(Left(url, 8)) <> "https://" then return false
     if Instr(1, url, Chr(92)) > 0 or Instr(1, url, "#") > 0 then return false
-    for index = 1 to Len(url)
-        code = Asc(Mid(url, index, 1))
-        if code <= 32 or code = 127 then return false
-    end for
+    if compatUrlHasControls(url) then return false
     authority = Mid(url, 9).Split("/")[0].Split("?")[0]
     if Instr(1, authority, "@") > 0 then return false
     host = LCase(authority)
@@ -301,13 +311,19 @@ function compatUpstreamUrlAllowed(url as String) as Boolean
         host = Left(host, colon - 1)
     end if
     if Left(host, 1) = "." or Instr(1, host, "..") > 0 then return false
-    for index = 1 to Len(host)
-        if Instr(1, "abcdefghijklmnopqrstuvwxyz0123456789.-", Mid(host, index, 1)) = 0 then return false
-    end for
-    for each suffix in ["ttvnw.net", "twitchcdn.net"]
+    if m.compatHostPattern = invalid then m.compatHostPattern = CreateObject("roRegex", "^[a-z0-9.-]+$", "")
+    if not m.compatHostPattern.IsMatch(host) then return false
+    ' Twitch's recording playlists and fragments also use CloudFront hosts.
+    for each suffix in ["ttvnw.net", "twitchcdn.net", "cloudfront.net"]
         if host = suffix or Right(host, Len(suffix) + 1) = "." + suffix then return true
     end for
     return false
+end function
+
+function compatUrlHasControls(value as String) as Boolean
+    ' Native matching avoids scanning thousands of archive URLs in script.
+    if m.compatUrlControls = invalid then m.compatUrlControls = CreateObject("roRegex", "[\x00-\x20\x7f]", "")
+    return m.compatUrlControls.IsMatch(value)
 end function
 
 function compatUnsignedInteger(text as String) as Boolean

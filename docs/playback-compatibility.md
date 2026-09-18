@@ -252,3 +252,49 @@ audio/video synchronization or a substitute for watching the TV.
 All 34 deterministic suites pass. Native compilation succeeded. BrighterScript
 still reports the same 20 errors confined to the legacy `web_socket_client`
 sources; no new diagnostics were introduced.
+
+
+## Long fMP4 recordings on K806X (2026-09-19)
+
+Solo recordings `2876452202` (4h24m) and `2875635967` (3h49m) exposed
+three gaps in the live compatibility path. Their CDN was a CloudFront host,
+which the relay rejected. Their complete playlists exceeded the old live-window
+limits, and their ten-second source fragments were about 9.7 MB, above the
+4 MiB fragment cap. After those were corrected, the size-preserving views still
+failed at 1080p60 or stalled at 720p60: each audio request carried the entire
+muxed video payload as unused data.
+
+The relay now accepts CloudFront CDN URLs returned by playback lookup, parses
+long playlists once, and reuses both track playlists. Completed `ENDLIST`
+recordings never need periodic playlist downloads. Parsing remains bounded at
+2 MiB, 65,536 input lines, 20,000 segments and 512 initialization declarations.
+The advertised bitrate and target duration set the fragment budget between
+4 and 16 MiB; the original-media cache is three times that budget (12–48 MiB).
+Ordinary 8 Mbps, two-second live fragments retain the 12 MiB cache.
+
+For independently addressed, contiguous sample runs, the relay now omits the
+other track's payload from each response. It patches the `mdat` size and selected
+`trun` data offset, then sends spans referencing the original buffer. It scans
+bounded sample-size metadata, never compressed media bytes. Track spans are
+cached; HTTP GET, HEAD and Range use the compact output's length and offsets.
+Layouts without this supported structure retain the existing size-preserving
+view. Index boxes are never rewritten with guessed offsets.
+
+All 38 BrightScript suites and compilation pass. Regressions cover long archive
+playlists, completed-playlist reuse, resource and memory bounds, compact fragment
+bounds, and HTTP range/HEAD responses. The generated media proof now exercises
+both view formats, every sparse-span boundary and partial socket writes. A real
+solo recording sample independently preserved all 471 AAC packets/frames and
+300 H.264 packets/frames, including payload hashes and timestamps.
+
+On the supplied Roxton, both recordings started at 1080p60. The first passed
+four minutes of playback and a held forward seek to about 49 minutes, then
+continued playing. The second passed the previous stall point, paused, sought
+backward while paused, refreshed while remaining paused, and resumed. An active
+`shroud` fMP4 live stream also played at 1920×1080 across repeated playlist
+refreshes and closed cleanly with Back. These checks used temporary autostart
+and console hooks; they are excluded from the installed production package.
+Native state and media hashes do not independently establish audible A/V sync.
+A separate VOD decoder trace reached 4,885 rendered frames at 78 seconds, with
+zero reported frame drops or stream errors and no playback recovery. This
+confirms video kept rendering beyond the earlier stall window as well.

@@ -1,7 +1,8 @@
-' Separate track views without copying compressed media. Replacing a atom's type
-' with "free" preserves every atom size, absolute offset and mdat payload byte.
-' Only bounded metadata is inspected; callers send original byte-array ranges
-' interleaved with the four-byte patches returned by fmp4ViewPatches.
+' Separate track views without copying compressed media. Replacing an atom's
+' type with "free" preserves offsets; compact views additionally omit the other
+' track's payload and adjust its enclosing size and fragment-relative offset.
+' Only bounded container/sample metadata is inspected. Callers send original
+' byte-array ranges interleaved with four-byte patches.
 function fmp4TrackInfo(bytes) as Object
     result = {valid: false, audioId: 0, videoId: 0, muxed: false, tracks: [], error: ""}
     scan = fmp4Scan(bytes)
@@ -388,4 +389,99 @@ end function
 
 function fmp4FourCC(bytes, offset as Integer) as String
     return Chr(bytes[offset]) + Chr(bytes[offset + 1]) + Chr(bytes[offset + 2]) + Chr(bytes[offset + 3])
+end function
+
+' Compact single-run track fragments into sparse original-byte ranges. This
+' removes the other track's payload as well as its metadata without re-encoding.
+' Unsupported layouts retain the existing size-preserving view.
+function fmp4CompactTrackView(bytes, trackId, original) as Object
+    result = {valid: false, patches: [], ranges: [], length: 0}
+    scan = fmp4Scan(bytes)
+    if not scan.valid or not original.valid then return result
+    samplesLeft = 65536
+    index = 0
+    fragments = 0
+    while index < scan.boxes.Count()
+        atom = scan.boxes[index]
+        if atom.kind = "moof"
+            if index + 1 >= scan.boxes.Count() then return result
+            media = scan.boxes[index + 1]
+            if media.kind <> "mdat" or media.data - media.start <> 8 then return result
+            children = fmp4Boxes(bytes, atom.data, atom.limit, scan.budget)
+            if not children.valid then return result
+            trackRun = invalid
+            for each child in children.boxes
+                if child.kind = "traf"
+                    track = fmp4ReadFragment(bytes, child, scan.budget, atom.start)
+                    if not track.valid then return result
+                    if track.id = trackId
+                        fields = fmp4Boxes(bytes, child.data, child.limit, scan.budget)
+                        if not fields.valid then return result
+                        for each field in fields.boxes
+                            if field.kind = "trun"
+                                if trackRun <> invalid then return result
+                                trackRun = field
+                            end if
+                        end for
+                    end if
+                end if
+            end for
+            if trackRun = invalid then return result
+            flags = fmp4U32(bytes, trackRun.data) and &hffffff
+            ' Require explicit sample sizes and one independently addressed run.
+            if (flags and &h201) <> &h201 then return result
+            samples = fmp4U32(bytes, trackRun.data + 4)
+            if samples > samplesLeft then return result
+            samplesLeft -= samples
+            payloadStart = atom.start + Int(fmp4U32(bytes, trackRun.data + 8))
+            cursor = trackRun.data + 12
+            if (flags and 4) <> 0 then cursor += 4
+            stride = 4
+            if (flags and &h100) <> 0
+                cursor += 4
+                stride += 4
+            end if
+            if (flags and &h400) <> 0 then stride += 4
+            if (flags and &h800) <> 0 then stride += 4
+            payloadLength = 0
+            for sample = 1 to samples
+                if cursor + 4 > trackRun.limit then return result
+                size = fmp4U32(bytes, cursor)
+                if size > media.limit - media.data - payloadLength then return result
+                payloadLength += Int(size)
+                cursor += stride
+            end for
+            if payloadLength = 0 or payloadStart < media.data or payloadStart + payloadLength > media.limit then return result
+            result.patches.Push(fmp4SizePatch(media.start, payloadLength + 8))
+            result.patches.Push(fmp4SizePatch(trackRun.data + 8, media.data - atom.start))
+            headerLength = media.data - atom.start
+            result.ranges.Push({offset: atom.start, length: headerLength})
+            result.ranges.Push({offset: payloadStart, length: payloadLength})
+            result.length += headerLength + payloadLength
+            fragments += 1
+            index += 2
+        else
+            ' Index boxes can contain absolute offsets into the original body.
+            if atom.kind <> "styp" and atom.kind <> "emsg" and atom.kind <> "free" then return result
+            result.ranges.Push({offset: atom.start, length: atom.limit - atom.start})
+            result.length += atom.limit - atom.start
+            index += 1
+        end if
+    end while
+    if fragments = 0 then return result
+    for each patch in original.patches
+        result.patches.Push(patch)
+    end for
+    result.patches.SortBy("offset")
+    result.valid = true
+    return result
+end function
+
+function fmp4SizePatch(offset as Integer, value as Integer) as Object
+    bytes = CreateObject("roByteArray")
+    bytes.Push(Int(value / 16777216#) mod 256)
+    bytes.Push(Int(value / 65536#) mod 256)
+    bytes.Push(Int(value / 256#) mod 256)
+    bytes.Push(value mod 256)
+    return {offset: offset, bytes: bytes}
 end function

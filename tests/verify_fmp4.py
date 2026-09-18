@@ -50,7 +50,7 @@ def boxes(data):
         position += size
 
 
-def production_patches(brs, source, work, server_spans=False):
+def production_views(brs, source, work, server_spans=False):
     top = list(boxes(source))
     media_offset = next(offset for offset, _, kind in top if kind == b'moof')
     # Preserve the original init/segment boundary, as the on-device server does.
@@ -90,13 +90,26 @@ end sub
 '''
     if server_spans:
         server = (ROOT / 'components/PlaybackCompatibility.brs').read_text()
-        for name in ('compatViewSpans', 'compatSendClient'):
+        for name in ('compatViewSpans', 'compatSendClient', 'compatTrackView', 'compatSliceSpans'):
             match = re.search(r'(?ims)^(?:function|sub)\s+' + name + r'\([^\n]*\n.*?^end (?:function|sub)', server)
             if match is None:
                 raise ValueError('Missing production server helper: ' + name)
             implementation += '\n' + match.group()
         bridge = bridge.replace('    for each patch in result.patches', '    emitServerProof(data,result.patches,kind,part)\n    for each patch in result.patches', 1)
-        bridge += SERVER_BRIDGE
+        # MP4 file indexes are not present in an HLS segment. Keep the original
+        # file for the size-preserving proof and omit only its trailing mfra here.
+        media = source[media_offset:]
+        media_boxes = list(boxes(media))
+        if media_boxes[-1][2] == b'mfra':
+            media = media[:media_boxes[-1][0]]
+        (work / 'compact.json').write_text(json.dumps(list(media), separators=(',', ':')))
+        bridge = bridge.replace('    print "FMP4_PASS"', '''
+    compact = ParseJson(ReadAsciiFile("pkg:/compact.json"))
+    emitCompactProof(compact,info.audioId,info,"audio")
+    emitCompactProof(compact,info.videoId,info,"video")
+    print "FMP4_PASS"
+''')
+        bridge += SERVER_BRIDGE + COMPACT_BRIDGE
     program = work / 'verify.brs'
     program.write_text(implementation + '\n' + bridge)
     output, diagnostics = invoke([brs, '--root', str(work), str(program)])
@@ -114,7 +127,32 @@ end sub
         patches[kind].append((offset, replacement))
     if server_spans:
         verify_spans(output, source, media_offset, patches)
-    return patches
+    compact = {}
+    if server_spans:
+        for line in output.splitlines():
+            if not line.startswith('FMP4_COMPACT '):
+                continue
+            proof = json.loads(line.removeprefix('FMP4_COMPACT '))
+            def reconstruct(spans):
+                result = bytearray()
+                for span in spans:
+                    data = media if span['patch'] is None else bytes(span['patch'])
+                    offset, size = span['offset'], span['length']
+                    if size <= 0 or offset < 0 or offset + size > len(data):
+                        raise AssertionError('Invalid compact span bounds')
+                    result.extend(data[offset:offset + size])
+                return result
+            target = reconstruct(proof['spans'])
+            if len(target) != proof['length'] or len(target) >= len(media):
+                raise AssertionError('Track payload was not compacted')
+            for case in proof['ranges']:
+                first, size = case['first'], case['length']
+                if reconstruct(case['spans']) != target[first:first + size]:
+                    raise AssertionError('Compact HTTP range or partial socket write changed bytes')
+            compact[proof['kind']] = target
+        if set(compact) != {'audio', 'video'}:
+            raise AssertionError('Missing compact track proof')
+    return patches, compact
 
 
 
@@ -174,6 +212,68 @@ sub emitServerProof(data, patches, kind, part)
         if chunk.original then storage = "original"
         print "FMP4_SPAN "; kind; " "; part; " socket "; storage; " "; chunk.offset.ToStr(); " "; chunk.length.ToStr()
     end for
+end sub
+"""
+
+
+COMPACT_BRIDGE = r"""
+function describeSpans(spans)
+    result = []
+    for each span in spans
+        patch = invalid
+        if span.data.Count() = 4
+            patch = []
+            patch.Append(span.data)
+        end if
+        result.Push({patch: patch, offset: span.offset, length: span.length})
+    end for
+    return result
+end function
+sub emitCompactProof(data, id, info, kind)
+    item = {bytes: data, size: data.Count(), kind: "media"}
+    view = compatTrackView(item,id,info)
+    if not view.valid
+        print "FMP4_FAIL compact track is invalid"
+        stop
+    end if
+    proof = {kind: kind, length: view.length, spans: describeSpans(view.spans), ranges: []}
+    cursor = 0
+    for each span in view.spans
+        first = cursor - 2
+        if first < 0 then first = 0
+        amount = 6
+        if first + amount > view.length then amount = view.length - first
+        proof.ranges.Push({first: first, length: amount, spans: describeSpans(compatSliceSpans(view.spans,first,amount))})
+        cursor += span.length
+    end for
+    proof.ranges.Push({first: view.length-3, length: 3, spans: describeSpans(compatSliceSpans(view.spans,view.length-3,3))})
+    socket = {chunks: [], calls: 0,
+        IsWritable: function()
+            return true
+        end function,
+        Send: function(data,offset,amount)
+            m.calls += 1
+            if m.calls mod 7 = 0 then return 0
+            if amount > 13007 then amount = 13007
+            if amount > 1 then amount = Int(amount/2)
+            m.chunks.Push({data: data, offset: offset, length: amount})
+            return amount
+        end function}
+    session = {servedBytes: 0, clock: {TotalMilliseconds: function()
+        return 123
+    end function}}
+    client = {socket: socket, spans: view.spans, spanIndex: 0, spanOffset: 0, phase: "sending"}
+    attempts = 0
+    while client.phase = "sending" and attempts < 10000
+        compatSendClient(session,client)
+        attempts += 1
+    end while
+    if client.phase <> "draining" or session.servedBytes <> view.length
+        print "FMP4_FAIL compact socket did not drain exactly once"
+        stop
+    end if
+    proof.ranges.Push({first: 0, length: view.length, spans: describeSpans(socket.chunks)})
+    print "FMP4_COMPACT "; FormatJson(proof)
 end sub
 """
 
@@ -268,10 +368,12 @@ def frame_hashes(ffmpeg, path, kind):
 
 def verify_fixture(args, fixture, work):
     source = fixture.read_bytes()
-    patches = production_patches(args.brs, source, work, args.server_spans)
+    patches, compact = production_views(args.brs, source, work, args.server_spans)
     baseline = probe(args.ffprobe, fixture)
     results = []
-    for kind, changes in patches.items():
+    cases = [(kind, changes, False) for kind, changes in patches.items()]
+    cases += [(kind, patches[kind], True) for kind in compact]
+    for kind, changes, is_compact in cases:
         target = bytearray(source)
         previous_end = 0
         for offset, replacement in changes:
@@ -282,7 +384,10 @@ def verify_fixture(args, fixture, work):
         for offset, size, box_kind in boxes(source):
             if box_kind == b'mdat' and source[offset:offset + size] != target[offset:offset + size]:
                 raise AssertionError('Compressed media payload changed')
-        path = work / (kind + '.mp4')
+        if is_compact:
+            media_offset = next(offset for offset, _, box_kind in boxes(source) if box_kind == b'moof')
+            target = target[:media_offset] + compact[kind]
+        path = work / (kind + ('-compact' if is_compact else '') + '.mp4')
         path.write_bytes(target)
         actual = probe(args.ffprobe, path)
         if len(actual['streams']) != 1 or actual['streams'][0]['codec_type'] != kind:
@@ -296,9 +401,12 @@ def verify_fixture(args, fixture, work):
         expected_frames, actual_frames = frame_hashes(args.ffmpeg, fixture, kind), frame_hashes(args.ffmpeg, path, kind)
         if not actual_frames or expected_frames != actual_frames:
             raise AssertionError('Decoded frame hashes or timestamps changed')
-        results.append({'kind': kind, 'patches': len(changes), 'patch_bytes': len(changes) * 4,
-                        'packets': len(actual_packets), 'decoded_frames': len(actual_frames),
-                        'payload_and_timing_unchanged': True})
+        result = {'kind': kind, 'compact': is_compact, 'output_bytes': len(target),
+                  'packets': len(actual_packets), 'decoded_frames': len(actual_frames),
+                  'payload_and_timing_unchanged': True}
+        if not is_compact:
+            result.update(patches=len(changes), patch_bytes=len(changes) * 4)
+        results.append(result)
     return {'fixture': fixture.name, 'source_bytes': len(source), 'sha256': hashlib.sha256(source).hexdigest(), 'server_spans_verified': args.server_spans, 'views': results}
 
 
@@ -307,7 +415,7 @@ def main():
     parser.add_argument('--brs', default='brs')
     parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--ffprobe', default='ffprobe')
-    parser.add_argument('--server-spans', action='store_true', help='Also verify production sparse ranges and partial socket sends')
+    parser.add_argument('--server-spans', action='store_true', help='Also verify compact track views, sparse ranges and partial socket sends')
     parser.add_argument('--fixture', type=Path, action='append', default=[])
     args = parser.parse_args()
     for name in ('brs', 'ffmpeg', 'ffprobe'):
@@ -323,6 +431,11 @@ def main():
                     '-map', '1:a:0', '-map', '0:v:0', '-c:a', 'aac', '-c:v', 'libx264',
                     '-g', '30', '-pix_fmt', 'yuv420p', '-movflags', '+empty_moov+default_base_moof+frag_keyframe',
                     '-frag_duration', '100000', str(generated)])
+            # Model an HLS segment with several complete audio/video fragments,
+            # without the MP4 file index or the encoder's final audio-only drain.
+            data = generated.read_bytes()
+            fragments = [offset for offset, _, kind in boxes(data) if kind == b'moof']
+            generated.write_bytes(data[:fragments[10]])
             fixtures = [generated]
         for number, fixture in enumerate(fixtures):
             work = workspace / str(number)

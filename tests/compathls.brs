@@ -79,9 +79,34 @@ sub main()
     bounded = compatParseMedia(repeatedMaps + "#EXTINF:2," + nl + "stream.m4s" + nl, base)
     check(not bounded.valid and bounded.error = "Media playlist contains too many resources.", "Initialization-map declarations cannot bypass the resource bound")
     repeatedComments = header
-    for index = 1 to 4096
+    for index = 1 to 65536
         repeatedComments += "#ignored" + nl
     end for
     check(not compatParseMedia(repeatedComments, base).valid, "Even dropped source declarations have a bounded line count")
+    vodBase = "https://dgeft87wbj63p.cloudfront.net/archive/chunked/index.m3u8"
+    check(compatUpstreamUrlAllowed(vodBase), "Twitch archive CDN is supported")
+    check(not compatUpstreamUrlAllowed("https://cloudfront.net.evil.test/vod") and not compatUpstreamUrlAllowed("https://evilcloudfront.net/vod"), "Archive CDN checks respect exact hostname boundaries")
+    vodLines = ["#EXTM3U", "#EXT-X-TARGETDURATION:10", "#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-PLAYLIST-TYPE:EVENT", "#EXT-X-MAP:URI=" + q + "init-0.mp4" + q]
+    for index = 0 to 1599
+        vodLines.Push("#EXT-X-PROGRAM-DATE-TIME:2026-09-17T10:48:35.925Z")
+        vodLines.Push("#EXTINF:10.000,")
+        vodLines.Push(index.ToStr() + ".mp4")
+    end for
+    vodLines.Push("#EXT-X-ENDLIST")
+    archive = compatParseMedia(vodLines.Join(nl), vodBase)
+    check(archive.valid and archive.endList and archive.entries.Count() = 1601, "A four-hour recording exceeds former live playlist limits without losing its timeline")
+    vodRegistry = {baseUrl: "http://127.0.0.1:32123", resources: {}, idmap: {}, counter: 0}
+    vodAudio = compatRewriteParsedMedia(archive, "audio", vodRegistry)
+    vodVideo = compatRewriteParsedMedia(archive, "video", vodRegistry)
+    check(vodAudio.valid and vodVideo.valid and vodRegistry.counter = 3202, "Both full-length recording tracks share one validated parse")
+    check(vodVideo.text.Split("#EXTINF:10.000,").Count() = 1601 and Instr(1, vodVideo.text, "#EXT-X-ENDLIST") > 0, "Rewriting keeps every duration and the final end marker for seeking")
+    firstVideo = vodRegistry.resources[vodVideo.resourceIds[1]]
+    lastVideo = vodRegistry.resources[vodVideo.resourceIds[1600]]
+    check(firstVideo.url = "https://dgeft87wbj63p.cloudfront.net/archive/chunked/0.mp4" and lastVideo.url = "https://dgeft87wbj63p.cloudfront.net/archive/chunked/1599.mp4", "First and last recording segments resolve without truncation")
+    check(archive.lines.Count() > 4800 and archive.entries.Count() = 1601, "Track rewriting does not mutate the shared parsed archive")
     print "PASS opaque HLS routes, shared cache keys, live timelines, map changes, completed segments and restricted CDN references"
 end sub
+
+function testCreateObject(kind, pattern, flags)
+    return CreateObject(kind, pattern, flags)
+end function

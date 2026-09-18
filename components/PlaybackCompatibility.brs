@@ -119,7 +119,7 @@ end function
 function compatPrepareServer(session, variant) as Boolean
     leaf = compatAwaitResource(session, session.sourceUrl, "playlist")
     if leaf = invalid then return false
-    parsed = compatParseMedia(leaf.text, session.sourceUrl)
+    parsed = session.parsed
     if not parsed.valid then return false
     if not parsed.hasMap
         master = compatDirectMasterPlaylist(session.sourceUrl, variant)
@@ -128,6 +128,7 @@ function compatPrepareServer(session, variant) as Boolean
         session.master = master
         return true
     end if
+    compatSetMediaBudget(session, parsed, variant)
     initial = compatAwaitResource(session, parsed.firstInitUrl, "init")
     if initial = invalid then return false
     info = initial.initInfo
@@ -141,6 +142,24 @@ function compatPrepareServer(session, variant) as Boolean
     session.master = compatMasterPlaylist(session.baseUrl + "/video.m3u8", session.baseUrl + "/audio.m3u8", variant)
     return compatUpdateViews(session)
 end function
+
+sub compatSetMediaBudget(session, parsed, variant)
+    ' VOD fragments are commonly ten seconds, versus two seconds for live.
+    ' Reserve two times the advertised segment size, within fixed RAM bounds.
+    limitMiB = 4
+    if type(variant) = "roAssociativeArray"
+        if variant.bandwidth <> invalid and parsed.targetDuration > 0
+            estimateMiB = variant.bandwidth * 1# * parsed.targetDuration / 4194304
+            if estimateMiB >= 16
+                limitMiB = 16
+            else if estimateMiB > limitMiB
+                limitMiB = Int(estimateMiB) + 1
+            end if
+        end if
+    end if
+    session.maxBody = limitMiB * 1048576
+    session.maxBytes = session.maxBody * 3
+end sub
 
 function compatOpenListener(session) as Boolean
     socket = CreateObject("roStreamSocket")
@@ -180,7 +199,13 @@ end function
 
 function compatNeedResource(session, url as String, kind as String)
     if kind = "playlist"
-        if session.rawPlaylist <> "" and session.clock.TotalMilliseconds() < session.playlistExpires then return {text: session.rawPlaylist}
+        if session.rawPlaylist <> ""
+            ' ENDLIST is immutable. Seeking must not refetch/reparse a long VOD.
+            if session.parsed <> invalid
+                if session.parsed.endList then return {text: session.rawPlaylist}
+            end if
+            if session.clock.TotalMilliseconds() < session.playlistExpires then return {text: session.rawPlaylist}
+        end if
     else if session.cache.DoesExist(url)
         item = session.cache[url]
         item.used = session.clock.TotalMilliseconds()
@@ -275,7 +300,7 @@ sub compatCompleteTransfer(session, event)
         session.error = "http"
     else if job.kind = "playlist"
         body = event.GetString()
-        if Len(body) > 262144
+        if Len(body) > compatMaxPlaylistBytes()
             session.error = "playlist-size"
         else
             parsed = compatParseMedia(body, session.sourceUrl)
@@ -509,12 +534,13 @@ sub compatReplySpans(client, spans, length as Integer, code as Integer, mime as 
 end sub
 
 ' Build a sparse view. Large original-byte spans are sent directly by the native
-' socket; only the few replacement box-type bytes have their own tiny arrays.
+' socket; only replacement metadata bytes have their own tiny arrays.
 function compatViewSpans(bytes, patches, start as Integer, length as Integer) as Object
     result = []
     cursor = start
     finish = start + length
     for each patch in patches
+        if patch.offset >= finish then exit for
         patchEnd = patch.offset + patch.bytes.Count()
         if patchEnd > cursor and patch.offset < finish
             if patch.offset > cursor
@@ -647,36 +673,79 @@ sub compatServeRoute(session, client)
     if item = invalid then return
     trackId = info.videoId
     if resource.track = "audio" then trackId = info.audioId
-    view = fmp4ViewPatches(item.bytes, trackId, info)
+    view = compatTrackView(item, trackId, info)
     if not view.valid
         session.error = "fragment"
         return
     end if
-    range = compatHttpRange(client.request.range, item.size)
+    length = view.length
+    range = compatHttpRange(client.request.range, length)
     mime = "video/mp4"
     if resource.track = "audio" then mime = "audio/mp4"
     if not range.valid
-        compatReplySpans(client, [], 0, 416, mime, "Content-Range: bytes */" + item.size.ToStr() + Chr(13) + Chr(10), client.request.method = "HEAD")
+        compatReplySpans(client, [], 0, 416, mime, "Content-Range: bytes */" + length.ToStr() + Chr(13) + Chr(10), client.request.method = "HEAD")
         return
     end if
     extra = ""
     if range.code = 206
         last = range.start + range.length - 1
-        extra = "Content-Range: bytes " + range.start.ToStr() + "-" + last.ToStr() + "/" + item.size.ToStr() + Chr(13) + Chr(10)
+        extra = "Content-Range: bytes " + range.start.ToStr() + "-" + last.ToStr() + "/" + length.ToStr() + Chr(13) + Chr(10)
     end if
     spans = []
     if client.request.method <> "HEAD"
-        spans = compatViewSpans(item.bytes, view.patches, range.start, range.length)
+        spans = compatSliceSpans(view.spans, range.start, range.length)
         item.pins += 1
         client.cacheKey = resource.url
     end if
     compatReplySpans(client, spans, range.length, range.code, mime, extra, client.request.method = "HEAD")
 end sub
 
+function compatTrackView(item, trackId, info) as Object
+    if item.views = invalid then item.views = {}
+    key = trackId.ToStr()
+    if item.views.DoesExist(key) then return item.views[key]
+    patches = fmp4ViewPatches(item.bytes, trackId, info)
+    if not patches.valid then return patches
+    view = {valid: true, length: item.size, spans: []}
+    compact = {valid: false}
+    if item.kind = "media" then compact = fmp4CompactTrackView(item.bytes, trackId, patches)
+    if compact.valid
+        view.length = compact.length
+        for each part in compact.ranges
+            view.spans.Append(compatViewSpans(item.bytes, compact.patches, part.offset, part.length))
+        end for
+    else
+        view.spans = compatViewSpans(item.bytes, patches.patches, 0, item.size)
+    end if
+    ' Range probes and both decoder tracks reuse metadata, never copied payloads.
+    item.views[key] = view
+    return view
+end function
+
+function compatSliceSpans(spans, first as Integer, length as Integer) as Object
+    result = []
+    cursor = 0
+    finish = first + length
+    for each span in spans
+        spanEnd = cursor + span.length
+        if cursor >= finish then exit for
+        if spanEnd > first
+            start = first - cursor
+            if start < 0 then start = 0
+            count = span.length - start
+            if cursor + start + count > finish then count = finish - cursor - start
+            if count > 0 then result.Push({data: span.data, offset: span.offset + start, length: count})
+        end if
+        cursor = spanEnd
+    end for
+    return result
+end function
+
 function compatUpdateViews(session) as Boolean
     if session.viewVersion = session.playlistVersion then return true
-    audio = compatRewriteMedia(session.rawPlaylist, session.sourceUrl, "audio", session.registry)
-    video = compatRewriteMedia(session.rawPlaylist, session.sourceUrl, "video", session.registry)
+    ' Share the validated timeline instead of reparsing it for each track.
+    audio = compatRewriteParsedMedia(session.parsed, "audio", session.registry)
+    video = compatRewriteParsedMedia(session.parsed, "video", session.registry)
     if not audio.valid or not video.valid
         session.error = "playlist"
         return false

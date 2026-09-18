@@ -316,10 +316,12 @@ function testInitBytes()
     tracks.Append(testBox("mvex",defaults))
     return testJoin([testBox("ftyp",[105,115,111,109,0,0,0,1]),testBox("moov",tracks)])
 end function
-function testMediaBytes()
+function testMediaBytes(explicitSizes = false)
     tracks = []
     for id = 1 to 2
-        tracks.Append(testBox("traf",testJoin([testBox("tfhd",testJoin([testU32(&h20000),testU32(id)])),testBox("trun",testJoin([[0,0,0,1,0,0,0,1],testU32(100+id*4)]))])))
+        sampleRun = testJoin([[0,0,0,1,0,0,0,1],testU32(100+id*4)])
+        if explicitSizes then sampleRun = testJoin([testU32(&h201),testU32(1),testU32(108+id*4),testU32(4)])
+        tracks.Append(testBox("traf",testJoin([testBox("tfhd",testJoin([testU32(&h20000),testU32(id)])),testBox("trun",sampleRun)])))
     end for
     return testJoin([testBox("moof",tracks),testBox("mdat",[10,20,30,40,50,60,70,80])])
 end function
@@ -343,6 +345,28 @@ sub testDrain(session, client)
 end sub
 
 sub main()
+    testReset()
+    g = getGlobalAA()
+    g.responses[m.top.sourceUrl].body += "#EXT-X-ENDLIST" + Chr(10)
+    session = compatServerSession(m.top.sourceUrl,m.top.requestId)
+    check(compatPrepareServer(session,m.top.variant), "A completed recording prepares the same track service")
+    g.now += 600000
+    beforeDownloads = g.transfers.Count()
+    leaf = compatNeedResource(session,session.sourceUrl,"playlist")
+    check(leaf <> invalid and session.jobs.Count() = 0 and g.transfers.Count() = beforeDownloads, "Finished recordings never refetch their full playlist during playback or seeking")
+    beforeVersion = session.viewVersion
+    check(compatUpdateViews(session) and session.viewVersion = beforeVersion, "Unchanged recording views are reused without re-registering all segments")
+    compatSetMediaBudget(session,{targetDuration:10},{bandwidth:7800000})
+    check(session.maxBody = 16777216 and session.maxBytes = 50331648, "Ten-second source VOD fragments fit within a fixed 16 MiB body and 48 MiB cache budget")
+    session.cache = {first:{size:10000000,used:1,pins:2,kind:"media"},second:{size:10000000,used:2,pins:2,kind:"media"}}
+    session.cacheBytes = 20000000
+    check(compatMakeCacheRoom(session,10000000,"media"), "Paired native audio/video requests leave space for another ten-second segment")
+    compatSetMediaBudget(session,{targetDuration:2},{bandwidth:7800000})
+    check(session.maxBody = 4194304 and session.maxBytes = 12582912, "Ordinary live streams retain their smaller media cache")
+    compatSetMediaBudget(session,{targetDuration:1000000},{bandwidth:1000000000})
+    check(session.maxBody = 16777216 and session.maxBytes = 50331648, "Oversized advertised values cannot overflow or remove the memory cap")
+    compatCleanupServer(session)
+
     testReset()
     g = getGlobalAA()
     session = compatServerSession(m.top.sourceUrl,m.top.requestId)
@@ -393,6 +417,30 @@ sub main()
     for each value in ["bytes=-0","bytes=9-2","bytes=0-1,3-4","bytes=x-4","bytes=9999999999-"]
         check(not compatHttpRange(value,112).valid,"Malformed or multipart byte ranges are rejected")
     end for
+    item = session.cache["https://video.ttvnw.net/path/one.m4s"]
+    item.bytes = testMediaBytes(true)
+    item.size = item.bytes.Count()
+    item.views = {}
+    compactRange = testClient(session.pathPrefix + "/resource/4","GET","bytes=106-115")
+    compatServeRoute(session,compactRange)
+    testDrain(session,compactRange)
+    text = testText(compactRange.socket.output)
+    check(Instr(1,text,"Content-Range: bytes 106-115/116") > 0, "HTTP ranges address the compact track length, not the original muxed fragment")
+    expectedRange = [0,12,109,100,97,116,50,60,70,80]
+    for byte = 0 to 9
+        check(compactRange.socket.output[compactRange.socket.output.Count()-10+byte] = expectedRange[byte], "A range across the resized mdat header returns only video payload")
+    end for
+    compatCloseClient(session,compactRange)
+    compactHead = testClient(session.pathPrefix + "/resource/2","HEAD")
+    compatServeRoute(session,compactHead)
+    testDrain(session,compactHead)
+    text = testText(compactHead.socket.output)
+    check(Instr(1,text,"Content-Length: 116") > 0 and Right(text,4) = Chr(13)+Chr(10)+Chr(13)+Chr(10), "HEAD advertises compact audio size without a response body")
+    check(item.views.Count() = 2 and item.pins = 0, "Track metadata is cached separately while HEAD does not pin media")
+    compactBad = testClient(session.pathPrefix + "/resource/4","GET","bytes=116-")
+    compatServeRoute(session,compactBad)
+    testDrain(session,compactBad)
+    check(Instr(1,testText(compactBad.socket.output),"Content-Range: bytes */116") > 0, "Compact range errors advertise the output bounds")
     crlf = Chr(13)+Chr(10)
     request = "GET /opaque-session/master.m3u8 HTTP/1.1" + crlf + "Host: 127.0.0.1:34567" + crlf + crlf
     check(compatHttpRequest(request,session.authority).valid,"Native origin-form request parses")

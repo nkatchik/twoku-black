@@ -91,6 +91,16 @@ function fmp4TestMedia(audioId = 1, videoId = 2, flags = &h20000)
     return fmp4TestJoin([fmp4TestBox("moof",fmp4TestJoin([fmp4TestTraf(audioId,104,flags),fmp4TestTraf(videoId,108,flags)])),fmp4TestBox("mdat",[10,20,30,40,50,60,70,80])])
 end function
 
+function fmp4TestCompactMedia()
+    tracks = []
+    for id = 1 to 2
+        header = fmp4TestBox("tfhd",fmp4TestJoin([fmp4TestU32(&h20000),fmp4TestU32(id)]))
+        samples = fmp4TestBox("trun",fmp4TestJoin([fmp4TestU32(&h201),fmp4TestU32(1),fmp4TestU32(108+id*4),fmp4TestU32(4)]))
+        tracks.Append(fmp4TestBox("traf",fmp4TestJoin([header,samples])))
+    end for
+    return fmp4TestJoin([fmp4TestBox("moof",tracks),fmp4TestBox("mdat",[10,20,30,40,50,60,70,80])])
+end function
+
 sub fmp4CheckPatches(original, view, expected)
     check(view.valid, "Track view is valid: " + view.error)
     check(view.patches.Count() = expected, "Only other-track metadata is hidden")
@@ -121,6 +131,25 @@ sub main()
     changed[32] = 0 : changed[33] = 0 : changed[34] = 0 : changed[35] = 4
     check(not fmp4TrackInfo(changed).valid, "Malformed nested box bounds cannot escape a track")
     media = fmp4TestMedia()
+    check(not fmp4CompactTrackView(media,1,fmp4ViewPatches(media,1,info)).valid, "Implicit sample sizes retain the size-preserving view")
+    compactMedia = fmp4TestCompactMedia()
+    for id = 1 to 2
+        view = fmp4CompactTrackView(compactMedia,id,fmp4ViewPatches(compactMedia,id,info))
+        check(view.valid and view.length = 116 and view.patches.Count() = 3, "Compact tracks retain headers and only their own four media bytes")
+        check(view.ranges[1].offset = 108+id*4 and view.ranges[1].length = 4, "Audio-first and video-second payloads keep their original bytes")
+    end for
+    joined = fmp4TestJoin([compactMedia,compactMedia])
+    view = fmp4CompactTrackView(joined,2,fmp4ViewPatches(joined,2,info))
+    check(view.valid and view.length = 232 and view.ranges[3].offset = 236, "Later fragments retain correct relative addressing after earlier payloads shrink")
+    indexed = fmp4TestJoin([compactMedia,fmp4TestBox("sidx")])
+    check(not fmp4CompactTrackView(indexed,1,fmp4ViewPatches(indexed,1,info)).valid, "Index boxes with original offsets prevent compaction")
+    brokenCompact = fmp4TestBytes(compactMedia)
+    brokenCompact[55] = 255
+    check(not fmp4CompactTrackView(brokenCompact,1,fmp4ViewPatches(brokenCompact,1,info)).valid, "Sample sizes cannot exceed the paired media payload")
+    brokenCompact = fmp4TestBytes(compactMedia)
+    brokenCompact[51] = 100
+    check(not fmp4CompactTrackView(brokenCompact,1,fmp4ViewPatches(brokenCompact,1,info)).valid, "Sample data cannot point into its container headers")
+    check(not fmp4CompactTrackView(compactMedia,1,{valid:false}).valid, "Compaction requires a previously validated track view")
     fmp4CheckPatches(media,fmp4ViewPatches(media,info.videoId,info),1)
     check(fmp4ViewPatches(media,info.videoId,info).patches[0].offset = 12, "Video view hides the first audio traf")
     check(fmp4ViewPatches(media,info.audioId,info).patches[0].offset = 56, "Audio view hides the second video traf")

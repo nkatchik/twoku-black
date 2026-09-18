@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It compiles the app and runs 36 BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 38 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
