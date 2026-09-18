@@ -200,7 +200,7 @@ sub onGetVideos()
     if m.videosLogin <> m.top.streamerSelectedName then return
     m.channelLoading = false
     m.videosPending = false
-    m.busy.active = m.playbackPending
+    m.busy.active = false
     items = []
     results = m.getVideos.searchResults
     if results <> invalid
@@ -283,7 +283,7 @@ sub onVideoItemSelect()
     task.cancelRequested = false
     task.errorMessage = ""
     m.playbackStatus.text = ""
-    m.busy.active = true
+    m.busy.active = false
     task.control = "RUN"
 end sub
 

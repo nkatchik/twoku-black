@@ -38,6 +38,7 @@ suites = {
     'account': functions('MainScene.brs', ['onHeaderButtonPress','onLogoutRequested','focusHome','onLoginBack','closeLoginPage']) + '\n\n' + functions('Logout.brs', ['revokeSession']),
     'livestatus': (ROOT / 'components/GetLiveStatus.brs').read_text(),
     'channelinfo': (ROOT / 'components/GetUserChannel.brs').read_text(),
+    'timedlabel': (ROOT / 'components/TimedLabel.brs').read_text(),
     'loading': (ROOT / 'components/LoadingIndicator.brs').read_text() + '\n\n' + functions('CategoryScene.brs', ['updateCategoryBusy','startCategoryStreams','onStreamsStopped','onClipsStopped','onClipsLoad','categoryHasRows','onPlaybackStopped','onGridFocus','getMoreChannels','getMoreClips']) + '\n\n' + functions('KeyboardGroup.brs', ['updateSearchBusy','onSearchTextChange','onSearchStopped','onChannelSearchResultChange','onCategorySearchResultChange','onSearchResultChange']),
     'follows': functions('GetUser.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),
     'offline': functions('GetOfflineFollowedChannels.brs', ['getSearchResults']) + '\n\n' + functions('UrlFunctions.brs', ['getTwitchPages', 'getUserProfiles', 'nonEmptyString']),

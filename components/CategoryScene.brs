@@ -374,6 +374,7 @@ function onKeyEvent(key, press) as Boolean
     if not press or not m.top.visible then return false
     if m.browseButtons.hasFocus()
         if key = "left" or key = "right" or key = "OK"
+            cancelPlaybackRequest()
             m.pendingGridFocus = ""
             m.liveLine.visible = not m.liveLine.visible
             m.clipLine.visible = not m.liveLine.visible
@@ -445,11 +446,11 @@ end sub
 
 sub updateCategoryBusy()
     if m.busy = invalid then return
-    loading = m.playbackLoading
+    loading = false
     if m.liveLine.visible and m.streamsLoading and not categoryHasRows(m.browseList) then loading = true
     if m.clipLine.visible and m.clipsLoading and not categoryHasRows(m.browseClipsList) then loading = true
     m.busy.enabled = m.top.visible
-    m.busy.active = loading
+    m.busy.active = loading and not m.playbackLoading
     if loading then m.emptyLabel.visible = false
 end sub
 

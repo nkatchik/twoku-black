@@ -1,6 +1,7 @@
 sub init()
     m.reloadPending = false
     m.loadStatus = m.top.findNode("loadStatus")
+    m.playbackStatus = m.top.findNode("playbackStatus")
     m.busy = m.top.findNode("busy")
     m.browseList = m.top.findNode("browseList")
     m.browseCategoryList = m.top.findNode("browseCategoryList")
@@ -161,6 +162,7 @@ sub finishLaunch()
 end sub
 
 sub onStreamerSelected()
+    cancelPlaybackRequest()
     m.channelPage.streamerSelectedName = m.top.streamerSelectedName
     m.channelPage.streamerSelectedThumbnail = m.top.streamerSelectedThumbnail
     m.channelPage.streamItemFocused = false
@@ -216,6 +218,7 @@ sub onStreamUrlChange()
     if not m.playbackPending or not m.top.visible then return
     if m.getLivePlayback.requestId <> m.playbackRequestId or m.getLivePlayback.streamUrl = "" then return
     m.playbackPending = false
+    m.playbackStatus.text = ""
     showLoadStatus("")
     m.top.streamerRequested = m.getLivePlayback.streamerRequested
     m.top.playbackInfo = m.getLivePlayback.playbackInfo
@@ -533,6 +536,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             else if m.currentlyFocusedButton = 4
                 m.top.buttonPressed = "login"
             else
+                cancelPlaybackRequest()
                 m.currentlySelectedButton = m.currentlyFocusedButton
                 if m.currentlySelectedButton = 0
                     onCategorySelect()
@@ -649,7 +653,8 @@ sub playLiveItem(item as Object)
         if item.Categories.Count() > 0 then m.top.liveGame = item.Categories[0]
     end if
     m.top.liveViewers = item.ShortDescriptionLine2
-    showBusy()
+    m.playbackStatus.text = ""
+    showLoadStatus("")
     m.getLivePlayback.control = "RUN"
 end sub
 
@@ -658,14 +663,16 @@ sub cancelPlaybackRequest()
     m.playbackPending = false
     m.playbackRequestId += 1
     m.getLivePlayback.cancelRequested = true
+    m.playbackStatus.text = ""
     showLoadStatus("")
 end sub
 
 sub onPlaybackRequestStopped()
     if m.getLivePlayback.state <> "stop" or not m.playbackPending then return
+    if not m.top.visible or m.getLivePlayback.cancelRequested then return
     if m.getLivePlayback.requestId <> m.playbackRequestId then return
     m.playbackPending = false
-    if m.getLivePlayback.errorMessage <> "" then showLoadStatus(m.getLivePlayback.errorMessage + " Press OK to retry.")
+    if m.getLivePlayback.errorMessage <> "" then m.playbackStatus.text = m.getLivePlayback.errorMessage + " Press OK to retry."
 end sub
 
 sub updateFollowingLayout()
@@ -696,7 +703,7 @@ sub showBusy()
     m.loadStatus.visible = false
     m.loadStatus.text = ""
     m.busy.enabled = m.top.visible and m.browseMain.visible
-    m.busy.active = true
+    m.busy.active = not m.playbackPending
 end sub
 
 sub showActiveSurface()
@@ -706,7 +713,7 @@ sub showActiveSurface()
     if m.currentlySelectedButton = 2
         updateFollowingLayout()
     else if m.playbackPending
-        showBusy()
+        m.busy.active = false
     else if m.currentlySelectedButton = 1 and m.channelsPending and not m.append
         showBusy()
     else if m.currentlySelectedButton = 0 and m.categoriesPending and not m.appendCategory

@@ -106,6 +106,7 @@ sub main()
     check(m.getLivePlayback.cancelRequested and m.playbackRequestId = 8 and m.top.streamUrl = invalid, "Cancelled stream lookup cannot publish late playback")
     testClipPreload()
     testReloadCategory()
+    testQuietCategoryPlayback()
     print "PASS category grid packing, empty focus, SG metadata, cancelled playback"
 end sub
 
@@ -147,4 +148,47 @@ sub testClipPreload()
     m.getClips.searchResults = [{id:"late",thumbnail_url:"late",title:"Late clip",broadcaster_name:"C",viewer_count:1}]
     insertClips()
     check(original.getChild(6).getChildCount() = 1, "A previous game's clip response cannot append to the new game")
+end sub
+
+sub testQuietCategoryPlayback()
+    m.top.visible = true
+    m.playbackRequestId = 0
+    m.getLivePlayback = node()
+    m.getClipPlayback = node()
+    m.playbackStatus = node()
+    m.busy = node()
+    m.streamsLoading = false
+    m.clipsLoading = false
+    for each clip in [false, true]
+        m.liveLine.visible = not clip
+        m.clipLine.visible = clip
+        m.browseList.visible = not clip
+        m.browseClipsList.visible = clip
+        m.browseList.content = node()
+        m.browseClipsList.content = node()
+        row = node()
+        row.appendChild({Title: "Title", Description: "Channel", Categories: [], ShortDescriptionLine1: "channel-or-clip", ShortDescriptionLine2: "1K"})
+        m.browseList.content.appendChild(row)
+        m.browseClipsList.content.appendChild(row)
+        m.browseList.rowItemSelected = [0,0]
+        m.browseClipsList.rowItemSelected = [0,0]
+        m.playbackStatus.text = "Previous error"
+        if clip
+            onBrowseClipsItemSelect()
+            task = m.getClipPlayback
+        else
+            onBrowseItemSelect()
+            task = m.getLivePlayback
+        end if
+        check(m.playbackLoading and not m.busy.active and task.control = "RUN", "Game stream and clip requests leave the grid visible without a spinner")
+        check(m.playbackStatus.text = "", "A fresh game playback request clears its old error")
+        task.state = "stop"
+        task.errorMessage = "Unavailable"
+        if clip
+            onClipPlaybackStopped()
+        else
+            onPlaybackStopped()
+        end if
+        check(m.playbackStatus.text = "Unavailable" and not m.playbackLoading and not m.busy.active, "Game playback failures reach the timed error label")
+    end for
 end sub

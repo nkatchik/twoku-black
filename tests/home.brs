@@ -30,6 +30,7 @@ sub setup()
     m.global = {sessionVersion: 1}
     m.top.retryAuthentication = false
     m.loadStatus = node()
+    m.playbackStatus = node()
     m.busy = node()
     m.browseButtons = node()
     m.browseList = node()
@@ -128,6 +129,7 @@ sub testReloadHome()
 end sub
 
 sub main()
+    testQuietPlaybackRequest()
     setup()
     focusContent()
     check(m.browseButtons.hasFocus(), "Empty Home gives focus to usable header")
@@ -413,4 +415,30 @@ sub testPreload()
     m.browseCategoryList.jumpToRowItem = invalid
     onCategoryResultChange()
     check(m.getCategories.pagination = "" and m.browseCategoryList.jumpToRowItem = invalid, "An empty page leaves Games and its selection intact and stops preloading")
+end sub
+
+sub testQuietPlaybackRequest()
+    for each tab in [1, 2]
+        setup()
+        m.currentlySelectedButton = tab
+        m.followingView.hasItems = true
+        m.playbackStatus.text = "Previous error"
+        item = {ShortDescriptionLine1: "channel", Title: "Title", Description: "Channel", Categories: [], ShortDescriptionLine2: "123"}
+        playLiveItem(item)
+        check(m.playbackPending and m.getLivePlayback.control = "RUN" and not m.busy.active, "Selecting a channel requests playback without a browse spinner")
+        check(m.playbackStatus.text = "", "Retry clears the previous playback error immediately")
+        showActiveSurface()
+        showBusy()
+        check(not m.busy.active, "Background browse callbacks cannot restore the pre-player spinner")
+        m.getLivePlayback.state = "stop"
+        m.getLivePlayback.errorMessage = "Stream offline"
+        onPlaybackRequestStopped()
+        check(not m.playbackPending and m.playbackStatus.text = "Stream offline Press OK to retry.", "Failed playback publishes an error through the timed message")
+        cancelPlaybackRequest()
+        check(m.playbackStatus.text = "", "Leaving or cancelling clears the timed playback error")
+        playLiveItem(item)
+        m.top.visible = false
+        onPlaybackRequestStopped()
+        check(m.playbackStatus.text = "", "A hidden browse view rejects late playback errors")
+    end for
 end sub

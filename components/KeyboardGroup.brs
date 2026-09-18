@@ -275,7 +275,7 @@ end sub
 sub updateSearchBusy()
     if m.busy = invalid then return
     m.busy.enabled = m.top.visible
-    m.busy.active = m.searching or m.playbackLoading
+    m.busy.active = m.searching and not m.playbackLoading
     if m.busy.active then m.emptyLabel.visible = false
 end sub
 

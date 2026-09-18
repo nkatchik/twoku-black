@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="TimedLabel" extends="Label">
+    <script type="text/brightscript" uri="pkg:/components/TimedLabel.brs" />
+    <children>
+        <Timer id="dismissTimer" duration="5" repeat="false" />
+    </children>
+</component>

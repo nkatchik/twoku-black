@@ -1,7 +1,7 @@
 # Regression checks
 
 The [Tests workflow](../.github/workflows/tests.yml) runs on every push and pull
-request, and can also be started manually. It compiles the app and runs 35 BrightScript suites,
+request, and can also be started manually. It compiles the app and runs 36 BrightScript suites,
 release packaging tests, font checks, independent QR decoding, and the generated
 fMP4 packet/frame proof with HTTP span checks. No Roku or Twitch account is needed.
 
@@ -28,6 +28,18 @@ commit when the run is dispatched. It takes major/minor integers and uses
 retries keep the same version. Only the packaged manifest is stamped, with the
 build padded to at least five digits. Tags use `vMAJOR.MINOR.BUILD` without padding.
 The checks also cover repeatable builds, advancing run numbers, and invalid inputs.
+
+Playback lookup checks cover Channels/Following, game streams and clips,
+search results, and profile live/VOD cards. These requests keep their browsing
+view visible without a spinner; only the player shows playback loading.
+Content refreshes retain their own spinners. Playback-request errors use a
+five-second timed label, clear on retry/navigation, and reject late replies
+from cancelled requests. The timer clears the text so it cannot reappear later.
+On 2026-09-18, a temporary three-second failure fixture on the Roxton confirmed
+no browsing spinner for channel, profile live, or profile VOD requests. Native
+screenshots and timestamps verified five-second expiry and immediate clearing
+on retry; a repeated error received a fresh timeout. The installed production
+archive excludes the delay, forced errors, and tracing.
 
 Reload checks cover the visible Channels/Games/Following grid, game streams and
 clips, profile metadata and recordings, and both search result lists. In-flight

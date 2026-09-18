@@ -37,5 +37,22 @@ sub main()
     m.keyboard.text = ""
     reloadContent()
     check(not m.searching and not m.busy.active, "Empty search reload stays usable without an endless spinner")
+    m.keyboard.text = "channel"
+    m.categoryLine.visible = false
+    m.liveLine.visible = true
+    m.searchResultList.content = node()
+    m.searchResultList.content.appendChild({isLive: true, ShortDescriptionLine1: "Title", title: "Channel", categories: [], description: "channel"})
+    m.searchResultList.itemSelected = 0
+    m.playbackStatus.text = "Previous error"
+    onSearchItemSelect()
+    check(m.playbackLoading and not m.busy.active and m.getLivePlayback.control = "RUN", "Search playback requests wait without a pre-player spinner")
+    check(m.playbackStatus.text = "", "Search retry clears its previous error")
+    m.searching = true
+    updateSearchBusy()
+    check(not m.busy.active, "An overlapping search cannot revive the playback spinner")
+    m.searching = false
+    m.getLivePlayback.errorMessage = "Stream offline"
+    onPlaybackStopped()
+    check(m.playbackStatus.text = "Stream offline" and not m.playbackLoading, "Search failures reach the timed message")
     print "PASS search reload, in-flight response rejection, latest query and selected tab"
 end sub

@@ -79,6 +79,7 @@ sub main()
     check(m.pastBroadcastsList.content.getChild(0).getChild(1).Rating = "0", "Recordings retain their video IDs after the live card is prepended")
     m.pastBroadcastsList.rowItemSelected = [0,0]
     onVideoItemSelect()
+    check(not m.busy.active and m.playbackPending, "Selecting a profile live card keeps the grid free of a pre-player spinner")
     check(m.getLivePlayback.control = "RUN" and m.getLivePlayback.streamerRequested = "channel", "Live card starts the live playback request")
     check(m.getVodPlayback.control <> "RUN" and m.top.streamViewers = "1.2K", "Live selection does not start a VOD token request")
     m.getLivePlayback.streamUrl = "live-url"
@@ -87,13 +88,14 @@ sub main()
     check(m.top.streamUrl = "live-url" and m.top.videoUrl = invalid, "Live playback publishes through the live route")
     m.pastBroadcastsList.rowItemSelected = [0,1]
     onVideoItemSelect()
+    check(not m.busy.active and m.playbackPending, "Profile recordings also wait quietly for playback")
     check(m.getVodPlayback.videoId = "0" and m.getVodPlayback.control = "RUN", "Recording selection still requests the correct VOD")
     m.getLivePlayback.streamUrl = "stale-live-url"
     onGetLiveUrl()
     check(m.top.streamUrl = "live-url", "An older live result cannot replace a newer VOD request")
     m.playbackPending = true
     onGetVideos()
-    check(m.busy.active, "Recording metadata arrival does not clear a pending live/VOD playback spinner")
+    check(not m.busy.active and m.playbackPending, "Recording metadata arrival cannot show a pending live/VOD playback spinner")
     check(channelLiveItem(invalid) = invalid and channelLiveItem({type:""}) = invalid, "Offline and unknown status do not fabricate a live card")
     m.liveItem = invalid
     renderChannelItems()

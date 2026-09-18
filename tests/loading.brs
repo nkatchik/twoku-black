@@ -80,7 +80,7 @@ sub main()
     m.playbackLoading = true
     m.top.visible = false
     updateCategoryBusy()
-    check(m.busy.active and not m.busy.enabled, "A hidden category cannot animate its pending request")
+    check(not m.busy.active and not m.busy.enabled, "A pending playback request has no category spinner")
     m.top.visible = true
     m.getLivePlayback.errorMessage = "This channel is offline"
     onPlaybackStopped()
@@ -113,6 +113,6 @@ sub main()
     m.playbackLoading = true
     m.top.visible = false
     updateSearchBusy()
-    check(m.busy.active and not m.busy.enabled, "Hiding search disables animation for pending playback")
+    check(not m.busy.active and not m.busy.enabled, "Pending playback never animates a search spinner")
     print "PASS native spinner lifecycle, category tabs, errors, hidden views, and queued search"
 end sub

@@ -58,9 +58,9 @@
             <Font role="font" uri="font:SystemFontFile" size="28" />
         </Label>
         <LoadingIndicator id="busy" translation="[608,442]" size="64" />
-        <Label id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
+        <TimedLabel id="playbackStatus" translation="[690,44]" width="545" height="44" horizAlign="right" wrap="true" color="0xFFD479FF">
             <Font role="font" uri="font:SystemFontFile" size="16" />
-        </Label>
+        </TimedLabel>
     </children>
 
 </component>
