@@ -46,7 +46,9 @@
         <Video id="video" enableUI="false" enableTrickPlay="false" seekMode="accurate" notificationInterval="1" width="1280" height="720" />
         <Group id="overlay">
             <Rectangle id="scrim" translation="[0,468]" width="1280" height="252" color="0x06070AD1" />
-            <Poster id="avatar" translation="[42,492]" width="96" height="96" loadDisplayMode="scaleToFill" />
+            <MaskGroup translation="[42,492]" maskUri="pkg:/images/twellie-avatar-mask.png" maskSize="[96,96]">
+                <Poster id="avatar" width="96" height="96" loadDisplayMode="scaleToZoom" />
+            </MaskGroup>
             <Rectangle id="kindBackground" translation="[162,492]" width="48" height="22" color="0xE91916FF" />
             <!-- System-font descent needs an optical offset for the uppercase badge. -->
             <SimpleLabel id="kindLabel" translation="[186,506]" horizOrigin="center" vertOrigin="center" text="LIVE" fontUri="font:BoldSystemFontFile" fontSize="13" />

@@ -363,12 +363,7 @@ function channelFollowerLabel(count) as String
     kind = LCase(type(count))
     if kind <> "integer" and kind <> "roint" and kind <> "float" and kind <> "double" and kind <> "longinteger" and kind <> "rolonginteger" then return ""
     if count < 0 then return ""
-    digits = Int(count).ToStr()
-    label = ""
-    for index = 1 to Len(digits)
-        if index > 1 and (Len(digits) - index + 1) MOD 3 = 0 then label += ","
-        label += Mid(digits, index, 1)
-    end for
+    label = channelViewerLabel(Int(count))
     if count = 1 then return label + " follower"
     return label + " followers"
 end function
